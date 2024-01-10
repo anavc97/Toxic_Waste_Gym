@@ -35,7 +35,7 @@ def main():
 		actions = []
 		for idx in range(n_players):
 			action = rng_gen.choice(len(Actions))
-			print('Player %s at (%d, %d) with orientation (%d, %d) and chose action %s' % (env.players[idx].id, *env.players[idx].position,
+			print('Player %s at (%d, %d) with orientation (%d, %d) and chose action %s' % (env.players[idx].name, *env.players[idx].position,
 																						   *env.players[idx].orientation, Actions(action).name))
 			actions += [action]
 

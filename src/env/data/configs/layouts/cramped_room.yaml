@@ -16,8 +16,8 @@ field:  ["XXXXXXXXXXXXXXX",
          "XXXXXXXXXXXXXXX"]
 
 players: [
-  { orientation: [-1, 0], id: 'human', type: 'human' },
-  { orientation: [-1, 0], id: 'astro', type: 'robot' }
+  { orientation: [-1, 0], id: 0, name: 'human', type: 'human' },
+  { orientation: [-1, 0], id: 1, name: 'astro', type: 'robot' }
   ]
 
 objects : [ 'object_1', 'object_2', 'object_3']

@@ -126,15 +126,18 @@ class ObjectState(object):
 class PlayerState(object):
 	_position: Tuple[int, int]
 	_orientation: Tuple[int, int]
-	_id: str
+	_name: str
+	_id: int
 	_agent_type: int
 	_held_object: List[ObjectState]
 	_reward: float
 	
-	def __init__(self, pos: Tuple[int, int], orientation: Tuple[int, int], agent_id: str, agent_type: int, held_object: List[ObjectState] = None):
+	def __init__(self, pos: Tuple[int, int], orientation: Tuple[int, int], agent_id: int, agent_name: str, agent_type: int,
+				 held_object: List[ObjectState] = None):
 		self._position = pos
 		self._orientation = orientation
 		self._agent_type = agent_type
+		self._name = agent_name
 		self._id = agent_id
 		self._held_object = held_object
 		self._reward = 0
@@ -157,8 +160,12 @@ class PlayerState(object):
 		return self._agent_type
 	
 	@property
-	def id(self) -> str:
+	def id(self) -> int:
 		return self._id
+	
+	@property
+	def name(self) -> str:
+		return self._name
 	
 	@property
 	def reward(self) -> float:
@@ -208,7 +215,7 @@ class PlayerState(object):
 
 	def deepcopy(self):
 		held_objs = (None if self._held_object is None else [self._held_object[idx].deepcopy() for idx in range(len(self._held_object))])
-		return PlayerState(self._position, self._orientation, self._id, self._agent_type, held_objs)
+		return PlayerState(self._position, self._orientation, self._id, self._name, self._agent_type, held_objs)
 	
 	def __eq__(self, other):
 		return (
@@ -222,7 +229,7 @@ class PlayerState(object):
 		return hash((self.position, self.orientation, self.held_objects))
 	
 	def __repr__(self):
-		return "Agent {} at {} facing {} holding {}".format(self._id, self.position, self.orientation, str(self.held_objects))
+		return "Agent {} at {} facing {} holding {}".format(self._name, self.position, self.orientation, str(self.held_objects))
 	
 	def to_dict(self):
 		return {
@@ -436,7 +443,7 @@ class AstroWasteEnv(Env):
 					self._field[row, col] = CellEntity.COUNTER
 				elif cell_val.isdigit():
 					nxt_player_data = players_data[self._n_players]
-					self.add_player((row, col), tuple(nxt_player_data['orientation']), nxt_player_data['id'],
+					self.add_player((row, col), tuple(nxt_player_data['orientation']), nxt_player_data['id'], nxt_player_data['name'],
 									AgentType[nxt_player_data['type'].upper()].value)
 				else:
 					print(colored("[SETUP_ENV] Cell value %s not recognized, considering empty cell" % cell_val, 'yellow'))
@@ -542,11 +549,11 @@ class AstroWasteEnv(Env):
 								sight=self._agent_sight,
 								current_step=self._current_step)
 	
-	def add_player(self, position: Tuple, orientation: Tuple = (-1, 0), agent_id: str = 'human', agent_type: int = AgentType.HUMAN,
+	def add_player(self, position: Tuple, orientation: Tuple = (-1, 0), agent_id: int = 0, agent_name: str = 'human', agent_type: int = AgentType.HUMAN,
 				   held_objs: List[ObjectState] = None) -> bool:
 		
 		if self._n_players < self._max_players:
-			self._players.append(PlayerState(position, orientation, agent_id, agent_type, held_objs))
+			self._players.append(PlayerState(position, orientation, agent_id, agent_name, agent_type, held_objs))
 			self._n_players += 1
 			return True
 		else:
@@ -563,7 +570,7 @@ class AstroWasteEnv(Env):
 			print(colored('[ADD_OBJECT] Max number of objects (%d) already reached, cannot add a new one.' % self._max_objects, 'yellow'))
 			return False
 	
-	def remove_player(self, player_id: str) -> bool:
+	def remove_player(self, player_id: int) -> bool:
 		
 		for player in self._players:
 			if player.id == player_id:

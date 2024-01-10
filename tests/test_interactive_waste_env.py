@@ -19,7 +19,6 @@ def get_history_entry(obs: np.ndarray, actions: List[int], n_agents: int) -> Lis
 	return entry
 
 
-
 def main():
 	
 	field_size = (15, 15)
@@ -43,10 +42,10 @@ def main():
 		print('Iteration: %d' % (i + 1))
 		# actions = [np.random.choice(range(6)) for _ in range(n_players)]
 		actions = []
-		print('\n'.join(['Player %s at (%d, %d) with orientation (%d, %d)' % (env.players[idx].id, *env.players[idx].position, *env.players[idx].orientation)
+		print('\n'.join(['Player %s at (%d, %d) with orientation (%d, %d)' % (env.players[idx].name, *env.players[idx].position, *env.players[idx].orientation)
 			   for idx in range(n_players)]))
 		for idx in range(n_players):
-			action = input('%s action: ' % env.players[idx].id)
+			action = input('%s action: ' % env.players[idx].name)
 			actions += [int(ACTION_MAP[action])]
 
 		print(' '.join([Actions(action).name for action in actions]))
