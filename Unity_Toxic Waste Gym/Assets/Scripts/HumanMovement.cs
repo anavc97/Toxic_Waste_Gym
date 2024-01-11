@@ -6,6 +6,8 @@ public class Human_Movement : MonoBehaviour
 {
     public float movementSpeed;
     public Transform movePoint;
+
+    public LayerMask walls;
     /*[SerializeField] float movementSpeed;
     float vertical, horizontal;
     Rigidbody2D myRigidbody2D;*/
@@ -26,11 +28,17 @@ public class Human_Movement : MonoBehaviour
       {
         if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
         {
-          movePoint.position += new Vector3(Input.GetAxisRaw("Horizontal"), 0f, 0f);
+          if(!Physics2D.OverlapCircle(movePoint.position + new Vector3(Input.GetAxisRaw("Horizontal"), 0f, 0f), .2f, walls))
+          {
+            movePoint.position += new Vector3(Input.GetAxisRaw("Horizontal"), 0f, 0f);
+          }
         }
         else if(Mathf.Abs(Input.GetAxisRaw("Vertical")) == 1f)
         {
-          movePoint.position += new Vector3(0f, Input.GetAxisRaw("Vertical"), 0f);
+          if(!Physics2D.OverlapCircle(movePoint.position + new Vector3(0f, Input.GetAxisRaw("Vertical"), 0f), .2f, walls))
+          {
+            movePoint.position += new Vector3(0f, Input.GetAxisRaw("Vertical"), 0f);
+          }
         }
          
       }
