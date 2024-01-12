@@ -16,6 +16,8 @@ public class GameHandler : MonoBehaviour
 
        
         }, 0.1f);
+        
+        ScoreScript.scoreValue = 20;
     }
 
 
