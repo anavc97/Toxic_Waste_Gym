@@ -1,15 +1,9 @@
 #! /usr/bin/env python
 
-import sys
+import argparse
 import numpy as np
 import gym
 import pickle
-import yaml
-import itertools
-import random
-import time
-import os
-import copy
 import logging
 
 from pathlib import Path
@@ -19,13 +13,12 @@ from threading import Lock, Thread
 from queue import Queue, LifoQueue, Empty, Full
 from src.env.astro_waste_env import AstroWasteEnv, Actions
 from collections import namedtuple
-from abc import ABC, abstractmethod
 
 
 START_POINTS = 100
 
 
-class GeneralAstroWasteGame(ABC):
+class GeneralAstroWasteGame(object):
 	Response = namedtuple("Response", ["result", "reason"])
 	
 	_players: Dict[int, Tuple[str, int]]	# players in the game
@@ -100,24 +93,31 @@ class GeneralAstroWasteGame(ABC):
 		return self._game_env
 	
 	@levels.setter
-	def levels(self, new_levels: List[str]):
+	def levels(self, new_levels: List[str]) -> None:
 		self._levels = new_levels.copy()
 		
 	@max_players.setter
-	def max_players(self, new_max: int):
+	def max_players(self, new_max: int) -> None:
 		self._maximum_players = new_max
 		
 	@points.setter
-	def points(self, new_points: float):
+	def points(self, new_points: float) -> None:
 		self._points = new_points
 		
 	@cycles_run.setter
-	def cycles_run(self, new_cycles: int):
+	def cycles_run(self, new_cycles: int) -> None:
 		self._cycles_run = new_cycles
 		
 	@time_spent.setter
-	def time_spent(self, new_time: float):
+	def time_spent(self, new_time: float) -> None:
 		self._time_spent = new_time
+	
+	@game_env.setter
+	def game_env(self, new_env: AstroWasteEnv) -> None:
+		self._game_env = new_env
+	
+	def add_level(self, new_lvl: str) -> None:
+		self._levels.append(new_lvl)
 	
 	#################################
 	### GAME MANAGEMENT UTILITIES ###
@@ -215,16 +215,15 @@ class GeneralAstroWasteGame(ABC):
 		metadata['ticks'] = self._cycles_run
 		return metadata
 	
-	#########################
-	### GAME MAIN METHODS ###
-	#########################
-	
-	@abstractmethod
-	def game_main_loop(self) -> None:
-		raise NotImplementedError("Specific game approaches should implement the main loop behaviour")
-	
 	
 class PythonAstroGame(GeneralAstroWasteGame):
 	
-	def game_main_loop(self) -> None:
-		pass
+	def game_main_loop(self, env: AstroWasteEnv) -> None:
+		
+		self.game_env = env
+		lvl_idx = 0
+		level = self.levels[lvl_idx]
+		self.game_env.layout = level
+		self.game_env.setup_env()
+		
+		

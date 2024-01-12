@@ -276,7 +276,6 @@ class AstroWasteEnv(Env):
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
 		
-		self.setup_env()
 		self.action_space = Discrete(self._n_actions)
 		self.observation_space = gymnasium.spaces.Tuple(tuple([self._get_observation_space()] * self._n_players))
 		self.action_space.seed(rnd_seed)
@@ -340,6 +339,10 @@ class AstroWasteEnv(Env):
 	@slip.setter
 	def slip(self, new_val: bool) -> None:
 		self._slip = new_val
+	
+	@layout.setter
+	def layout(self, new_layout: str) -> None:
+		self._room_layout = new_layout
 	
 	def seed(self, rng_seed: int):
 		self._np_random, _ = seeding.np_random(rng_seed)
