@@ -1,5 +1,7 @@
 #! /usr/bin/env python
 import numpy as np
+import sys
+print(sys.path)
 
 from src.env.astro_waste_env import Actions, AstroWasteEnv
 from typing import List
