@@ -35,7 +35,8 @@ def main():
 	env = AstroWasteEnv(field_size, layout, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
-	print(env.get_filled_field())
+	# print(env.get_filled_field())
+	env.render()
 	
 	for i in range(N_CYCLES):
 
@@ -49,8 +50,10 @@ def main():
 			actions += [int(ACTION_MAP[action])]
 
 		print(' '.join([Actions(action).name for action in actions]))
+		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)
-		print(env.get_filled_field())
+		# print(env.get_filled_field())
+		env.render()
 
 
 if __name__ == '__main__':

@@ -37,9 +37,10 @@ class HoldState(IntEnum):
 class CellEntity(IntEnum):
 	EMPTY = 0
 	COUNTER = 1
-	ICE = 2
-	AGENT = 3
-	OBJECT = 4
+	TOXIC = 2
+	ICE = 3
+	AGENT = 4
+	OBJECT = 5
 
 
 class Actions(IntEnum):
@@ -439,6 +440,8 @@ class AstroWasteEnv(Env):
 					pass
 				elif cell_val == 'X':
 					self._field[row, col] = CellEntity.COUNTER
+				elif cell_val == 'T':
+					self._field[row, col] = CellEntity.TOXIC
 				elif cell_val == 'I':
 					self._field[row, col] = CellEntity.ICE
 				elif cell_val == 'O':
@@ -858,5 +861,19 @@ class AstroWasteEnv(Env):
 		timeout = self.is_game_timedout()
 		return self.make_obs(), rewards, finished, timeout, {'agents_slipped': slip_agents}
 	
-	def render(self) -> np.ndarray:
-		pass
+	def render(self) -> np.ndarray | list[np.ndarray] | None:
+		if self._render is None:
+			try:
+				from .render import Viewer
+				self._render = Viewer((self.rows, self.cols))
+			except Exception as e:
+				print('Caught exception %s when trying to import Viewer class.' % str(e.args))
+		
+		return self._render.render(self, return_rgb_array=(self.render_mode == 'rgb_array'))
+	
+	def close_render(self):
+		self._render.close()
+		
+	def close(self):
+		super().close()
+		self.close_render()

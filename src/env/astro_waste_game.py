@@ -1,16 +1,8 @@
 #! /usr/bin/env python
 
-import argparse
 import numpy as np
-import gym
-import pickle
-import logging
 
-from pathlib import Path
-from typing import List, Tuple, Callable, Dict, Any
-from time import time
-from threading import Lock, Thread
-from queue import Queue, LifoQueue, Empty, Full
+from typing import List, Tuple, Dict, Any
 from src.env.astro_waste_env import AstroWasteEnv, Actions
 from collections import namedtuple
 
@@ -18,7 +10,7 @@ from collections import namedtuple
 START_POINTS = 100
 
 
-class GeneralAstroWasteGame(object):
+class AstroWasteGame(object):
 	Response = namedtuple("Response", ["result", "reason"])
 	
 	_players: Dict[int, Tuple[str, int]]	# players in the game
@@ -33,7 +25,7 @@ class GeneralAstroWasteGame(object):
 	_time_spent: float						# time since game started
 	_cycles_run: int						# cycles run since game started
 	
-	def __init__(self, cycles_second: int, levels: List[str], max_players: int = 2, game_id: int = 0):
+	def __init__(self, cycles_second: int, levels: List[str], game_env: AstroWasteEnv, max_players: int = 2, game_id: int = 0):
 		
 		self._cycles_second = cycles_second
 		self._levels = levels.copy()
@@ -46,7 +38,7 @@ class GeneralAstroWasteGame(object):
 		self._time_spent = 0.0
 		self._cycles_run = 0
 		self._points = START_POINTS
-		self._game_env = None
+		self._game_env = game_env
 
 	###########################
 	### GETTERS AND SETTERS ###
@@ -216,14 +208,3 @@ class GeneralAstroWasteGame(object):
 		return metadata
 	
 	
-class PythonAstroGame(GeneralAstroWasteGame):
-	
-	def game_main_loop(self, env: AstroWasteEnv) -> None:
-		
-		self.game_env = env
-		lvl_idx = 0
-		level = self.levels[lvl_idx]
-		self.game_env.layout = level
-		self.game_env.setup_env()
-		
-		

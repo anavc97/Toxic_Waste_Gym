@@ -6,7 +6,7 @@ python3 -m venv $HOME/python_envs/astro_waste_env
 source $HOME/python_envs/astro_waste_env/bin/activate
 
 pip3 install --upgrade pip
-pip3 install numpy scipy matplotlib ipython jupyter pandas sympy nose pyyaml termcolor tqdm scikit-learn opencv-python gym
+pip3 install numpy scipy matplotlib ipython jupyter pandas sympy nose pyyaml termcolor tqdm scikit-learn opencv-python gym pyglet
 pip3 install keras_preprocessing --no-deps
 pip3 install tensorflow
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
