@@ -52,9 +52,14 @@ def main():
 		print(' '.join([Actions(action).name for action in actions]))
 		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)
+		print(env.objects)
+		print(rewards)
 		# print(env.get_filled_field())
 		env.render()
+		if env.is_over():
+			break
 
+	env.close()
 
 if __name__ == '__main__':
 	main()

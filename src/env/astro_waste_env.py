@@ -253,7 +253,7 @@ class AstroWasteEnv(Env):
 	Observation = namedtuple("Observation", ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step"])
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, slip: bool, max_objects: int, max_steps: int, rnd_seed: int,
-				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False):
+				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, render_mode: List[str] = None):
 		
 		self._np_random, _ = seeding.np_random(rnd_seed)
 		self._rows, self._cols = terrain_size
@@ -281,6 +281,14 @@ class AstroWasteEnv(Env):
 		self.observation_space = gymnasium.spaces.Tuple(tuple([self._get_observation_space()] * self._n_players))
 		self.action_space.seed(rnd_seed)
 		self.observation_space.seed(rnd_seed)
+		if render_mode is None:
+			self.metadata = {"render_modes": ['human']}
+			self._show_viewer = True
+			self.render_mode = 'human'
+		else:
+			self.metadata = {"render_modes": render_mode}
+			self._show_viewer = 'human' in render_mode
+			self.render_mode = 'rgb_array' if 'rgb_array' in render_mode else 'human'
 	
 	###########################
 	### GETTERS AND SETTERS ###
@@ -761,15 +769,17 @@ class AstroWasteEnv(Env):
 		new_positions = []
 		slip_agents = []
 		agents_disposed_waste = []
-		for act in actions:
-			act_idx = actions.index(act)
+		for act_idx in range(self.n_players):
+			act = actions[act_idx]
 			acting_player = self._players[act_idx]
 			act_direction = ActionDirection[Actions(act).name].value
 			if act != Actions.INTERACT and act != Actions.STAY:
 				acting_player.orientation = act_direction
 			next_pos = (max(min(acting_player.position[0] + act_direction[0], self._rows), 0),
 						max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
-			if self._slip and self._field[acting_player.position] == CellEntity.ICE:
+			if not (self._field[next_pos] == CellEntity.EMPTY or self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
+				new_positions.append(acting_player.position)
+			elif self._slip and self._field[acting_player.position] == CellEntity.ICE:
 				new_positions.append(self.move_ice(acting_player, next_pos))
 				slip_agents.append(acting_player.id)
 			else:
@@ -826,7 +836,8 @@ class AstroWasteEnv(Env):
 			for idx2 in range(self._n_players):
 				if idx2 == idx:
 					continue
-				if new_positions[idx2] == next_pos or (curr_pos == new_positions[idx2] and next_pos == old_positions[idx2]):
+				if ((next_pos == old_positions[idx2] and old_positions[idx2] == new_positions[idx2]) or new_positions[idx2] == next_pos or
+						(curr_pos == new_positions[idx2] and next_pos == old_positions[idx2])):
 					add_move = False
 					break
 			if add_move:
@@ -837,7 +848,7 @@ class AstroWasteEnv(Env):
 			moving_player = self._players[idx]
 			old_pos = old_positions[idx]
 			next_pos = new_positions[idx]
-			if old_pos != next_pos and self._field[next_pos] == CellEntity.EMPTY:
+			if old_pos != next_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
 					for obj in moving_player.held_objects:

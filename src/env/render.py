@@ -27,11 +27,13 @@ def get_display(spec):
 
 class Viewer(object):
     
-    def __init__(self, world_size: Tuple[int, int], grid_size: int=50, icon_size: int=50, visible: bool=True):
+    def __init__(self, world_size: Tuple[int, int], grid_size: int=32, icon_size: int=32, visible: bool=True):
         display = get_display(None)
         self.rows, self.cols = world_size
         self.grid_size = grid_size
         self.icon_size = icon_size
+        self.w_grid_size = grid_size
+        self.h_grid_size = grid_size
 
         self.width = self.cols * grid_size + 1
         self.height = self.rows * grid_size + 1
@@ -56,21 +58,27 @@ class Viewer(object):
         self.toxic_img = pyglet.resource.image('toxic.png')
         self.gaips_img = pyglet.resource.image('logo.png')
         self.project_img = pyglet.resource.image('logo_2.png')
-    
+        
+        
     def close(self):
         self.window.close()
     
     def window_closed_by_user(self):
         self.isopen = False
         exit()
-        
+    
     def render(self, env: AstroWasteEnv, return_rgb_array: bool=False):
         glClearColor(0, 0, 0, 0)
-        self.window.clear()
         self.window.switch_to()
+        self.window.clear()
         self.window.dispatch_events()
         
-
+        if self.window.width != self.width or self.window.height != self.height:
+            self.width = self.window.width
+            self.height = self.window.height
+            self.w_grid_size = self.window.width / self.cols
+            self.h_grid_size = self.window.height / self.rows
+        
         self._draw_world(env)
         self._draw_balls(env)
         self._draw_players(env)
@@ -87,8 +95,8 @@ class Viewer(object):
     def _draw_world(self, env: AstroWasteEnv):
         batch = pyglet.graphics.Batch()
         terrains = []
-        for row in range(self.rows):
-            for col in range(self.cols):
+        for col in range(self.cols):
+            for row in range(self.rows):
                 if env.field[row, col] == CellEntity.COUNTER:
                     img = self.counter_img
                 elif env.field[row, col] == CellEntity.ICE:
@@ -97,9 +105,9 @@ class Viewer(object):
                     img = self.toxic_img
                 else:
                     img = self.floor_img
-                terrains.append(pyglet.sprite.Sprite(img, self.grid_size * col, self.height - self.grid_size * (row + 1), batch=batch))
+                terrains.append(pyglet.sprite.Sprite(img, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
         for t in terrains:
-            t.update(scale=self.grid_size / t.width)
+            t.update(scale=self.w_grid_size / t.width)
         batch.draw()
 
     def _draw_balls(self, env: AstroWasteEnv):
@@ -109,9 +117,9 @@ class Viewer(object):
         for ball in env.objects:
             if ball.hold_state == HoldState.FREE:
                 row, col = ball.position
-                balls.append(pyglet.sprite.Sprite(self.ball_img, self.icon_size * col, self.height - self.icon_size * (row + 1), batch=batch))
+                balls.append(pyglet.sprite.Sprite(self.ball_img, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
         for ball in balls:
-            ball.update(scale=self.icon_size / ball.width)
+            ball.update(scale=self.w_grid_size / ball.width)
         batch.draw()
 
     def _draw_players(self, env: AstroWasteEnv):
@@ -127,7 +135,7 @@ class Viewer(object):
             else:
                 sprite_name = 'astro-%s' % ActionDirection(orientation).name
                 sprite = self.astro_imgs[sprite_name]
-            players.append(pyglet.sprite.Sprite(sprite, self.icon_size * col, self.height - self.icon_size * (row + 1), batch=batch))
+            players.append(pyglet.sprite.Sprite(sprite, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
         for p in players:
-            p.update(scale=self.icon_size / p.width)
+            p.update(scale=self.w_grid_size / p.width)
         batch.draw()
