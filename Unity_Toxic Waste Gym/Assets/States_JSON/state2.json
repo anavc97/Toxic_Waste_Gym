@@ -1,0 +1,41 @@
+{
+    "layout": "cramped_room",
+    "players":  {
+        "human": {
+            "id": 1,
+            "position": [1,2],
+            "orientation": "e",
+            "ball in hand":  [],
+            "health":80
+        },
+        "robot": {
+            "id": 2,
+            "position": [2,2],
+            "orientation": "n",
+            "ball in hand": ["b1"]
+        }
+    },
+    "objects": {
+        "b1": {
+            "position": [1,2],
+            "status": "disposed",
+            "held": "None"
+        },
+        "b2": {
+            "position": [4,4],
+            "status": "free",
+            "held": "None"
+        },
+        "b3": {
+            "position": [1,5],
+            "status": "free",
+            "held": "None"
+        },
+        "b4": {
+            "position": [3,6],
+            "status": "free",
+            "held": "None"
+        }
+    },
+    "score": 10
+}

@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using CodeMonkey.Utils;
+using UnityEditor.Scripting.Python;
+using UnityEditor;
 
 public class GameHandler : MonoBehaviour
 {
@@ -17,8 +19,14 @@ public class GameHandler : MonoBehaviour
        
         }, 0.1f);
         
-        ScoreScript.scoreValue = 20;
+        ScoreScript.scoreValue = 0;
     }
 
+    void Update()
+    {
+        PythonRunner.RunFile($"{Application.dataPath}/Scripts/python_manager.py");
+
+    }
 
 }
+
