@@ -6,7 +6,7 @@
             "position": [1,2],
             "orientation": [-1,0],
             "ball in hand":  ["b1"],
-            "health": 90
+            "health": 0.5
         },
         "robot": {
             "id": 2,
@@ -37,5 +37,5 @@
             "held": "None"
         }
     },
-    "score": 0
+    "score": 69
 }

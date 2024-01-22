@@ -8,13 +8,14 @@ using UnityEditor;
 public class GameHandler : MonoBehaviour
 {
     [SerializeField] private HealthBar healthBar;
+    public float global_health;
+    
     private void Start()
     {   
-        float health = 1f;
         FunctionPeriodic.Create(() => {
-            if (health > 0){
-                health -= 0.001f;
-                healthBar.SetSize(health);            }
+            if (global_health > 0){
+                global_health -= 0.001f;
+                healthBar.SetSize(global_health);            }
 
        
         }, 0.1f);
@@ -23,16 +24,16 @@ public class GameHandler : MonoBehaviour
     }
 
     void Update()
-    {
+    {   
         PythonRunner.RunFile($"{Application.dataPath}/Scripts/python_manager.py");
 
     }
 
-    public void update_Score_Health(float score, float health)
+    public void update_Score_Health(int score, float health)
     {   
-        Debug.Log("Score and Health:");
-        Debug.Log(score);
-        Debug.Log(health)
+        global_health = health;
+        healthBar.SetSize(health);
+        ScoreScript.scoreValue = score;
     }
 
 }
