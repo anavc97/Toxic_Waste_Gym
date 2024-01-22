@@ -4,14 +4,14 @@
         "human": {
             "id": 1,
             "position": [1,2],
-            "orientation": "s",
+            "orientation": [-1,0],
             "ball in hand":  ["b1"],
             "health": 90
         },
         "robot": {
             "id": 2,
             "position": [2,2],
-            "orientation": "n",
+            "orientation": [0,1],
             "ball in hand": []
         }
     },

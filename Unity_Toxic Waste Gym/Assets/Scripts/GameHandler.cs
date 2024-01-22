@@ -28,5 +28,12 @@ public class GameHandler : MonoBehaviour
 
     }
 
+    public void update_Score_Health(float score, float health)
+    {   
+        Debug.Log("Score and Health:");
+        Debug.Log(score);
+        Debug.Log(health)
+    }
+
 }
 

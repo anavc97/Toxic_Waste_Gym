@@ -9,7 +9,7 @@ public class Human_Movement : MonoBehaviour
     public LayerMask walls;
 
     private bool waiting = false;
-    private Animator animator;
+    public Animator animator;
 
     void Awake()
     {
@@ -98,14 +98,18 @@ public class Human_Movement : MonoBehaviour
       waiting = false;
     }
 
-    void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
-    {
+    public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
+    { 
+      Debug.Log(movePoint.position);
+      Debug.Log(newPosition); 
+      Debug.Log(newOrientation);
+
       if(movePoint.position != newPosition)
       {
         movePoint.position = newPosition;
         transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
       }
-      else
+      else if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {
         animator.SetFloat("moveX", newOrientation.x);
         animator.SetFloat("moveY", newOrientation.y);
