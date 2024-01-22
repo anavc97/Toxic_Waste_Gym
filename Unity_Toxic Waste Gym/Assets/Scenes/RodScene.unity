@@ -137,6 +137,7 @@ GameObject:
   - component: {fileID: 262442543}
   - component: {fileID: 262442547}
   - component: {fileID: 262442548}
+  - component: {fileID: 262442549}
   m_Layer: 0
   m_Name: human_player
   m_TagString: Untagged
@@ -161,6 +162,7 @@ MonoBehaviour:
   walls:
     serializedVersion: 2
     m_Bits: 128
+  animator: {fileID: 0}
 --- !u!212 &262442544
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -293,6 +295,18 @@ MonoBehaviour:
   movePoint: {fileID: 0}
   rayPoint: {fileID: 1498305767}
   rayDistance: 1
+--- !u!114 &262442549
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 262442542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be01ea0b6ae8082c5bf02d35a4b70522, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &534356337
 GameObject:
   m_ObjectHideFlags: 0
