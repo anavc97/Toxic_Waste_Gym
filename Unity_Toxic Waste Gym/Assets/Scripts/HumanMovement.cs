@@ -10,9 +10,6 @@ public class Human_Movement : MonoBehaviour
 
     private bool waiting = false;
     private Animator animator;
-    /*[SerializeField] float movementSpeed;
-    float vertical, horizontal;
-    Rigidbody2D myRigidbody2D;*/
 
     void Awake()
     {
@@ -22,8 +19,7 @@ public class Human_Movement : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-      movePoint.parent = null;
-      //myRigidbody2D = GetComponent<Rigidbody2D>();  
+      movePoint.parent = null; 
     }
 
     // Update is called once per frame
@@ -100,6 +96,20 @@ public class Human_Movement : MonoBehaviour
       waiting = true;
       yield return new WaitForSeconds(0.2f);
       waiting = false;
+    }
+
+    void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
+    {
+      if(movePoint.position != newPosition)
+      {
+        movePoint.position = newPosition;
+        transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
+      }
+      else
+      {
+        animator.SetFloat("moveX", newOrientation.x);
+        animator.SetFloat("moveY", newOrientation.y);
+      }
     }
 
 }
