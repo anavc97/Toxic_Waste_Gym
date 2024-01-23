@@ -11,11 +11,13 @@ public class NewBehaviourScript : MonoBehaviour
     [System.Serializable]
     public class Action
     {
-        public Vector2 Move; //Movement position 
-        public int Grab; //1 if player has clicked space, 0 otherwise
+        public string command;
+        public int id;
+        public int data; //0=up, 1=down, 2=left, 3=right, 4=interact
     }
     
     private string filePath =  Application.dataPath + "/human_action.json";
+    private bool actionExecuted = false;
     // Start is called before the first frame update
     void Start()
     {
@@ -25,35 +27,43 @@ public class NewBehaviourScript : MonoBehaviour
     // Update is called once per frame
     void Update()
     {       
+        Action action = new Action();
         if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
         {
-            Action action = new Action
+            action = new Action
             {
-                Move = new Vector2(Input.GetAxisRaw("Horizontal"),0),
-                Grab = 0
+                command = "Player action",
+                id = 1,
+                data = (int)(2.5 + (Input.GetAxisRaw("Horizontal") / 2)) //2=left 3=right
             };
-            string jsonString = JsonUtility.ToJson(action);
-            System.IO.File.WriteAllText(filePath, jsonString);
+            actionExecuted = true;
         }
         else if(Mathf.Abs(Input.GetAxisRaw("Vertical")) == 1f)
         {
-            Action action = new Action
+            action = new Action
             {
-                Move = new Vector2(0,Input.GetAxisRaw("Vertical")),
-                Grab = 0
+                command = "Player action",
+                id = 1,
+                data = (int)(0.5 - (Input.GetAxisRaw("Vertical") / 2))//0=up 1=down
             };
-            string jsonString = JsonUtility.ToJson(action);
-            System.IO.File.WriteAllText(filePath, jsonString);
+            actionExecuted = true;
         }
         else if(Input.GetKeyDown(KeyCode.Space))
         {
-            Action action = new Action
+            action = new Action
             {
-                Move = new Vector2(0,0),
-                Grab = 1
+                command = "Player action",
+                id = 1,
+                data = 4
             };
+            actionExecuted = true;
+        }
+
+        if(actionExecuted)
+        {
             string jsonString = JsonUtility.ToJson(action);
             System.IO.File.WriteAllText(filePath, jsonString);
+            actionExecuted = false;
         }
         //string json = JsonConvert.SerializeObject(action.ToArray(), Formatting.Indented);
         //File.WriteAllText(@"/home/anavc/Toxic_Waste_Gym/Unity_Toxic Waste Gym/Assets/state.json", json);
