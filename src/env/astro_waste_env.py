@@ -876,7 +876,7 @@ class AstroWasteEnv(Env):
 		if self._render is None:
 			try:
 				from .render import Viewer
-				self._render = Viewer((self.rows, self.cols))
+				self._render = Viewer((self.rows, self.cols), visible=self._show_viewer)
 			except Exception as e:
 				print('Caught exception %s when trying to import Viewer class.' % str(e.args))
 		

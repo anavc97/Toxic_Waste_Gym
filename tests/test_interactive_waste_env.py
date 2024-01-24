@@ -54,6 +54,7 @@ def main():
 		state, rewards, dones, _, info = env.step(actions)
 		print(env.objects)
 		print(rewards)
+		print(env.objects)
 		# print(env.get_filled_field())
 		env.render()
 		if env.is_over():

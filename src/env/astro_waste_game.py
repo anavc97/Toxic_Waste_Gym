@@ -17,6 +17,7 @@ class AstroWasteGame(object):
 	_player_actions: Dict[int, int]			# next player action by id
 	_game_id: int							# game id for referencing
 	_is_active: bool						# flag signaling if game is running or paused
+	_game_started: bool						# flag signaling if game has started or not
 	_cycles_second: int						# number of game cycles per second
 	_maximum_players: int					# maximum number of players allowed
 	_levels: List[str]						# list with the levels' names to be played
@@ -24,6 +25,7 @@ class AstroWasteGame(object):
 	_points: float							# game points
 	_time_spent: float						# time since game started
 	_cycles_run: int						# cycles run since game started
+	_lvl_idx: int							# current level idx
 	
 	def __init__(self, cycles_second: int, levels: List[str], game_env: AstroWasteEnv, max_players: int = 2, game_id: int = 0):
 		
@@ -31,12 +33,14 @@ class AstroWasteGame(object):
 		self._levels = levels.copy()
 		self._maximum_players = max_players
 		self._game_id = game_id
+		self._game_started = False
 		
 		self._players = {}
 		self._player_actions = {}
 		self._is_active = False
 		self._time_spent = 0.0
 		self._cycles_run = 0
+		self._lvl_idx = 0
 		self._points = START_POINTS
 		self._game_env = game_env
 
@@ -84,6 +88,14 @@ class AstroWasteGame(object):
 	def game_env(self) -> AstroWasteEnv:
 		return self._game_env
 	
+	@property
+	def level_idx(self) -> int:
+		return self._lvl_idx
+	
+	@property
+	def game_started(self) -> bool:
+		return self._game_started
+	
 	@levels.setter
 	def levels(self, new_levels: List[str]) -> None:
 		self._levels = new_levels.copy()
@@ -107,6 +119,10 @@ class AstroWasteGame(object):
 	@game_env.setter
 	def game_env(self, new_env: AstroWasteEnv) -> None:
 		self._game_env = new_env
+	
+	@level_idx.setter
+	def level_idx(self, new_idx: int) -> None:
+		self._lvl_idx = new_idx
 	
 	def add_level(self, new_lvl: str) -> None:
 		self._levels.append(new_lvl)
@@ -140,13 +156,13 @@ class AstroWasteGame(object):
 		"""
 		state = {}
 		env_state = self._game_env.create_observation()
-		state['players'] = env_state.players
-		state['objects'] = env_state.objects
+		state['players'] = [player.to_dict() for player in self._game_env.players]
+		state['objects'] = [obj.to_dict() for obj in self._game_env.objects]
 		state['finished'] = env_state.game_finished
 		state['timeout'] = env_state.game_timeout
 		return state
 	
-	def env_step(self) -> tuple[np.ndarray, np.ndarray, bool, bool, dict[str, Any]]:
+	def env_step(self) -> tuple:
 		actions = []
 		env_agents = self._game_env.players
 		
@@ -156,13 +172,16 @@ class AstroWasteGame(object):
 		for player_id in self._player_actions.keys():
 			self._player_actions[player_id] = Actions.STAY
 		
-		return self._game_env.step(actions)
+		obs, _, _, _, info = self._game_env.step(actions)
+		
+		return obs, info, self._player_actions
 	
 	def add_player(self, player_id: int, player_name: str, player_type: int) -> Response:
 		n_players = len(self._players)
 		if n_players < self._maximum_players:
 			if player_id not in self._players.keys():
 				self._players[player_id] = (player_name, player_type)
+				self._player_actions[player_id] = Actions.STAY
 				return self.Response(result='no_error', reason='')
 			else:
 				return self.Response(result='id_exists_error', reason='Player with id %d already exists' % player_id)
@@ -193,11 +212,19 @@ class AstroWasteGame(object):
 	def is_full(self) -> bool:
 		return int(len(self._players)) >= self._maximum_players
 	
-	def is_finished(self) -> bool:
+	def level_finished(self) -> bool:
+		# TODO: Update to finish when human player goes through "door"
 		return self._game_env.is_over()
 	
-	def env_reset(self, seed=None) -> None:
-		self._game_env.reset(seed=seed)
+	def game_finished(self) -> bool:
+		return self.level_finished() and self._lvl_idx >= (len(self._levels) - 1)
+	
+	def start_game(self) -> None:
+		self._game_started = True
+	
+	def env_reset(self, seed=None) -> tuple[np.ndarray, dict[str, Any]]:
+		self._game_env.layout = self._levels[self._lvl_idx]
+		return self._game_env.reset(seed=seed)
 	
 	def get_game_metadata(self) -> Dict:
 		metadata = self.get_state()
