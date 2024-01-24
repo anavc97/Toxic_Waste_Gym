@@ -1,46 +1,51 @@
 {
-  "layout": "cramped_room",
+  "command": "new_state",
+  "data":
+  {
+    "layout": "Lvl1",
   
-  "players": 
-  {
-    "human": {
-      "id": 1,
-      "position": [1,1],
-      "orientation": [-1,0],
-      "ball in hand": ["b1"],
-      "health": 0.5
+    "players": 
+    {
+      "human": {
+        "id": 1,
+        "position": [1,1],
+        "orientation": [-1,0],
+        "ball in hand": ["b1"],
+        "health": 0.5
+      },
+      "robot": {
+        "id": 2,
+        "position": [0,-3],
+        "orientation": [0,1],
+        "ball in hand": []
+      }
     },
-    "robot": {
-      "id": 2,
-      "position": [0,-3],
-      "orientation": [0,1],
-      "ball in hand": []
-    }
-  },
-
-  "objects": 
-  {
-    "ball1": {
-      "position": [1,1],
-      "status": "disposed",
-      "held": 1
+  
+    "objects": 
+    {
+      "ball1": {
+        "position": [1,1],
+        "status": "disposed",
+        "held": 1
+      },
+      "ball2": {
+        "position": [4,4],
+        "status": "free",
+        "held": "None"
+      },
+      "ball3": {
+        "position": [1,5],
+        "status": "free",
+        "held": "None"
+      },
+      "ball4": {
+        "position": [3,6],
+        "status": "free",
+        "held": "None"
+      }
     },
-    "ball2": {
-      "position": [4,4],
-      "status": "free",
-      "held": "None"
-    },
-    "ball3": {
-      "position": [1,5],
-      "status": "free",
-      "held": "None"
-    },
-    "ball4": {
-      "position": [3,6],
-      "status": "free",
-      "held": "None"
-    }
-  },
-
-  "score": 69
+  
+    "score": 69
+  }
+  
 }
