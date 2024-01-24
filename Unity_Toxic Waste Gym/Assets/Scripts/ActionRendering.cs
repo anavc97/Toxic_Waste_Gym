@@ -2,14 +2,15 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Human_Movement : MonoBehaviour
+public class ActionRendering : MonoBehaviour
 {
     public float movementSpeed;
     public Transform movePoint;
     public LayerMask walls;
 
     private bool waiting = false;
-    public Animator animator;
+    private bool hasBall = false;
+    private Animator animator;
 
     void Awake()
     {
@@ -59,6 +60,11 @@ public class Human_Movement : MonoBehaviour
           }
         }
       }
+      if(Input.GetKeyDown(KeyCode.Space))
+      {
+        hasBall = !hasBall;
+        animator.SetBool("hasBall", hasBall);
+      }
 
         /*horizontal = Input.GetAxis("Horizontal");
         vertical = Input.GetAxis("Vertical");
@@ -104,10 +110,12 @@ public class Human_Movement : MonoBehaviour
       Debug.Log(newPosition); 
       Debug.Log(newOrientation);
 
-      if(movePoint.position != newPosition)
+      //if(movePoint.position != newPosition)
+      if(transform.position != newPosition)
       {
-        movePoint.position = newPosition;
-        transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
+        //movePoint.position = newPosition;
+        //transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
+        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
       }
       else if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {
@@ -116,4 +124,11 @@ public class Human_Movement : MonoBehaviour
       }
     }
 
+    public void humanInteractWithBall(bool newBallState)
+    {
+      if(hasBall != newBallState){ //if human starts holding or drops a given ball
+        hasBall = newBallState;
+        animator.SetBool("hasBall", hasBall);
+      }
+    }
 }

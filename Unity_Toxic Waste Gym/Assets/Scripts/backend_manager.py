@@ -32,22 +32,24 @@ elif data['command'] == 'new_state':
         # HUMAN PLAYER
         if go.name == "Player": # coordinate conversion: x_unity = y_backend; y_unity = 14 - x_backend
             #Movement and Rotation
-            go.GetComponent("Human_Movement").moveOrRotate(ue.Vector3(human_y,14-human_x,0), ue.Vector2(human_ox,human_oy))
+            go.GetComponent("ActionRendering").moveOrRotate(ue.Vector3(human_y,14-human_x,0), ue.Vector2(human_ox,human_oy))
             ue.Debug.Log(go.transform.position)
             #Ball in hand
             if human_holding:
                 #Check if sprite to holding ball is active
-                go.GetComponent("Human_Movement").interactWithBall(human_holding,1)
+                go.GetComponent("ActionRendering").interactWithBall(human_holding)
 
 
         # ROBOT 
         if go.name == "Robot":
             #Movement
             #go.GetComponent("Robot_Movement").moveOrRotate(ue.Vector3(robot_x,robot_y,0), ue.Vector2(robot_ox,robot_oy)) 
-            
+            go.GetComponent("ActionRenderingRobot").moveOrRotate(ue.Vector3(robot_y,14-robot_x,0), ue.Vector2(robot_ox,robot_oy))
+            ue.Debug.Log(go.transform.position)
             #Ball in hand
             if robot_holding:
                 #Change sprite to holding ball
+                go.GetComponent("ActionRenderingRobot").interactWithBall(robot_holding)
                 ue.Debug.Log("Robot is holding ball(s)")
         
         # BALLS
