@@ -25,7 +25,7 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-        PythonRunner.RunFile($"{Application.dataPath}/Scripts/python_manager.py");
+        PythonRunner.RunFile($"{Application.dataPath}/Scripts/backend_manager.py");
 
     }
 

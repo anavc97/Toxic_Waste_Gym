@@ -1,16 +1,16 @@
 {
-  "command": "new_state",
+  "command": "new_level",
   "data":
   {
-    "layout": "Lvl1",
+    "layout": "Intro",
   
     "players": 
     {
       "human": {
         "id": 1,
-        "position": [1,1],
-        "orientation": [-1,0],
-        "ball in hand": ["b1"],
+        "position": [13,1],
+        "orientation": [0,-1],
+        "ball in hand": ["ball1"],
         "health": 0.5
       },
       "robot": {
@@ -25,12 +25,12 @@
     {
       "ball1": {
         "position": [1,1],
-        "status": "disposed",
+        "status": "free",
         "held": 1
       },
       "ball2": {
         "position": [4,4],
-        "status": "free",
+        "status": "disposed",
         "held": "None"
       },
       "ball3": {
@@ -45,7 +45,7 @@
       }
     },
   
-    "score": 69
+    "score": 30
   }
   
 }
