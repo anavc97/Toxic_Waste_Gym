@@ -31,28 +31,28 @@ public class NewBehaviourScript : MonoBehaviour
         if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
         {
             action = new Action
-            {
-                command = "Player action",
+            {   
+                command = "p_act",
                 id = 1,
                 data = (int)(2.5 + (Input.GetAxisRaw("Horizontal") / 2)) //2=left 3=right
             };
             actionExecuted = true;
         }
         else if(Mathf.Abs(Input.GetAxisRaw("Vertical")) == 1f)
-        {
+        {   
             action = new Action
             {
-                command = "Player action",
+                command = "p_act",
                 id = 1,
                 data = (int)(0.5 - (Input.GetAxisRaw("Vertical") / 2))//0=up 1=down
             };
             actionExecuted = true;
         }
         else if(Input.GetKeyDown(KeyCode.Space))
-        {
+        {   
             action = new Action
             {
-                command = "Player action",
+                command = "p_act",
                 id = 1,
                 data = 4
             };
