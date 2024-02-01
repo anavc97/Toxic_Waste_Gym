@@ -37,8 +37,8 @@ public class SocketClient
                         ""human"": {
                             ""id"": 1,
                             ""position"": [13,1],
-                            ""orientation"": [0,-1],
-                            ""ball in hand"": [""ball1""],
+                            ""orientation"": [1,0],
+                            ""ball in hand"": true,
                             ""health"": 0.5
                         },
                         ""robot"": {
@@ -62,7 +62,7 @@ public class SocketClient
                         },
                         ""ball3"": {
                             ""position"": [1,5],
-                            ""status"": ""free"",
+                            ""status"": ""held"",
                             ""held"": ""None""
                         },
                         ""ball4"": {

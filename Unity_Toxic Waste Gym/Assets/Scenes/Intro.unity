@@ -133,6 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 423366076}
   - component: {fileID: 423366075}
+  - component: {fileID: 423366077}
   m_Layer: 0
   m_Name: SceneManager
   m_TagString: Untagged
@@ -168,6 +169,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &423366077
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 423366074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9401e636e7f416219745efb4d943201, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  SOCKETS_IP: 127.0.0.1
+  INBOUND_PORT: 20501
+  OUTBOUND_PORT: 20500
+  SOCK_TIMEOUT: 5
+  BUFFER_SIZE: 1024
 --- !u!1 &649330985
 GameObject:
   m_ObjectHideFlags: 0
@@ -251,6 +269,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
+      - m_Target: {fileID: 423366077}
+        m_TargetAssemblyTypeName: StartGame, Assembly-CSharp
+        m_MethodName: StartServer
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
       - m_Target: {fileID: 423366075}
         m_TargetAssemblyTypeName: LevelManager, Assembly-CSharp
         m_MethodName: changeScene
@@ -260,7 +290,7 @@ MonoBehaviour:
           m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
-          m_StringArgument: Level1
+          m_StringArgument: level_one
           m_BoolArgument: 0
         m_CallState: 2
 --- !u!114 &649330988

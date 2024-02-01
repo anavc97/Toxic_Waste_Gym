@@ -31,8 +31,8 @@ public class Player
     public int Id { get; set; }
     public List<int> Position { get; set; } = new List<int>();
     public List<int> Orientation { get; set; } = new List<int>();
-    public List<string> BallInHand { get; set; } = new List<string>();
-    public double Health { get; set; }
+    public bool BallInHand { get; set; }
+    public float Health { get; set; }
 }
 
 public class Ball
@@ -67,39 +67,6 @@ public class GameHandler : MonoBehaviour
         
         ScoreScript.scoreValue = 0;
         StartServer();
-    }
-
-    void Update()
-    {   
-        // Access the data as needed
-        Debug.Log($"Command: {gameData.Command}");
-        Debug.Log($"Layout: {gameData.Data.Layout}");
-        Debug.Log($"Score: {gameData.Data.Score}");
-
-        foreach (var player in gameData.Data.Players)
-        {
-            Debug.Log($"\nPlayer: {player.Key}");
-            Debug.Log($"ID: {player.Value.Id}");
-            Debug.Log($"Position: [{player.Value.Position[0]}, {player.Value.Position[1]}]");
-            Debug.Log($"Orientation: [{player.Value.Orientation[0]}, {player.Value.Orientation[1]}]");
-            Debug.Log($"Ball in hand: {string.Join(", ", player.Value.BallInHand)}");
-            Debug.Log($"Health: {player.Value.Health}");
-        }
-
-        foreach (var obj in gameData.Data.Objects)
-        {
-            Debug.Log($"\nObject: {obj.Key}");
-            Debug.Log($"Position: [{obj.Value.Position[0]}, {obj.Value.Position[1]}]");
-            Debug.Log($"Status: {obj.Value.Status}");
-            Debug.Log($"Held: {obj.Value.Held}");
-        }    
-    }
-
-    public void update_Score_Health(int score, float health)
-    {   
-        global_health = health;
-        healthBar.SetSize(health);
-        ScoreScript.scoreValue = score;
     }
 
     void StartServer()
@@ -161,7 +128,72 @@ public class GameHandler : MonoBehaviour
         }
 
     } 
+
+    void Update()
+    {   
+        if (gameData != null)
+        {
+            // Access the data as needed
+            if (gameData.Command == "debug")
+            {
+                foreach (var player in gameData.Data.Players)
+                    {
+                        if(player.Key == "human")
+                        {
+                            Debug.Log($"\nPlayer: {player.Key}");
+
+                            GameObject player_obj = GameObject.Find(player.Key);
+                            ActionRendering action = player_obj.GetComponent<ActionRendering>();
+
+                            action.moveOrRotate(new Vector3(player.Value.Position[1],14-player.Value.Position[0],0), new Vector2(player.Value.Orientation[0],player.Value.Orientation[1]));
+
+                            action.humanInteractWithBall(player.Value.BallInHand);
+
+                            update_Score_Health(gameData.Data.Score, player.Value.Health);
+                        }
+
+                    }
+
+                    foreach (var obj in gameData.Data.Objects)
+                    {
+                        updateBallState(obj.Key, obj.Value.Status, obj.Value.Position);
+                        
+                    }    
+            }
+        } 
+
     
+    }
+
+    void updateBallState(string objName, string status, List<int> position)
+    {
+        GameObject ball = GameObject.Find(objName);
+        if (ball != null)
+        {
+            if(status == "disposed")
+            {
+                Destroy(ball);
+            }
+            else if(status == "held")
+            {
+                ball.GetComponent<SpriteRenderer>().enabled = false;
+            }
+            else if(status == "free")
+            {   
+                ball.transform.position = new Vector3(position[1], 14-position[0], 0);
+                ball.GetComponent<SpriteRenderer>().enabled = true;
+            }
+        }
+        
+    }
+    
+    public void update_Score_Health(int score, float health)
+    {   
+        global_health = health;
+        healthBar.SetSize(health);
+        ScoreScript.scoreValue = score;
+    }
+
     void createJSON(string myStringData)
     {
 
@@ -176,7 +208,8 @@ public class GameHandler : MonoBehaviour
     }
     
     void readState(string data)
-    {
+    {   
+        Debug.Log("Data received: " + data);
         // Deserialize the JSON content into a Game object
         gameData = JsonConvert.DeserializeObject<GameData>(data);
 
@@ -202,7 +235,7 @@ public class GameHandler : MonoBehaviour
     
     void OnDisable()
     {   
-        Debug.Log("Disabled.")
+        Debug.Log("Disabled.");
         stopServer();
     }
 

@@ -65,6 +65,7 @@ def process_inbound(sock: socket.socket, stop_condition, game: AstroWasteGame, l
 				command = json_message['command']
 				data = json_message['data']
 				logger.info('Received command: %s and data %s' % (command, str(data)))
+				print('Received command: %s and data %s' % (command, str(data)))
 				
 				if command == GameOperations.ADD_PLAYER.value:
 					p_id = int(data['id'])
@@ -149,6 +150,7 @@ def main():
 	inbound_socket.listen()
 	logger.info('Inbound socket started at %s:%s' % (SOCKETS_IP, INBOUND_PORT))
 	
+	
 	# Create thread for inbound socket to listen for commands
 	stop_socket = threading.Event()
 	in_thread = threading.Thread(target=process_inbound, args=(inbound_socket, stop_socket, game, logger, close_game))
@@ -163,6 +165,9 @@ def main():
 
 			else:
 				if not initialized_outbound:
+					logger.info("Waiting for Unity side.")
+					time.sleep(10)
+					logger.info("Done waiting. Trying connection.")
 					# Outbound only has to connect to front end socket
 					outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
 					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))

@@ -4695,6 +4695,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   healthBar: {fileID: 1437081730}
   global_health: 0
+  SOCKETS_IP: 127.0.0.1
+  INBOUND_PORT: 20501
+  OUTBOUND_PORT: 20500
+  SOCK_TIMEOUT: 5
+  BUFFER_SIZE: 1024
 --- !u!4 &1531758260
 Transform:
   m_ObjectHideFlags: 0
@@ -5156,7 +5161,7 @@ GameObject:
   - component: {fileID: 2026953305}
   - component: {fileID: 2026953304}
   m_Layer: 0
-  m_Name: Robot
+  m_Name: robot
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5254,7 +5259,7 @@ Transform:
   m_GameObject: {fileID: 2042814945}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8, y: 8, z: 0}
+  m_LocalPosition: {x: 8, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -5276,7 +5281,7 @@ GameObject:
   - component: {fileID: 2108296917}
   - component: {fileID: 2108296923}
   m_Layer: 0
-  m_Name: Player
+  m_Name: human
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5421,7 +5426,7 @@ Transform:
   m_GameObject: {fileID: 2108296916}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 8, y: 1, z: 0}
+  m_LocalPosition: {x: 2, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5446,6 +5451,7 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 464830693}
+  - {fileID: 1531758260}
   - {fileID: 314387914}
   - {fileID: 746641826}
   - {fileID: 1437081731}
@@ -5459,6 +5465,5 @@ SceneRoots:
   - {fileID: 1421056273}
   - {fileID: 2108296922}
   - {fileID: 65469806}
-  - {fileID: 1531758260}
   - {fileID: 2026953305}
   - {fileID: 1599116557}
