@@ -30,5 +30,10 @@ Server and Unity should be synced - server should be sending states, Unity shoul
 **solution:**  usually works to just wait a bit.
 
 ## Current issues
+
+# In Unity
 1. Unity Human orientation and Server orientation don't match
-2. 
+
+# In Backend
+1. Balls can be dropped on the floor (illegal move)
+2. Step must change the orientation before it moves the position
