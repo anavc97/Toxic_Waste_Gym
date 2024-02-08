@@ -115,7 +115,8 @@ class ObjectState(object):
 		return "%s@(%d, %d), held_status: %s" % (self._id, self._position[0], self._position[1], HoldState(self._hold_state).name)
 	
 	def to_dict(self):
-		return {"name": self._id, "position": self._position, "hold_state": self._hold_state, "holding_player": self._holding_player}
+		return {"name": self._id, "position": self._position, "hold_state": self._hold_state,
+				"holding_player": self._holding_player.id if self._holding_player else None}
 	
 	@classmethod
 	def from_dict(cls, obj_dict):

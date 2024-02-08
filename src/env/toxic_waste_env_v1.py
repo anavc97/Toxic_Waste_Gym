@@ -4,7 +4,7 @@ import numpy as np
 import yaml
 import gymnasium
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, ObjectState
+from src.env.toxic_waste_env_base import BaseToxicEnv, ObjectState, PlayerState
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.utils import seeding
@@ -58,130 +58,6 @@ class ActionDirection(Enum):
 	RIGHT = (0, 1)
 	INTERACT = (0, 0)
 	STAY = (0, 0)
-
-
-class PlayerState(object):
-	_position: Tuple[int, int]
-	_orientation: Tuple[int, int]
-	_name: str
-	_id: int
-	_agent_type: int
-	_held_object: List[ObjectState]
-	_reward: float
-	
-	def __init__(self, pos: Tuple[int, int], orientation: Tuple[int, int], agent_id: int, agent_name: str, agent_type: int,
-				 held_object: List[ObjectState] = None):
-		self._position = pos
-		self._orientation = orientation
-		self._agent_type = agent_type
-		self._name = agent_name
-		self._id = agent_id
-		self._held_object = held_object
-		self._reward = 0
-		
-		if self._held_object is not None:
-			for obj in self._held_object:
-				assert isinstance(obj, ObjectState)
-				assert obj.position == self._position
-	
-	@property
-	def position(self) -> Tuple:
-		return self._position
-	
-	@property
-	def orientation(self) -> Tuple:
-		return self._orientation
-	
-	@property
-	def agent_type(self) -> int:
-		return self._agent_type
-	
-	@property
-	def id(self) -> int:
-		return self._id
-	
-	@property
-	def name(self) -> str:
-		return self._name
-	
-	@property
-	def reward(self) -> float:
-		return self._reward
-	
-	@property
-	def held_objects(self) -> List[ObjectState]:
-		if self._held_object is not None:
-			return self._held_object.copy()
-		else:
-			return self._held_object
-
-	@position.setter
-	def position(self, new_pos: Tuple[int, int]) -> None:
-		self._position = new_pos
-		
-	@orientation.setter
-	def orientation(self, new_orientation: Tuple[int, int]) -> None:
-		self._orientation = new_orientation
-	
-	@reward.setter
-	def reward(self, new_val: float) -> None:
-		self._reward = new_val
-	
-	def hold_object(self, other_obj: ObjectState) -> None:
-		assert isinstance(other_obj, ObjectState), "[HOLD OBJECT ERROR] object is not an ObjectState"
-		if self._held_object is not None:
-			self._held_object.append(other_obj)
-		else:
-			self._held_object = [other_obj]
-			
-	def drop_object(self, obj_id: str) -> None:
-		assert self.is_holding_object(), "[DROP OBJECT] holding no objects"
-		
-		for obj in self._held_object:
-			if obj.id == obj_id:
-				self._held_object.remove(obj)
-				return
-		
-		print(colored('[DROP OBJECT] no object found with id %s' % obj_id, 'yellow'))
-
-	def is_holding_object(self) -> bool:
-		if self._held_object is not None:
-			return len(self._held_object) > 0
-		else:
-			return False
-
-	def deepcopy(self):
-		held_objs = (None if self._held_object is None else [self._held_object[idx].deepcopy() for idx in range(len(self._held_object))])
-		return PlayerState(self._position, self._orientation, self._id, self._name, self._agent_type, held_objs)
-	
-	def __eq__(self, other):
-		return (
-				isinstance(other, PlayerState)
-				and self.position == other.position
-				and self.orientation == other.orientation
-				and self.held_objects == other.held_objects
-		)
-	
-	def __hash__(self):
-		return hash((self.position, self.orientation, self.held_objects))
-	
-	def __repr__(self):
-		return "Agent {} at {} facing {} holding {}".format(self._name, self.position, self.orientation, str(self.held_objects))
-	
-	def to_dict(self):
-		return {
-			"position": self.position,
-			"orientation": self.orientation,
-			"held_object": [self.held_objects[idx].to_dict() for idx in range(len(self._held_object))] if self.held_objects is not None else None,
-		}
-	
-	@staticmethod
-	def from_dict(player_dict):
-		player_dict = deepcopy(player_dict)
-		held_obj = player_dict.get("held_object", None)
-		if held_obj is not None:
-			player_dict["held_object"] = [ObjectState.from_dict(held_obj[idx]) for idx in range(len(held_obj))]
-		return PlayerState(**player_dict)
 
 
 # noinspection PyUnresolvedReferences
