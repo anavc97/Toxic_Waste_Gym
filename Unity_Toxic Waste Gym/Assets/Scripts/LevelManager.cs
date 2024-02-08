@@ -19,10 +19,8 @@ public class LevelManager : MonoBehaviour
     {
         
     }
-
     public void changeScene(string sceneName)
     {
-        PythonRunner.RunFile($"{Application.dataPath}/Scripts/StartGame.py");
         SceneManager.LoadScene(sceneName);
     }
 }

@@ -20,7 +20,8 @@ public class ActionRendering : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-      movePoint.parent = null; 
+      movePoint.parent = null;
+      movePoint.position = transform.position;
     }
 
     // Update is called once per frame
@@ -106,16 +107,15 @@ public class ActionRendering : MonoBehaviour
 
     public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
     { 
-      Debug.Log(movePoint.position);
-      Debug.Log(newPosition); 
-      Debug.Log(newOrientation);
 
       //if(movePoint.position != newPosition)
       if(transform.position != newPosition)
       {
-        //movePoint.position = newPosition;
-        //transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
-        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
+        //Debug.Log("Transform: " + transform.position);
+        //Debug.Log("New position: " + newPosition); 
+        movePoint.position = newPosition;
+        transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
+        //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
       }
       else if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {

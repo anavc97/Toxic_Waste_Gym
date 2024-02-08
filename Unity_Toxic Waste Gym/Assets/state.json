@@ -1,5 +1,5 @@
 {
-  "command": "new_level",
+  "command": "debug",
   "data":
   {
     "layout": "Intro",
