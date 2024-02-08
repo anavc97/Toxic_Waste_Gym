@@ -6,7 +6,7 @@ import six
 import json
 
 from gym import error
-from .astro_waste_env import AstroWasteEnv, CellEntity, HoldState, AgentType, ActionDirection
+from .toxic_waste_env_v1 import AstroWasteEnv, CellEntity, HoldState, AgentType, ActionDirection
 from typing import Tuple
 from pathlib import Path
 from pyglet.gl import *

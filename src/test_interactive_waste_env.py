@@ -3,7 +3,7 @@ import numpy as np
 import sys
 print(sys.path)
 
-from src.env.astro_waste_env import Actions, AstroWasteEnv
+from src.env.toxic_waste_env_v1 import Actions, AstroWasteEnv
 from typing import List
 
 RNG_SEED = 12072023

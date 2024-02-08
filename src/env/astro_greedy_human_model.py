@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .astro_waste_env import Actions, CellEntity, ActionDirection, AstroWasteEnv, PlayerState, ObjectState, AgentType
+from .toxic_waste_env_v1 import Actions, CellEntity, ActionDirection, AstroWasteEnv, PlayerState, ObjectState, AgentType
 from typing import List, Tuple, Dict
 from enum import IntEnum
 

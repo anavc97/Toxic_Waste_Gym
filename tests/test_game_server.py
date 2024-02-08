@@ -5,9 +5,12 @@ import socket
 import threading
 import time
 import sys
+import logging
 
 from enum import Enum
-from src.env.astro_waste_env import AgentType, Actions
+from src.env.toxic_waste_env_v1 import AgentType, Actions
+from pathlib import Path
+from datetime import datetime
 
 
 RNG_SEED = 12012024
@@ -31,28 +34,39 @@ class GameOperations(Enum):
 	START_GAME = 'start_game'
 
 
-def process_inbound(sock: socket.socket, stop_condition):
-	conn, addr = sock.accept()
-	print('Receiving updates from front end at %s:%d' % (addr[0], addr[1]))
-	with conn:
-		while not stop_condition.is_set():
-			try:
-				message = conn.recv(BUFFER_SIZE).decode('utf-8')
-				print(message)
-			except socket.timeout as e:
-				print("[TIMEOUT] Socket timeout after %d seconds" % SOCK_TIMEOUT)
-				message = 'TIMEOUT'
+def process_inbound(sock: socket.socket, stop_condition, logger: logging.Logger):
+	try:
+		conn, addr = sock.accept()
+		print('Receiving updates from front end at %s:%d' % (addr[0], addr[1]))
+		logger.info('Receiving updates from front end at %s:%d' % (addr[0], addr[1]))
+		with conn:
+			while not stop_condition.is_set():
+				try:
+					message = conn.recv(BUFFER_SIZE).decode('utf-8')
+				except socket.timeout as e:
+					logger.info("[TIMEOUT] Socket timeout after %d seconds" % SOCK_TIMEOUT)
+					message = 'TIMEOUT'
+				
+				except socket.error as e:
+					logger.info("[ERROR] Socket error: %s" % e)
+					message = 'ERROR'
+				
+				logger.info('Got message: %s' % message)
 			
-			except socket.error as e:
-				print("[ERROR] Socket error: %s" % e)
-				message = 'ERROR'
-			
-			print('Got message: %s' % message)
-		
-		conn.close()
+			conn.close()
+	
+	except KeyboardInterrupt:
+		print('Exiting test listener')
 
 
 def main():
+	now = datetime.now()
+	log_dir = Path(__file__).parent.absolute().parent.absolute() / 'logs'
+	log_filename = ('test_game_server' + '_' + now.strftime("%Y%m%d-%H%M%S"))
+	logging.basicConfig(filename=(log_dir / (log_filename + '_log.txt')), filemode='w', format='%(asctime)s %(levelname)s:\t%(message)s',
+						datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
+	logger = logging.getLogger('game_logger')
+	
 	# Create inbound and outbound TCP sockets
 	inbound_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
 	outbound_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
@@ -61,15 +75,18 @@ def main():
 	inbound_socket.bind((SOCKETS_IP, INBOUND_PORT))
 	inbound_socket.listen()
 	print('Inbound socket started at %s:%s' % (SOCKETS_IP, INBOUND_PORT))
+	logger.info('Inbound socket started at %s:%s' % (SOCKETS_IP, INBOUND_PORT))
 	
 	# Outbound only has to connect to front end socket
 	outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
 	print('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
+	logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
 	print("Sockets up and running")
+	logger.info("Sockets up and running")
 	
 	# Create thread for inbound socket to listen for commands
 	stop_socket = threading.Event()
-	in_thread = threading.Thread(target=process_inbound, args=(inbound_socket, stop_socket))
+	in_thread = threading.Thread(target=process_inbound, args=(inbound_socket, stop_socket, logger))
 	in_thread.start()
 	
 	# Main game cycle
@@ -105,7 +122,6 @@ def main():
 			except Exception as e:
 				print("[ERROR] General error: %s" % e)
 			
-	
 	except KeyboardInterrupt:
 		print('Received Keyboard Interrupt, closing game and sockets')
 		inbound_socket.close()

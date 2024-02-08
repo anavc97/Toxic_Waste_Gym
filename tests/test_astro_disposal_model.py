@@ -10,7 +10,7 @@ import flax.linen as nn
 
 from overcooked_ai_py import __file__ as overcooked_file
 from dl_algos.dqn import DQNetwork
-from src.env.astro_waste_env import OvercookedGame
+from src.env.toxic_waste_env_v1 import OvercookedGame
 from overcooked_ai_py.mdp.actions import Direction, Action
 from get_human_model import extract_human_model
 from pathlib import Path

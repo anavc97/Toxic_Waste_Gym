@@ -3,7 +3,7 @@
 import numpy as np
 
 from typing import List, Tuple, Dict, Any
-from src.env.astro_waste_env import AstroWasteEnv, Actions
+from src.env.toxic_waste_env_v1 import AstroWasteEnv, Actions
 from collections import namedtuple
 
 

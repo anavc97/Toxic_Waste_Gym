@@ -8,8 +8,7 @@ import threading
 import time
 import sys
 
-from queue import Queue, LifoQueue, Empty, Full
-from src.env.astro_waste_env import AstroWasteEnv, Actions
+from src.env.toxic_waste_env_v1 import AstroWasteEnv, Actions
 from src.env.astro_waste_game import AstroWasteGame
 from enum import Enum
 from datetime import datetime
@@ -122,11 +121,17 @@ def main():
 	parser.add_argument('--layer-obs', dest='use_layers', action='store_true', help='Environment observation in layer organization')
 	parser.add_argument('--centered-obs', dest='centered_obs', action='store_true', help='Environment observations are centered on each agent')
 	parser.add_argument('--use-encoding', dest='use_encoding', action='store_true', help='Use one-hot encoding for categorical observations')
+	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
+						help='List of render modes for the environment')
 	args = parser.parse_args()
 	
-	env = AstroWasteEnv(args.field_size, args.game_levels[0], args.max_env_players, args.has_slip, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
-						args.use_layers, args.centered_obs, args.use_encoding)
+	env = AstroWasteEnv(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
+						args.use_layers, args.centered_obs, args.use_encoding, args.render_mode, slip=args.has_slip)
 	game = AstroWasteGame(args.cycles_second, args.game_levels, env, args.max_game_players, args.game_id)
+	if args.render_mode and 'human' in args.render_mode:
+		render = True
+	else:
+		render = False
 	close_game = False
 	now = datetime.now()
 	log_dir = Path(__file__).parent.absolute().parent.absolute() / 'logs'
@@ -162,6 +167,8 @@ def main():
 				continue
 
 			else:
+				if render:
+					env.render()
 				if not initialized_outbound:
 					# Outbound only has to connect to front end socket
 					outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
