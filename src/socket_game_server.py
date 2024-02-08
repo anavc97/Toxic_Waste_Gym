@@ -155,7 +155,7 @@ def main():
 	stop_socket = threading.Event()
 	in_thread = threading.Thread(target=process_inbound, args=(inbound_socket, stop_socket, game, logger, close_game))
 	in_thread.start()
-	
+	i = 0
 	# Main game cycle
 	try:
 		obs, *_ = game.env_reset()
@@ -165,10 +165,10 @@ def main():
 
 			else:
 				if not initialized_outbound:
-					logger.info("Waiting for Unity side.")
-					time.sleep(10)
-					logger.info("Done waiting. Trying connection.")
 					# Outbound only has to connect to front end socket
+					print("Waiting a bit for Unity.")
+					time.sleep(1)
+					print("Ready to connect.")
 					outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
 					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
 					initialized_outbound = True
@@ -179,10 +179,12 @@ def main():
 				try:
 					# When game finishes, send message to front end warning that the game is over
 					if game.game_finished():
+						logger.info("game finished")
 						out_msg = json.dumps({'command': 'game_finished', 'data': ''})
 
 					# When level has finished, change to next level, reset environment and send message with new level to front end
 					elif game.level_finished():
+						logger.info("level finished")
 						game.level_idx += 1
 						nxt_level = game.levels[game.level_idx]
 						game.game_env.layout = nxt_level
@@ -193,7 +195,11 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
+						logger.info("new state: ", new_state)
 
+					i += 1
+					out_msg = out_msg + "<EOF>"
+					logger.info(out_msg)
 					outbound_socket.sendall(out_msg.encode('utf-8'))
 
 				except socket.error as e:

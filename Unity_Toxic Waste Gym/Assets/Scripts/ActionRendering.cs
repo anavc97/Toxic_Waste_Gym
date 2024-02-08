@@ -107,15 +107,12 @@ public class ActionRendering : MonoBehaviour
 
     public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
     { 
-      Debug.Log(movePoint.position);
-      Debug.Log(newOrientation);
 
       //if(movePoint.position != newPosition)
       if(transform.position != newPosition)
       {
-        Debug.Log("Transform: " + transform.position);
-        Debug.Log("New position: " + newPosition); 
-        Debug.Log("Time: " + Time.deltaTime);
+        //Debug.Log("Transform: " + transform.position);
+        //Debug.Log("New position: " + newPosition); 
         movePoint.position = newPosition;
         transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
         //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  

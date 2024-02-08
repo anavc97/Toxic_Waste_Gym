@@ -271,7 +271,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 423366077}
         m_TargetAssemblyTypeName: StartGame, Assembly-CSharp
-        m_MethodName: StartServer
+        m_MethodName: socketCode
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
