@@ -33,6 +33,7 @@ Server and Unity should be synced - server should be sending states, Unity shoul
 
 # In Unity
 1. Unity Human orientation and Server orientation don't match
+2. Unity Human holding ball animation is not working 
 
 # In Backend
 1. Balls can be dropped on the floor (illegal move)
