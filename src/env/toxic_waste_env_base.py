@@ -234,6 +234,7 @@ class PlayerState(object):
 	
 	def to_dict(self):
 		return {
+			"name": self._name,
 			"position": self.position,
 			"orientation": self.orientation,
 			"held_object": [self.held_objects[idx].to_dict() for idx in range(len(self._held_object))] if self.held_objects is not None else None,

@@ -21,24 +21,25 @@ public class InputHandler : MonoBehaviour
         public int id; // human = 0 astro = 1
         public int action; //0=up, 1=down, 2=left, 3=right, 4=interact
     }
-
     private string filePath =  Application.dataPath + "/human_action.json";
     private bool actionExecuted = false;
     public bool sendAction = true;
     public Socket outbound_socket;
+    private bool gameOver;
     void Start()
     {
-    
+
     }
 
     // Update is called once per frame
     void Update()
-    {       
+    {   
+        gameOver = GameObject.Find("GameHandler").GetComponent<GameHandler>().gameOver;
         Action action = new Action();
         action.command = "p_act";
         action.data = new ActionData();
         
-        if (sendAction)
+        if (sendAction && !gameOver)
         {
             if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
             {   
