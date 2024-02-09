@@ -24,6 +24,7 @@ public class InputHandler : MonoBehaviour
     private string filePath =  Application.dataPath + "/human_action.json";
     private bool actionExecuted = false;
     public bool sendAction = true;
+    private bool waiting = false;
     public Socket outbound_socket;
     private bool gameOver;
     void Start()
@@ -46,18 +47,30 @@ public class InputHandler : MonoBehaviour
                 action.data.id = 0;
                 action.data.action = (int)(2.5 + (Input.GetAxisRaw("Horizontal") / 2)); //2=left 3=right
                 actionExecuted = true;
+                if (!waiting)
+                {
+                    StartCoroutine(Wait());
+                }
             }
             else if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {   
                 action.data.id = 0;
                 action.data.action = (int)(0.5 - (Input.GetAxisRaw("Vertical") / 2));//0=up 1=down
                 actionExecuted = true;
+                if (!waiting)
+                {
+                    StartCoroutine(Wait());
+                }
             }
             else if(Input.GetKeyDown(KeyCode.Space))
             {   
                 action.data.id = 0;
                 action.data.action = 4;
                 actionExecuted = true;
+                if (!waiting)
+                {
+                    StartCoroutine(Wait());
+                }
             }
 
             if(actionExecuted)
@@ -72,4 +85,12 @@ public class InputHandler : MonoBehaviour
         //string json = JsonConvert.SerializeObject(action.ToArray(), Formatting.Indented);
         //File.WriteAllText(@"/home/anavc/Toxic_Waste_Gym/Unity_Toxic Waste Gym/Assets/state.json", json);
     }
+
+    private IEnumerator Wait()
+    {
+      waiting = true;
+      yield return new WaitForSeconds(0.2f);
+      waiting = false;
+    }
+
 }

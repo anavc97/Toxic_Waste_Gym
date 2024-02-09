@@ -228,7 +228,7 @@ public class GameHandler : MonoBehaviour
                         GameObject player_obj = GameObject.Find(player.Name);
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
-                        action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[0],player.Orientation[1]));
+                        action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
                         bool holding = player.HeldObject != null;
                         action.humanInteractWithBall(holding);
 
