@@ -27,6 +27,7 @@ public class ActionRendering : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+      /*
       transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
       
       //Move in a constant distance

@@ -8,8 +8,8 @@ import threading
 import time
 import sys
 
-from src.env.toxic_waste_env_v1 import AstroWasteEnv, Actions
-from src.env.astro_waste_game import AstroWasteGame
+from env.toxic_waste_env_v1 import AstroWasteEnv, Actions
+from env.astro_waste_game import AstroWasteGame
 from enum import Enum
 from datetime import datetime
 from pathlib import Path
@@ -202,11 +202,12 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
-						logger.info("new state: ", new_state)
+						print("new state: ", out_msg)
 
 					i += 1
 					out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
+					
 					outbound_socket.sendall(out_msg.encode('utf-8'))
 
 				except socket.error as e:

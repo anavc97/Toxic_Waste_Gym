@@ -98,25 +98,26 @@ public class GameHandler : MonoBehaviour
     public InputHandler input_handler;
     public bool gameRunning;
     public bool gameOver = false;
-    private GameObject canvas;
+    public GameObject canvas;
     
-    void Start()
+    void Awake()
     {   
-        /*//canvas = GameObject.Find("Canvas");
-        //canvas.SetActive(false);
-        FunctionPeriodic.Create(() => {
+        global_health = 1.0f;
+        canvas = GameObject.FindWithTag("Canvas");
+        Debug.Log("Canvas: " + canvas);
+        /*FunctionPeriodic.Create(() => {
             if (global_health > 0){
                 global_health -= 0.1f;
                 healthBar.SetSize(global_health);            }
 
        
         }, 0.1f);*/
-
+        
         ScoreScript.scoreValue = 0;
         gameRunning = true;
         StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();
-        global_health = 1.0f;
+        
 
     }
 
@@ -210,8 +211,9 @@ public class GameHandler : MonoBehaviour
     } 
 
     void Update()
-    {        
-        update_Score_Health(50, global_health-0.00016f);
+    {   
+             
+        if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
 
         if (gameData != null)
         {   
@@ -243,11 +245,11 @@ public class GameHandler : MonoBehaviour
             }
         }
 
-        /*if (global_health <= 0)
+        if (global_health <= 0)
         {
-            //canvas.SetActive(true);
+            canvas.GetComponent<Canvas>().enabled = true;
             gameOver = true;
-        }*/
+        }
     
     }
 

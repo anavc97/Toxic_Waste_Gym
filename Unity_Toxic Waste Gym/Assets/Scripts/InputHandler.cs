@@ -41,14 +41,13 @@ public class InputHandler : MonoBehaviour
         
         if (sendAction && !gameOver)
         {
-            if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
+            if(Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
             {   
-                
                 action.data.id = 0;
                 action.data.action = (int)(2.5 + (Input.GetAxisRaw("Horizontal") / 2)); //2=left 3=right
                 actionExecuted = true;
             }
-            else if(Mathf.Abs(Input.GetAxisRaw("Vertical")) == 1f)
+            else if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {   
                 action.data.id = 0;
                 action.data.action = (int)(0.5 - (Input.GetAxisRaw("Vertical") / 2));//0=up 1=down
