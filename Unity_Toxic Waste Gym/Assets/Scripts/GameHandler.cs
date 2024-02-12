@@ -83,7 +83,8 @@ public class GameHandler : MonoBehaviour
         public object HoldingPlayer { get; set; }
     }
     
-    [SerializeField] private HealthBar healthBar;
+    //[SerializeField] private HealthBar healthBar;
+    [SerializeField] private Timer time;
     public float global_health;
     public string SOCKETS_IP = "127.0.0.1";
     public int INBOUND_PORT = 20501;
@@ -99,12 +100,15 @@ public class GameHandler : MonoBehaviour
     public bool gameRunning;
     public bool gameOver = false;
     public GameObject canvas;
+    public bool timeRunning;
     
     void Awake()
     {   
         global_health = 1.0f;
+        timeRunning = time.timeIsRunning;
+        
+
         canvas = GameObject.FindWithTag("Canvas");
-        Debug.Log("Canvas: " + canvas);
         /*FunctionPeriodic.Create(() => {
             if (global_health > 0){
                 global_health -= 0.1f;
@@ -212,12 +216,11 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-             
-        if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
+        timeRunning = time.timeIsRunning;    
+        //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
 
         if (gameData != null)
         {   
-            Debug.Log("Updating gameData: " + gameData.Command + " " + gameData.Data.Players[0].Name);
             // Access the data as needed
             if (gameData.Command == "new_state")
             {
@@ -232,7 +235,7 @@ public class GameHandler : MonoBehaviour
                         bool holding = player.HeldObject != null;
                         action.humanInteractWithBall(holding);
 
-                        //update_Score_Health(gameData.Data.Points, 0.5f);
+                        update_Score(gameData.Data.Points);
                     }
 
                 }
@@ -245,7 +248,7 @@ public class GameHandler : MonoBehaviour
             }
         }
 
-        if (global_health <= 0)
+        if (!timeRunning)
         {
             canvas.GetComponent<Canvas>().enabled = true;
             gameOver = true;
@@ -276,10 +279,9 @@ public class GameHandler : MonoBehaviour
         
     }
     
-    public void update_Score_Health(int score, float health)
+    public void update_Score(int score)
     {      
-        global_health = health;
-        healthBar.SetSize(health);
+        //healthBar.SetSize(health);
         ScoreScript.scoreValue = score;
 
     }
@@ -302,7 +304,8 @@ public class GameHandler : MonoBehaviour
         // Deserialize the JSON content into a Game object
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
-        Debug.Log("JSON RECEIVED: " + data);
+        
+        //Debug.Log("JSON RECEIVED: " + data);
 
     }
     
