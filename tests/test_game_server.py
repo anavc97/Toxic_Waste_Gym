@@ -8,7 +8,7 @@ import sys
 import logging
 
 from enum import Enum
-from src.env.toxic_waste_env_v1 import AgentType, Actions
+from src.env.toxic_waste_env_v2 import AgentType, Actions
 from pathlib import Path
 from datetime import datetime
 
@@ -19,7 +19,7 @@ INBOUND_PORT = 20501
 OUTBOUND_PORT = 20500
 SOCK_TIMEOUT = 5
 BUFFER_SIZE = 1024
-ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT}
+ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT, 'r': Actions.IDENTIFY}
 
 
 class GameOperations(Enum):

@@ -35,7 +35,7 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
 				 render_mode: List[str] = None, slip: bool = False):
 		
-		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, require_facing, layer_obs, agent_centered,
+		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v1', require_facing, layer_obs, agent_centered,
 						 use_encoding, render_mode)
 		self._slip = slip
 		self._slip_prob = 0.0

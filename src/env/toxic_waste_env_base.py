@@ -40,6 +40,7 @@ class CellEntity(IntEnum):
 	ICE = 3
 	AGENT = 4
 	OBJECT = 5
+	DOOR = 6
 
 
 class Actions(IntEnum):
@@ -253,11 +254,12 @@ class PlayerState(object):
 class BaseToxicEnv(Env):
 	Observation = namedtuple("Observation", ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step"])
 	
-	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
+	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
 				 render_mode: List[str] = None):
 		
 		self._np_random, _ = seeding.np_random(rnd_seed)
+		self._env_id = env_id
 		self._rows, self._cols = terrain_size
 		self._players: List[PlayerState] = []
 		self._objects: List[WasteState] = []
@@ -293,6 +295,10 @@ class BaseToxicEnv(Env):
 	###########################
 	### GETTERS AND SETTERS ###
 	###########################
+	@property
+	def env_id(self) -> str:
+		return self._env_id
+	
 	@property
 	def rows(self) -> int:
 		return self._rows

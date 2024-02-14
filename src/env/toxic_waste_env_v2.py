@@ -5,7 +5,7 @@ import yaml
 import gymnasium
 import time
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState
+from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.spaces import Discrete, Box
@@ -19,16 +19,6 @@ MOVE_REWARD = 0.0
 HOLD_REWARD = -3.0
 DELIVER_WASTE = 10
 ROOM_CLEAN = 50
-
-
-class CellEntity(IntEnum):
-	EMPTY = 0
-	COUNTER = 1
-	TOXIC = 2
-	ICE = 3
-	AGENT = 4
-	OBJECT = 5
-	DOOR = 6
 
 
 class Actions(IntEnum):
@@ -57,22 +47,15 @@ class WasteType(IntEnum):
 	RED = 3
 
 
-class WasteState(object):
-	_position: Tuple[int, int]
-	_id: str
+class WasteStateV2(WasteState):
 	_points: float
 	_time_penalty: float
-	_hold_state: int
 	_identified: bool
 	_waste_type: int
-	_holding_player: 'PlayerState'
 	
 	def __init__(self, position: Tuple[int, int], obj_id: str, points: float = 1, time_penalty: float = 0.0, hold_state: int = HoldState.FREE.value,
 				 waste_type: int = WasteType.GREEN, holding_player: 'PlayerState' = None, identified: bool = False):
-		self._position = position
-		self._id = obj_id
-		self._hold_state = hold_state
-		self._holding_player = holding_player
+		super().__init__(position, obj_id, hold_state, holding_player)
 		self._points = points
 		self._time_penalty = time_penalty
 		self._identified = identified
@@ -87,22 +70,6 @@ class WasteState(object):
 		return self._waste_type
 	
 	@property
-	def position(self) -> Tuple[int, int]:
-		return self._position
-	
-	@property
-	def id(self) -> str:
-		return self._id
-	
-	@property
-	def hold_state(self) -> int:
-		return self._hold_state
-	
-	@property
-	def holding_player(self) -> 'PlayerState':
-		return self._holding_player
-	
-	@property
 	def points(self) -> float:
 		return self._points
 	
@@ -114,28 +81,13 @@ class WasteState(object):
 	def identified(self, new_val: bool) -> None:
 		self._identified = new_val
 		
-	@position.setter
-	def position(self, new_pos: Tuple[int, int]) -> None:
-		self._position = new_pos
-	
-	@hold_state.setter
-	def hold_state(self, new_state: int) -> None:
-		self._hold_state = new_state
-	
-	@holding_player.setter
-	def holding_player(self, new_player: 'PlayerState') -> None:
-		self._holding_player = new_player
-	
 	def deepcopy(self):
-		new_obj = WasteState(self._position, self._id, self._points, self._time_penalty, identified=self._identified)
+		new_obj = WasteStateV2(self._position, self._id, self._points, self._time_penalty, identified=self._identified)
 		new_obj.hold_state = self._hold_state
 		return new_obj
 	
 	def __eq__(self, other):
-		return isinstance(other, WasteState) and self._id == other._id and self._position == other._position
-	
-	def __hash__(self):
-		return hash((self._id, self._position))
+		return isinstance(other, WasteStateV2) and self._id == other._id and self._position == other._position
 	
 	def __repr__(self):
 		return ("%s@(%d, %d), held_status: %s, identified? %r" %
@@ -148,131 +100,7 @@ class WasteState(object):
 	@classmethod
 	def from_dict(cls, obj_dict):
 		obj_dict = deepcopy(obj_dict)
-		return WasteState(**obj_dict)
-
-
-class PlayerState(object):
-	_position: Tuple[int, int]
-	_orientation: Tuple[int, int]
-	_name: str
-	_id: int
-	_agent_type: int
-	_held_object: List[WasteState]
-	_reward: float
-	
-	def __init__(self, pos: Tuple[int, int], orientation: Tuple[int, int], agent_id: int, agent_name: str, agent_type: int,
-				 held_object: List[WasteState] = None):
-		self._position = pos
-		self._orientation = orientation
-		self._agent_type = agent_type
-		self._name = agent_name
-		self._id = agent_id
-		self._held_object = held_object
-		self._reward = 0
-		
-		if self._held_object is not None:
-			for obj in self._held_object:
-				assert isinstance(obj, WasteState)
-				assert obj.position == self._position
-	
-	@property
-	def position(self) -> Tuple:
-		return self._position
-	
-	@property
-	def orientation(self) -> Tuple:
-		return self._orientation
-	
-	@property
-	def agent_type(self) -> int:
-		return self._agent_type
-	
-	@property
-	def id(self) -> int:
-		return self._id
-	
-	@property
-	def name(self) -> str:
-		return self._name
-	
-	@property
-	def reward(self) -> float:
-		return self._reward
-	
-	@property
-	def held_objects(self) -> List[WasteState]:
-		if self._held_object is not None:
-			return self._held_object.copy()
-		else:
-			return self._held_object
-	
-	@position.setter
-	def position(self, new_pos: Tuple[int, int]) -> None:
-		self._position = new_pos
-	
-	@orientation.setter
-	def orientation(self, new_orientation: Tuple[int, int]) -> None:
-		self._orientation = new_orientation
-	
-	@reward.setter
-	def reward(self, new_val: float) -> None:
-		self._reward = new_val
-	
-	def hold_object(self, other_obj: WasteState) -> None:
-		assert isinstance(other_obj, WasteState), "[HOLD OBJECT ERROR] object is not an ObjectState"
-		if self._held_object is not None:
-			self._held_object.append(other_obj)
-		else:
-			self._held_object = [other_obj]
-	
-	def drop_object(self, obj_id: str) -> None:
-		assert self.is_holding_object(), "[DROP OBJECT] holding no objects"
-		
-		for obj in self._held_object:
-			if obj.id == obj_id:
-				self._held_object.remove(obj)
-				return
-		
-		print(colored('[DROP OBJECT] no object found with id %s' % obj_id, 'yellow'))
-	
-	def is_holding_object(self) -> bool:
-		if self._held_object is not None:
-			return len(self._held_object) > 0
-		else:
-			return False
-	
-	def deepcopy(self):
-		held_objs = (None if self._held_object is None else [self._held_object[idx].deepcopy() for idx in range(len(self._held_object))])
-		return PlayerState(self._position, self._orientation, self._id, self._name, self._agent_type, held_objs)
-	
-	def __eq__(self, other):
-		return (
-				isinstance(other, PlayerState)
-				and self.position == other.position
-				and self.orientation == other.orientation
-				and self.held_objects == other.held_objects
-		)
-	
-	def __hash__(self):
-		return hash((self.position, self.orientation, self.held_objects))
-	
-	def __repr__(self):
-		return "Agent {} at {} facing {} holding {}".format(self._name, self.position, self.orientation, str(self.held_objects))
-	
-	def to_dict(self):
-		return {
-			"position": self.position,
-			"orientation": self.orientation,
-			"held_object": [self.held_objects[idx].to_dict() for idx in range(len(self._held_object))] if self.held_objects is not None else None,
-		}
-	
-	@staticmethod
-	def from_dict(player_dict):
-		player_dict = deepcopy(player_dict)
-		held_obj = player_dict.get("held_object", None)
-		if held_obj is not None:
-			player_dict["held_object"] = [WasteState.from_dict(held_obj[idx]) for idx in range(len(held_obj))]
-		return PlayerState(**player_dict)
+		return WasteStateV2(**obj_dict)
 
 
 # noinspection PyUnresolvedReferences
@@ -290,7 +118,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
 				 render_mode: List[str] = None, slip: bool = False, is_train: bool = False):
 		
-		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, require_facing, layer_obs, agent_centered,
+		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, layer_obs, agent_centered,
 						 use_encoding, render_mode)
 		self._slip = slip
 		self._slip_prob = 0.0
@@ -317,10 +145,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	#######################
 	### UTILITY METHODS ###
 	#######################
-	def add_object(self, position: Tuple, obj_id: str = 'ball', points: int = 1, time_penalty: float = 1) -> bool:
+	def add_object(self, position: Tuple, obj_id: str = 'ball', points: int = 1, time_penalty: float = 1, waste_type: int = WasteType.GREEN) -> bool:
 		
 		if self._n_objects < self._max_objects:
-			self._objects.append(WasteState(position, obj_id, points=points, time_penalty=time_penalty, identified=False))
+			self._objects.append(WasteStateV2(position, obj_id, points=points, time_penalty=time_penalty, identified=False, waste_type=waste_type))
 			self._n_objects += 1
 			return True
 		else:
@@ -424,17 +252,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.DOOR
 				elif cell_val == 'G':
 					self.add_object((row, col), objects_data['green']['ids'][n_green], objects_data['green']['points'],
-									objects_data['green']['time_penalty'])
+									objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
 					self._field[row, col] = CellEntity.COUNTER
 					n_green += 1
 				elif cell_val == 'R':
 					self.add_object((row, col), objects_data['red']['ids'][n_red], objects_data['red']['points'],
-									objects_data['red']['time_penalty'])
+									objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 					self._field[row, col] = CellEntity.COUNTER
 					n_red += 1
 				elif cell_val == 'Y':
 					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], objects_data['yellow']['points'],
-									objects_data['yellow']['time_penalty'])
+									objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
 					self._field[row, col] = CellEntity.COUNTER
 					n_yellow += 1
 				elif cell_val.isdigit():
@@ -470,7 +298,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		return curr_time - self._time_penalties
 	
-	def get_object_facing(self, player: PlayerState) -> WasteState:
+	def get_object_facing(self, player: PlayerState) -> WasteStateV2:
 		facing_pos = (player.position[0] + player.orientation[0], player.position[1] + player.orientation[1])
 		for obj in self._objects:
 			if obj.position == facing_pos and obj.hold_state == HoldState.FREE:
@@ -652,7 +480,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._n_players = 0
 		self._n_objects = 0
 		self._players: List[PlayerState] = []
-		self._objects: List[WasteState] = []
+		self._objects: List[WasteStateV2] = []
 		self._field: np.ndarray = np.zeros((self._rows, self._cols))
 		self.setup_env()
 		obs = self.make_obs()
@@ -740,6 +568,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								pick_obj.position = acting_player.position
 								pick_obj.hold_state = HoldState.HELD
 								pick_obj.holding_player = acting_player
+								pick_obj.identified = True
 								acting_player.hold_object(pick_obj)
 								# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			

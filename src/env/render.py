@@ -6,7 +6,8 @@ import six
 import json
 
 from gym import error
-from .toxic_waste_env_v1 import ToxicWasteEnvV1, CellEntity, HoldState, AgentType, ActionDirection
+from .toxic_waste_env_base import BaseToxicEnv, CellEntity, HoldState, AgentType, ActionDirection
+from .toxic_waste_env_v2 import WasteType
 from typing import Tuple
 from pathlib import Path
 from pyglet.gl import *
@@ -51,13 +52,17 @@ class Viewer(object):
         
         self.astro_imgs = dict([(x.stem, pyglet.resource.image(x.name)) for x in Path.iterdir(icons_dir) if x.stem.find('astro') != -1])
         self.human_imgs = dict([(x.stem, pyglet.resource.image(x.name)) for x in Path.iterdir(icons_dir) if x.stem.find('human') != -1])
-        self.ball_img = pyglet.resource.image('ball.png')
+        self.green_ball_img = pyglet.resource.image('green_ball.png')
+        self.yellow_ball_img = pyglet.resource.image('yellow_ball.png')
+        self.red_ball_img = pyglet.resource.image('red_ball.png')
+        self.grey_ball_img = pyglet.resource.image('grey_ball.png')
         self.counter_img = pyglet.resource.image('counter.png')
         self.floor_img = pyglet.resource.image('floor.png')
         self.ice_img = pyglet.resource.image('ice.png')
         self.toxic_img = pyglet.resource.image('toxic.png')
         self.gaips_img = pyglet.resource.image('logo.png')
         self.project_img = pyglet.resource.image('logo_2.png')
+        self.door_img = pyglet.resource.image('door.png')
         
         
     def close(self):
@@ -67,7 +72,7 @@ class Viewer(object):
         self.isopen = False
         exit()
     
-    def render(self, env: ToxicWasteEnvV1, return_rgb_array: bool=False):
+    def render(self, env: BaseToxicEnv, return_rgb_array: bool=False):
         glClearColor(0, 0, 0, 0)
         self.window.switch_to()
         self.window.clear()
@@ -92,7 +97,7 @@ class Viewer(object):
         self.window.flip()
         return arr if return_rgb_array else self.isopen
     
-    def _draw_world(self, env: ToxicWasteEnvV1):
+    def _draw_world(self, env: BaseToxicEnv):
         batch = pyglet.graphics.Batch()
         terrains = []
         for col in range(self.cols):
@@ -103,6 +108,8 @@ class Viewer(object):
                     img = self.ice_img
                 elif env.field[row, col] == CellEntity.TOXIC:
                     img = self.toxic_img
+                elif env.env_id == 'v2' and env.field[row, col] == CellEntity.DOOR:
+                    img = self.door_img
                 else:
                     img = self.floor_img
                 terrains.append(pyglet.sprite.Sprite(img, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
@@ -110,19 +117,31 @@ class Viewer(object):
             t.update(scale=self.w_grid_size / t.width)
         batch.draw()
 
-    def _draw_balls(self, env: ToxicWasteEnvV1):
+    def _draw_balls(self, env: BaseToxicEnv):
         balls = []
         batch = pyglet.graphics.Batch()
 
         for ball in env.objects:
             if ball.hold_state == HoldState.FREE:
                 row, col = ball.position
-                balls.append(pyglet.sprite.Sprite(self.ball_img, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
+                if env.env_id == 'v2':
+                    if not ball.identified:
+                        ball_img = self.grey_ball_img
+                    else:
+                        if ball.waste_type == WasteType.RED.value:
+                            ball_img = self.red_ball_img
+                        elif ball.waste_type == WasteType.YELLOW.value:
+                            ball_img = self.yellow_ball_img
+                        else:
+                            ball_img = self.green_ball_img
+                else:
+                    ball_img = self.green_ball_img
+                balls.append(pyglet.sprite.Sprite(ball_img, self.w_grid_size * col, self.window.height - self.h_grid_size * (row + 1), batch=batch))
         for ball in balls:
             ball.update(scale=self.w_grid_size / ball.width)
         batch.draw()
 
-    def _draw_players(self, env: ToxicWasteEnvV1):
+    def _draw_players(self, env: BaseToxicEnv):
         players = []
         batch = pyglet.graphics.Batch()
 

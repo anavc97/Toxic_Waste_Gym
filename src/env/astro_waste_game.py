@@ -3,7 +3,7 @@
 import numpy as np
 
 from typing import List, Tuple, Dict, Any
-from src.env.toxic_waste_env_v1 import ToxicWasteEnvV1, Actions
+from src.env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
 from collections import namedtuple
 
 
@@ -21,13 +21,13 @@ class AstroWasteGame(object):
 	_cycles_second: int						# number of game cycles per second
 	_maximum_players: int					# maximum number of players allowed
 	_levels: List[str]						# list with the levels' names to be played
-	_game_env: ToxicWasteEnvV1				# game environment
+	_game_env: ToxicWasteEnvV2				# game environment
 	_points: float							# game points
 	_time_spent: float						# time since game started
 	_cycles_run: int						# cycles run since game started
 	_lvl_idx: int							# current level idx
 	
-	def __init__(self, cycles_second: int, levels: List[str], game_env: ToxicWasteEnvV1, max_players: int = 2, game_id: int = 0):
+	def __init__(self, cycles_second: int, levels: List[str], game_env: ToxicWasteEnvV2, max_players: int = 2, game_id: int = 0):
 		
 		self._cycles_second = cycles_second
 		self._levels = levels.copy()
@@ -85,7 +85,7 @@ class AstroWasteGame(object):
 		return self._is_active
 	
 	@property
-	def game_env(self) -> ToxicWasteEnvV1:
+	def game_env(self) -> ToxicWasteEnvV2:
 		return self._game_env
 	
 	@property
@@ -117,7 +117,7 @@ class AstroWasteGame(object):
 		self._time_spent = new_time
 	
 	@game_env.setter
-	def game_env(self, new_env: ToxicWasteEnvV1) -> None:
+	def game_env(self, new_env: ToxicWasteEnvV2) -> None:
 		self._game_env = new_env
 	
 	@level_idx.setter
@@ -160,6 +160,8 @@ class AstroWasteGame(object):
 		state['objects'] = [obj.to_dict() for obj in self._game_env.objects]
 		state['finished'] = env_state.game_finished
 		state['timeout'] = env_state.game_timeout
+		state['score'] = env_state.score
+		state['time_left'] = env_state.time_left
 		return state
 	
 	def env_step(self) -> tuple:
@@ -229,7 +231,7 @@ class AstroWasteGame(object):
 	def get_game_metadata(self) -> Dict:
 		metadata = self.get_state()
 		metadata['game_id'] = self._game_id
-		metadata['points'] = self._points
+		# metadata['points'] = self._points
 		metadata['game_time'] = self._time_spent
 		metadata['ticks'] = self._cycles_run
 		return metadata
