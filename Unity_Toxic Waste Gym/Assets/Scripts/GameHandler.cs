@@ -5,11 +5,13 @@ using CodeMonkey.Utils;
 using UnityEditor.Scripting.Python;
 using UnityEditor;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.IO;
 
 public class GameHandler : MonoBehaviour
@@ -64,7 +66,7 @@ public class GameHandler : MonoBehaviour
         public List<int> Orientation { get; set; } = new List<int>();
         
         [JsonProperty("held_object")]
-        public object HeldObject { get; set; }
+        public List<Ball> HeldObject { get; set; }
         public float Health { get; set; }
     }
 
@@ -232,7 +234,12 @@ public class GameHandler : MonoBehaviour
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
                         action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-                        bool holding = player.HeldObject != null;
+                        bool holding = false;
+                        //Debug.Log("Type of object is: " + player.HeldObject.GetType());
+                        if(player.HeldObject != null && player.HeldObject.Count() > 0)//&& player.HeldObject.ToObject<string[]>().Length != 0)
+                        {
+                            holding = true;
+                        }
                         action.humanInteractWithBall(holding);
 
                         update_Score(gameData.Data.Points);
