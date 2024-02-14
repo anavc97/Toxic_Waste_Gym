@@ -8,7 +8,7 @@ import threading
 import time
 import sys
 
-from src.env.toxic_waste_env_v1 import AstroWasteEnv, Actions
+from src.env.toxic_waste_env_v1 import ToxicWasteEnvV1, Actions
 from src.env.astro_waste_game import AstroWasteGame
 from enum import Enum
 from datetime import datetime
@@ -126,8 +126,8 @@ def main():
 						help='List of render modes for the environment')
 	args = parser.parse_args()
 	
-	env = AstroWasteEnv(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
-						args.use_layers, args.centered_obs, args.use_encoding, args.render_mode, slip=args.has_slip)
+	env = ToxicWasteEnvV1(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
+						  args.use_layers, args.centered_obs, args.use_encoding, args.render_mode, slip=args.has_slip)
 	game = AstroWasteGame(args.cycles_second, args.game_levels, env, args.max_game_players, args.game_id)
 	if args.render_mode and 'human' in args.render_mode:
 		render = True

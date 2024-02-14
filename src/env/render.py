@@ -6,7 +6,7 @@ import six
 import json
 
 from gym import error
-from .toxic_waste_env_v1 import AstroWasteEnv, CellEntity, HoldState, AgentType, ActionDirection
+from .toxic_waste_env_v1 import ToxicWasteEnvV1, CellEntity, HoldState, AgentType, ActionDirection
 from typing import Tuple
 from pathlib import Path
 from pyglet.gl import *
@@ -67,7 +67,7 @@ class Viewer(object):
         self.isopen = False
         exit()
     
-    def render(self, env: AstroWasteEnv, return_rgb_array: bool=False):
+    def render(self, env: ToxicWasteEnvV1, return_rgb_array: bool=False):
         glClearColor(0, 0, 0, 0)
         self.window.switch_to()
         self.window.clear()
@@ -92,7 +92,7 @@ class Viewer(object):
         self.window.flip()
         return arr if return_rgb_array else self.isopen
     
-    def _draw_world(self, env: AstroWasteEnv):
+    def _draw_world(self, env: ToxicWasteEnvV1):
         batch = pyglet.graphics.Batch()
         terrains = []
         for col in range(self.cols):
@@ -110,7 +110,7 @@ class Viewer(object):
             t.update(scale=self.w_grid_size / t.width)
         batch.draw()
 
-    def _draw_balls(self, env: AstroWasteEnv):
+    def _draw_balls(self, env: ToxicWasteEnvV1):
         balls = []
         batch = pyglet.graphics.Batch()
 
@@ -122,7 +122,7 @@ class Viewer(object):
             ball.update(scale=self.w_grid_size / ball.width)
         batch.draw()
 
-    def _draw_players(self, env: AstroWasteEnv):
+    def _draw_players(self, env: ToxicWasteEnvV1):
         players = []
         batch = pyglet.graphics.Batch()
 

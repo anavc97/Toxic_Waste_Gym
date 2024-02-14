@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from .toxic_waste_env_v1 import Actions, CellEntity, ActionDirection, AstroWasteEnv, PlayerState, ObjectState, AgentType
+from .toxic_waste_env_v1 import Actions, CellEntity, ActionDirection, ToxicWasteEnvV1, PlayerState, WasteState, AgentType
 from typing import List, Tuple, Dict
 from enum import IntEnum
 
@@ -144,7 +144,7 @@ class GreedyHumanAgent(object):
 		self._waste_order = waste_order.copy()
 		self._waste_pos = objs_pos.copy()
 		
-	def act(self, obs: AstroWasteEnv.Observation) -> int:
+	def act(self, obs: ToxicWasteEnvV1.Observation) -> int:
 		
 		def are_facing(h_or: Tuple[int, int], r_or: Tuple[int, int]) -> bool:
 			return (h_or[0] + r_or[0]) == 0 and (h_or[1] + r_or[1]) == 0

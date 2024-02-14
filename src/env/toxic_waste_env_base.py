@@ -60,7 +60,7 @@ class ActionDirection(Enum):
 	STAY = (0, 0)
 
 
-class ObjectState(object):
+class WasteState(object):
 	_position: Tuple[int, int]
 	_id: str
 	_hold_state: int
@@ -101,12 +101,12 @@ class ObjectState(object):
 		self._holding_player = new_player
 	
 	def deepcopy(self):
-		new_obj = ObjectState(self._position, self._id)
+		new_obj = WasteState(self._position, self._id)
 		new_obj.hold_state = self._hold_state
 		return new_obj
 	
 	def __eq__(self, other):
-		return isinstance(other, ObjectState) and self._id == other._id and self._position == other._position
+		return isinstance(other, WasteState) and self._id == other._id and self._position == other._position
 	
 	def __hash__(self):
 		return hash((self._id, self._position))
@@ -121,7 +121,7 @@ class ObjectState(object):
 	@classmethod
 	def from_dict(cls, obj_dict):
 		obj_dict = deepcopy(obj_dict)
-		return ObjectState(**obj_dict)
+		return WasteState(**obj_dict)
 
 
 class PlayerState(object):
@@ -130,11 +130,11 @@ class PlayerState(object):
 	_name: str
 	_id: int
 	_agent_type: int
-	_held_object: List[ObjectState]
+	_held_object: List[WasteState]
 	_reward: float
 	
 	def __init__(self, pos: Tuple[int, int], orientation: Tuple[int, int], agent_id: int, agent_name: str, agent_type: int,
-				 held_object: List[ObjectState] = None):
+				 held_object: List[WasteState] = None):
 		self._position = pos
 		self._orientation = orientation
 		self._agent_type = agent_type
@@ -145,7 +145,7 @@ class PlayerState(object):
 		
 		if self._held_object is not None:
 			for obj in self._held_object:
-				assert isinstance(obj, ObjectState)
+				assert isinstance(obj, WasteState)
 				assert obj.position == self._position
 	
 	@property
@@ -173,7 +173,7 @@ class PlayerState(object):
 		return self._reward
 	
 	@property
-	def held_objects(self) -> List[ObjectState]:
+	def held_objects(self) -> List[WasteState]:
 		if self._held_object is not None:
 			return self._held_object.copy()
 		else:
@@ -191,8 +191,8 @@ class PlayerState(object):
 	def reward(self, new_val: float) -> None:
 		self._reward = new_val
 	
-	def hold_object(self, other_obj: ObjectState) -> None:
-		assert isinstance(other_obj, ObjectState), "[HOLD OBJECT ERROR] object is not an ObjectState"
+	def hold_object(self, other_obj: WasteState) -> None:
+		assert isinstance(other_obj, WasteState), "[HOLD OBJECT ERROR] object is not an ObjectState"
 		if self._held_object is not None:
 			self._held_object.append(other_obj)
 		else:
@@ -244,7 +244,7 @@ class PlayerState(object):
 		player_dict = deepcopy(player_dict)
 		held_obj = player_dict.get("held_object", None)
 		if held_obj is not None:
-			player_dict["held_object"] = [ObjectState.from_dict(held_obj[idx]) for idx in range(len(held_obj))]
+			player_dict["held_object"] = [WasteState.from_dict(held_obj[idx]) for idx in range(len(held_obj))]
 		return PlayerState(**player_dict)
 
 
@@ -259,7 +259,7 @@ class BaseToxicEnv(Env):
 		self._np_random, _ = seeding.np_random(rnd_seed)
 		self._rows, self._cols = terrain_size
 		self._players: List[PlayerState] = []
-		self._objects: List[ObjectState] = []
+		self._objects: List[WasteState] = []
 		self._field: np.ndarray = np.zeros((self._rows, self._cols))
 		self._max_players = max_players
 		self._max_objects = max_objects
@@ -305,7 +305,7 @@ class BaseToxicEnv(Env):
 		return self._players
 	
 	@property
-	def objects(self) -> List[ObjectState]:
+	def objects(self) -> List[WasteState]:
 		return self._objects
 	
 	@property
@@ -383,7 +383,7 @@ class BaseToxicEnv(Env):
 					(position[0], position[1] + 1), (position[0] - 1, position[1] - 1), (position[0] + 1, position[1] - 1),
 					(position[0] - 1, position[1] + 1), (position[0] + 1, position[1] + 1)]
 	
-	def disposed_objects(self) -> List[ObjectState]:
+	def disposed_objects(self) -> List[WasteState]:
 		return [obj for obj in self._objects if obj.hold_state == HoldState.DISPOSED]
 	
 	def is_game_timedout(self) -> bool:
@@ -434,7 +434,7 @@ class BaseToxicEnv(Env):
 								current_step=self._current_step)
 	
 	def add_player(self, position: Tuple, orientation: Tuple = (-1, 0), agent_id: int = 0, agent_name: str = 'human', agent_type: int = AgentType.HUMAN,
-				   held_objs: List[ObjectState] = None) -> bool:
+				   held_objs: List[WasteState] = None) -> bool:
 		
 		if self._n_players < self._max_players:
 			self._players.append(PlayerState(position, orientation, agent_id, agent_name, agent_type, held_objs))
@@ -447,7 +447,7 @@ class BaseToxicEnv(Env):
 	def add_object(self, position: Tuple, obj_id: str = 'ball') -> bool:
 		
 		if self._n_objects < self._max_objects:
-			self._objects.append(ObjectState(position, obj_id))
+			self._objects.append(WasteState(position, obj_id))
 			self._n_objects += 1
 			return True
 		else:
@@ -519,7 +519,7 @@ class BaseToxicEnv(Env):
 		self._n_players = 0
 		self._n_objects = 0
 		self._players: List[PlayerState] = []
-		self._objects: List[ObjectState] = []
+		self._objects: List[WasteState] = []
 		self._field: np.ndarray = np.zeros((self._rows, self._cols))
 		self.setup_env()
 		

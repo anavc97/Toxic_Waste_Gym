@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import numpy as np
 
-from src.env.toxic_waste_env_v1 import Actions, AstroWasteEnv
+from src.env.toxic_waste_env_v1 import Actions, ToxicWasteEnvV1
 from typing import List
 
 RNG_SEED = 12072023
@@ -32,7 +32,7 @@ def main():
 	centered_obs = False
 	encoding = False
 	
-	env = AstroWasteEnv(field_size, layout, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding)
+	env = ToxicWasteEnvV1(field_size, layout, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())
