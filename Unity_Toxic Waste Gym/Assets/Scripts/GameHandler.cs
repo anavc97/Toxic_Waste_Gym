@@ -13,6 +13,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
+using TMPro;
 
 public class GameHandler : MonoBehaviour
 {   
@@ -83,6 +84,8 @@ public class GameHandler : MonoBehaviour
 
         [JsonProperty("holding_player")]
         public object HoldingPlayer { get; set; }
+
+        //Add ball type property
     }
     
     //[SerializeField] private HealthBar healthBar;
@@ -101,8 +104,12 @@ public class GameHandler : MonoBehaviour
     public InputHandler input_handler;
     public bool gameRunning;
     public bool gameOver = false;
-    public GameObject canvas;
     public bool timeRunning;
+    public bool holdingBall = false;
+    public bool previousHoldingBall = false;
+    public string previousHeldBall = "";
+    public GameObject canvas;
+    public TMP_Text popUp;
     
     void Awake()
     {   
@@ -120,6 +127,8 @@ public class GameHandler : MonoBehaviour
         }, 0.1f);*/
         
         ScoreScript.scoreValue = 0;
+        popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
+        popUp.text = "Beginning of level 1";
         gameRunning = true;
         StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();
@@ -234,15 +243,20 @@ public class GameHandler : MonoBehaviour
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
                         action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-                        bool holding = false;
                         //Debug.Log("Type of object is: " + player.HeldObject.GetType());
-                        if(player.HeldObject != null && player.HeldObject.Count() > 0)//&& player.HeldObject.ToObject<string[]>().Length != 0)
-                        {
-                            holding = true;
+                        if(player.HeldObject != null && player.HeldObject.Count() > 0)
+                        {  
+                            holdingBall = true;
+                            previousHeldBall = player.HeldObject[0].Name; //Change to type
                         }
-                        action.humanInteractWithBall(holding);
+                        update_popUp(player.HeldObject);
+                        action.humanInteractWithBall(holdingBall);
+
+                        previousHoldingBall = holdingBall;
+                        holdingBall = false;
 
                         update_Score(gameData.Data.Points);
+                        //popUp.text = ""; //Add wait (either co-routine or manual) for message to disappear only after a while
                     }
 
                 }
@@ -286,11 +300,37 @@ public class GameHandler : MonoBehaviour
         
     }
     
-    public void update_Score(int score)
+    void update_Score(int score)
     {      
         //healthBar.SetSize(health);
         ScoreScript.scoreValue = score;
 
+    }
+
+    void update_popUp(List<Ball> ballsHeld)
+    {
+        if(previousHoldingBall != holdingBall){
+            if(previousHeldBall == "green" && !holdingBall) 
+            {
+                popUp.text = "+10 points!";
+                popUp.color = new Color32(92,255,51,255); //Light green 
+            }
+            else if(previousHeldBall == "yellow" && !holdingBall)
+            {
+                popUp.text = "+15 points!";
+                popUp.color = new Color32(40,191,0,255); //Green 
+            }
+            else if(previousHeldBall == "ball1" && holdingBall) // == red (==ball1 just to test)
+            {
+                popUp.text = "-5 points!";
+                popUp.color = new Color32(184,0,0,255);   //Red
+            }
+        }
+        if(previousHeldBall == "yellow" && holdingBall)
+        {
+            popUp.text = "-2 seconds!";
+            popUp.color = new Color32(168,147,0,255);  //Yellow
+        }
     }
 
     void createJSON(string myStringData)
