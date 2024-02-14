@@ -27,6 +27,7 @@ public class ActionRendering : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+      /*
       transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
       
       //Move in a constant distance
@@ -108,19 +109,18 @@ public class ActionRendering : MonoBehaviour
     public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
     { 
 
-      //if(movePoint.position != newPosition)
-      if(transform.position != newPosition)
+      if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
+      {
+        animator.SetFloat("moveX", newOrientation.x);
+        animator.SetFloat("moveY", newOrientation.y);
+      }
+      else if(transform.position != newPosition)
       {
         //Debug.Log("Transform: " + transform.position);
         //Debug.Log("New position: " + newPosition); 
         movePoint.position = newPosition;
         transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
         //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
-      }
-      else if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
-      {
-        animator.SetFloat("moveX", newOrientation.x);
-        animator.SetFloat("moveY", newOrientation.y);
       }
     }
 

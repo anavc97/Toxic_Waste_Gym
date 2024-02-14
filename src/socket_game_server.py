@@ -202,11 +202,12 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
-						logger.info("new state: ", new_state)
+						print("new state: ", out_msg)
 
 					i += 1
 					out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
+					
 					outbound_socket.sendall(out_msg.encode('utf-8'))
 
 				except socket.error as e:

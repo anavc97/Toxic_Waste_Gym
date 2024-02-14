@@ -5,85 +5,91 @@ using CodeMonkey.Utils;
 using UnityEditor.Scripting.Python;
 using UnityEditor;
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.IO;
-
-public class GameData
-{   
-    [JsonProperty("command")]
-    public string Command { get; set; }
-    
-    [JsonProperty("data")]
-    public Data Data { get; set; }
-}
-
-public class Data
-{
-    public string Layout { get; set; }
-    
-    [JsonProperty("players")]
-    public List<Player> Players { get; set; }
-
-    [JsonProperty("objects")]
-    public List<Ball> Objects { get; set; }
-
-    [JsonProperty("finished")]
-    public bool Finished { get; set; }
-
-    [JsonProperty("timeout")]
-    public bool Timeout { get; set; }
-
-    [JsonProperty("game_id")]
-    public int GameId { get; set; }
-
-    [JsonProperty("points")]
-    public int Points { get; set; }
-
-    [JsonProperty("game_time")]
-    public double GameTime { get; set; }
-
-    [JsonProperty("ticks")]
-    public int Ticks { get; set; }
-}
-
-public class Player
-{   
-    [JsonProperty("name")]
-    public string Name { get; set; }
-
-    [JsonProperty("position")]
-    public List<int> Position { get; set; } = new List<int>();
-    
-    [JsonProperty("orientation")]
-    public List<int> Orientation { get; set; } = new List<int>();
-    
-    [JsonProperty("held_object")]
-    public object HeldObject { get; set; }
-    public float Health { get; set; }
-}
-
-public class Ball
-{   
-    [JsonProperty("name")]
-    public string Name { get; set; }
-
-    [JsonProperty("position")]
-    public List<int> Position { get; set; } = new List<int>();
-
-    [JsonProperty("hold_state")]
-    public int HoldState { get; set; }
-
-    [JsonProperty("holding_player")]
-    public object HoldingPlayer { get; set; }
-}
+using TMPro;
 
 public class GameHandler : MonoBehaviour
-{
-    [SerializeField] private HealthBar healthBar;
+{   
+    public class GameData
+    {   
+        [JsonProperty("command")]
+        public string Command { get; set; }
+        
+        [JsonProperty("data")]
+        public Data Data { get; set; }
+    }
+
+    public class Data
+    {
+        public string Layout { get; set; }
+        
+        [JsonProperty("players")]
+        public List<Player> Players { get; set; }
+
+        [JsonProperty("objects")]
+        public List<Ball> Objects { get; set; }
+
+        [JsonProperty("finished")]
+        public bool Finished { get; set; }
+
+        [JsonProperty("timeout")]
+        public bool Timeout { get; set; }
+
+        [JsonProperty("game_id")]
+        public int GameId { get; set; }
+
+        [JsonProperty("points")]
+        public int Points { get; set; }
+
+        [JsonProperty("game_time")]
+        public double GameTime { get; set; }
+
+        [JsonProperty("ticks")]
+        public int Ticks { get; set; }
+    }
+
+    public class Player
+    {   
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("position")]
+        public List<int> Position { get; set; } = new List<int>();
+        
+        [JsonProperty("orientation")]
+        public List<int> Orientation { get; set; } = new List<int>();
+        
+        [JsonProperty("held_object")]
+        public List<Ball> HeldObject { get; set; }
+        public float Health { get; set; }
+    }
+
+    public class Ball
+    {   
+        [JsonProperty("name")]
+        public string Name { get; set; }
+
+        [JsonProperty("position")]
+        public List<int> Position { get; set; } = new List<int>();
+
+        [JsonProperty("hold_state")]
+        public int HoldState { get; set; }
+
+        [JsonProperty("holding_player")]
+        public object HoldingPlayer { get; set; }
+
+        //Add ball type property
+    }
+    
+    //[SerializeField] private HealthBar healthBar;
+    [SerializeField] private Timer time;
     public float global_health;
     public string SOCKETS_IP = "127.0.0.1";
     public int INBOUND_PORT = 20501;
@@ -97,21 +103,36 @@ public class GameHandler : MonoBehaviour
     public GameData gameData;
     public InputHandler input_handler;
     public bool gameRunning;
+    public bool gameOver = false;
+    public bool timeRunning;
+    public bool holdingBall = false;
+    public bool previousHoldingBall = false;
+    public string previousHeldBall = "";
+    public GameObject canvas;
+    public TMP_Text popUp;
     
-    void Start()
+    void Awake()
     {   
-        FunctionPeriodic.Create(() => {
+        global_health = 1.0f;
+        timeRunning = time.timeIsRunning;
+        
+
+        canvas = GameObject.FindWithTag("Canvas");
+        /*FunctionPeriodic.Create(() => {
             if (global_health > 0){
-                global_health -= 0.001f;
+                global_health -= 0.1f;
                 healthBar.SetSize(global_health);            }
 
        
-        }, 0.1f);
+        }, 0.1f);*/
         
         ScoreScript.scoreValue = 0;
+        popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
+        popUp.text = "Beginning of level 1";
         gameRunning = true;
         StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();
+        
 
     }
 
@@ -205,10 +226,12 @@ public class GameHandler : MonoBehaviour
     } 
 
     void Update()
-    {        
+    {   
+        timeRunning = time.timeIsRunning;    
+        //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
 
         if (gameData != null)
-        {
+        {   
             // Access the data as needed
             if (gameData.Command == "new_state")
             {
@@ -219,11 +242,21 @@ public class GameHandler : MonoBehaviour
                         GameObject player_obj = GameObject.Find(player.Name);
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
-                        action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[0],player.Orientation[1]));
-                        bool holding = player.HeldObject != null;
-                        action.humanInteractWithBall(holding);
+                        action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
+                        //Debug.Log("Type of object is: " + player.HeldObject.GetType());
+                        if(player.HeldObject != null && player.HeldObject.Count() > 0)
+                        {  
+                            holdingBall = true;
+                            previousHeldBall = player.HeldObject[0].Name; //Change to type
+                        }
+                        update_popUp(player.HeldObject);
+                        action.humanInteractWithBall(holdingBall);
 
-                        update_Score_Health(gameData.Data.Points, 0.5f);
+                        previousHoldingBall = holdingBall;
+                        holdingBall = false;
+
+                        update_Score(gameData.Data.Points);
+                        //popUp.text = ""; //Add wait (either co-routine or manual) for message to disappear only after a while
                     }
 
                 }
@@ -234,7 +267,13 @@ public class GameHandler : MonoBehaviour
                     
                 }    
             }
-        } 
+        }
+
+        if (!timeRunning)
+        {
+            canvas.GetComponent<Canvas>().enabled = true;
+            gameOver = true;
+        }
     
     }
 
@@ -242,7 +281,9 @@ public class GameHandler : MonoBehaviour
     {
         GameObject ball = GameObject.Find(objName);
         if (ball != null)
-        {
+        {   
+            ball.transform.position = new Vector3(position[1], 14-position[0], 0);
+
             if(status == 2)
             {
                 Destroy(ball);
@@ -253,18 +294,43 @@ public class GameHandler : MonoBehaviour
             }
             else if(status == 0)
             {   
-                ball.transform.position = new Vector3(position[1], 14-position[0], 0);
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
         }
         
     }
     
-    public void update_Score_Health(int score, float health)
-    {   
-        global_health = health;
-        healthBar.SetSize(health);
+    void update_Score(int score)
+    {      
+        //healthBar.SetSize(health);
         ScoreScript.scoreValue = score;
+
+    }
+
+    void update_popUp(List<Ball> ballsHeld)
+    {
+        if(previousHoldingBall != holdingBall){
+            if(previousHeldBall == "green" && !holdingBall) 
+            {
+                popUp.text = "+10 points!";
+                popUp.color = new Color32(92,255,51,255); //Light green 
+            }
+            else if(previousHeldBall == "yellow" && !holdingBall)
+            {
+                popUp.text = "+15 points!";
+                popUp.color = new Color32(40,191,0,255); //Green 
+            }
+            else if(previousHeldBall == "ball1" && holdingBall) // == red (==ball1 just to test)
+            {
+                popUp.text = "-5 points!";
+                popUp.color = new Color32(184,0,0,255);   //Red
+            }
+        }
+        if(previousHeldBall == "yellow" && holdingBall)
+        {
+            popUp.text = "-2 seconds!";
+            popUp.color = new Color32(168,147,0,255);  //Yellow
+        }
     }
 
     void createJSON(string myStringData)
@@ -285,6 +351,7 @@ public class GameHandler : MonoBehaviour
         // Deserialize the JSON content into a Game object
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
+        
         //Debug.Log("JSON RECEIVED: " + data);
 
     }
