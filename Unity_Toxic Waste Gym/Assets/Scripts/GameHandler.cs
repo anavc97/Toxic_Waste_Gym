@@ -116,7 +116,10 @@ public class GameHandler : MonoBehaviour
     public bool timeRunning;
     public bool holdingBall = false;
     public bool previousHoldingBall = false;
-    public string previousHeldBall = "";
+    public int previousHeldBallType = 0;
+    public int popUp_time = 0;
+    public int timeHoldingYellowBall = 0;
+    public int secondCounter = 0;
     public GameObject canvas;
     public TMP_Text popUp;
     
@@ -238,7 +241,6 @@ public class GameHandler : MonoBehaviour
     {   
         timeRunning = time.timeIsRunning;    
         //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
-
         if (gameData != null)
         {   
             // Access the data as needed
@@ -252,20 +254,18 @@ public class GameHandler : MonoBehaviour
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
                         action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-                        //Debug.Log("Type of object is: " + player.HeldObject.GetType());
                         if(player.HeldObject != null && player.HeldObject.Count() > 0)
                         {  
                             holdingBall = true;
-                            previousHeldBall = player.HeldObject[0].Name; //Change to type
+                            previousHeldBallType = player.HeldObject[0].Type;
                         }
-                        update_popUp(player.HeldObject);
+                        update_popUp();
                         action.humanInteractWithBall(holdingBall);
 
                         previousHoldingBall = holdingBall;
                         holdingBall = false;
 
                         update_Score(gameData.Data.Score);
-                        //popUp.text = ""; //Add wait (either co-routine or manual) for message to disappear only after a while
                     }
 
                 }
@@ -274,7 +274,13 @@ public class GameHandler : MonoBehaviour
                 {
                     updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);
                     
-                }    
+                } 
+            popUp_time += 1;
+            if(popUp_time == 175) //175 frames later
+            {
+                popUp.text = "";
+                popUp_time = 0;
+            }
             }
         }
 
@@ -326,29 +332,41 @@ public class GameHandler : MonoBehaviour
 
     }
 
-    void update_popUp(List<Ball> ballsHeld)
+    void update_popUp()
     {
-        if(previousHoldingBall != holdingBall){
-            if(previousHeldBall == "green" && !holdingBall) 
+        if(previousHoldingBall != holdingBall){ //Need to add checks everytime !holdingBall to see if it was received by astro
+            if(previousHeldBallType == 1 && !holdingBall) //1=Green ball
             {
                 popUp.text = "+10 points!";
                 popUp.color = new Color32(92,255,51,255); //Light green 
+                popUp_time = 0;
             }
-            else if(previousHeldBall == "yellow" && !holdingBall)
+            else if(previousHeldBallType == 2 && !holdingBall) //2=Yellow ball
             {
                 popUp.text = "+15 points!";
-                popUp.color = new Color32(40,191,0,255); //Green 
+                popUp.color = new Color32(40,191,0,255); //Green
+                popUp_time = 0;
+                timeHoldingYellowBall = 0;
+                secondCounter = 0;
             }
-            else if(previousHeldBall == "ball1" && holdingBall) // == red (==ball1 just to test)
+            else if(previousHeldBallType == 3 && holdingBall) //3=Red ball
             {
                 popUp.text = "-5 points!";
                 popUp.color = new Color32(184,0,0,255);   //Red
+                popUp_time = 0;
             }
         }
-        if(previousHeldBall == "yellow" && holdingBall)
+        if(previousHeldBallType == 2 && holdingBall)
         {
-            popUp.text = "-2 seconds!";
-            popUp.color = new Color32(168,147,0,255);  //Yellow
+            secondCounter += 1;
+            if(timeHoldingYellowBall == 0 || secondCounter == 60)
+            {
+                timeHoldingYellowBall += 1;
+                popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
+                popUp.color = new Color32(168,147,0,255);  //Yellow
+                secondCounter = 0;
+            }
+            popUp_time = 0;
         }
     }
 
