@@ -45,11 +45,14 @@ public class GameHandler : MonoBehaviour
         [JsonProperty("game_id")]
         public int GameId { get; set; }
 
-        [JsonProperty("points")]
-        public int Points { get; set; }
+        [JsonProperty("score")]
+        public float Score { get; set; }
+
+        [JsonProperty("time_left")]
+        public float TimeLeft { get; set; }
 
         [JsonProperty("game_time")]
-        public double GameTime { get; set; }
+        public float GameTime { get; set; }
 
         [JsonProperty("ticks")]
         public int Ticks { get; set; }
@@ -81,6 +84,12 @@ public class GameHandler : MonoBehaviour
 
         [JsonProperty("hold_state")]
         public int HoldState { get; set; }
+
+        [JsonProperty("identified")]
+        public bool Identified { get; set; }
+
+        [JsonProperty("type")]
+        public int Type { get; set; } //
 
         [JsonProperty("holding_player")]
         public object HoldingPlayer { get; set; }
@@ -255,7 +264,7 @@ public class GameHandler : MonoBehaviour
                         previousHoldingBall = holdingBall;
                         holdingBall = false;
 
-                        update_Score(gameData.Data.Points);
+                        update_Score(gameData.Data.Score);
                         //popUp.text = ""; //Add wait (either co-routine or manual) for message to disappear only after a while
                     }
 
@@ -263,7 +272,7 @@ public class GameHandler : MonoBehaviour
 
                 foreach (var obj in gameData.Data.Objects)
                 {
-                    updateBallState(obj.Name, obj.HoldState, obj.Position);
+                    updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);
                     
                 }    
             }
@@ -277,7 +286,7 @@ public class GameHandler : MonoBehaviour
     
     }
 
-    void updateBallState(string objName, int status, List<int> position)
+    void updateBallState(string objName, int status, List<int> position, bool id)
     {
         GameObject ball = GameObject.Find(objName);
         if (ball != null)
@@ -296,11 +305,21 @@ public class GameHandler : MonoBehaviour
             {   
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
+
+            if (id)
+            {
+                ball.tag = "IDdBall";
+            }
+            else
+            {
+                ball.tag = "Ball";
+            }
+
         }
         
     }
     
-    void update_Score(int score)
+    void update_Score(float score)
     {      
         //healthBar.SetSize(health);
         ScoreScript.scoreValue = score;
@@ -352,7 +371,7 @@ public class GameHandler : MonoBehaviour
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
         
-        //Debug.Log("JSON RECEIVED: " + data);
+        Debug.Log("JSON RECEIVED: " + data);
 
     }
     
