@@ -13,7 +13,6 @@ public class ActionRenderingRobot : MonoBehaviour
     public Dictionary<string, bool> BallsIdd;
 
     public GameHandler gameHandler;
-    public GameHandler.GameData gameData;
     public GameObject chatBot;
     private GameObject bubble;
     private GameObject load;
@@ -51,10 +50,10 @@ public class ActionRenderingRobot : MonoBehaviour
               // Add positions according to the specified patterns
               if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14)))
                   gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 0 && (y >= 1 && y <= 13)) || (x == 14 && (y >= 1 && y <= 13)))
+              else if ((x == 0 && (y >= 1 && y <= 14)) || (x == 14 && (y >= 1 && y <= 14)))
                   gridPositions.Add(new Vector3(x, y,0));
               else if ((x == 1 && y == 2) || (x == 2 && (y == 2 || y == 3)) || ((x >= 5 && x <= 9) && y == 2) ||
-                        ((x >= 12 && x <= 13) && y == 2) || (x == 1 && y == 3) || (x == 2 && y == 3) ||
+                        ((x >= 12 && x <= 14) && y == 2) || (x == 1 && y == 3) || (x == 2 && y == 3) ||
                         ((x >= 6 && x <= 8) && y == 3) || ((x >= 6 && x <= 8) && y == 4) || ((x >= 10 && x <= 11) && y == 4) ||
                         (x == 7 && (y == 5 || y == 6 || y == 7)) || ((x >= 10 && x <= 11) && (y == 5 || y == 6 || y == 7)) ||
                         ((x >= 4 && x <= 5) && y == 5) || ((x >= 2 && x <= 4) && y == 6) || (x == 7 && y == 6) ||
@@ -159,7 +158,9 @@ public class ActionRenderingRobot : MonoBehaviour
   
     IEnumerator StartIdAnimation(GameObject ball)
     {
-      Debug.Log("Ball ID: " + ball.name);
+      
+      string type = ball.name.Split('_')[0];
+      Debug.Log("Ball ID: " + type);
       if (text.GetComponent<TextMeshPro>().enabled)
       {
         text.GetComponent<TextMeshPro>().enabled = false;
@@ -171,7 +172,7 @@ public class ActionRenderingRobot : MonoBehaviour
       yield return new WaitForSeconds(3f);
       load.GetComponent<TextMeshPro>().enabled = false;
       text.GetComponent<TextMeshPro>().enabled = true;
-      text.GetComponent<TextMeshPro>().text = $"This is a {ball.name} ball!";
+      text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
       yield return new WaitForSeconds(3f);
       text.GetComponent<TextMeshPro>().enabled = false;
       
