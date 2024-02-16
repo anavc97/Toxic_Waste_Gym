@@ -113,7 +113,6 @@ public class GameHandler : MonoBehaviour
     public InputHandler input_handler;
     public bool gameRunning;
     public bool gameOver = false;
-    public bool timeRunning;
     public bool holdingBall = false;
     public bool previousHoldingBall = false;
     public int previousHeldBallType = 0;
@@ -126,7 +125,6 @@ public class GameHandler : MonoBehaviour
     void Awake()
     {   
         global_health = 1.0f;
-        timeRunning = time.timeIsRunning;
         
 
         canvas = GameObject.FindWithTag("Canvas");
@@ -239,7 +237,6 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-        timeRunning = time.timeIsRunning;    
         //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
         if (gameData != null)
         {   
@@ -274,20 +271,32 @@ public class GameHandler : MonoBehaviour
                 {
                     updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);
                     
-                } 
+                }  
+            }
+
+            else if (gameData.Command == "game_finished")
+            {   
+                Debug.Log("Game Over!");
+                Debug.Log("Time remaining: " + time.timeRemaining);
+                /*Transform panel = canvas.transform.Find("Panel");
+                if (time.timeRemaining <1f)
+                {
+                    panel.GetComponent<TextMeshPro>().text = "Time is Up!\n Ready for the next level?";
+                }*/
+                
+                canvas.GetComponent<Canvas>().enabled = true;
+                gameOver = true;
+            } 
+
             popUp_time += 1;
+
             if(popUp_time == 175) //175 frames later
             {
                 popUp.text = "";
                 popUp_time = 0;
             }
-            }
-        }
+            
 
-        if (!timeRunning)
-        {
-            canvas.GetComponent<Canvas>().enabled = true;
-            gameOver = true;
         }
     
     }
@@ -312,14 +321,14 @@ public class GameHandler : MonoBehaviour
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
 
-            if (id)
+            /*if (id)
             {
                 ball.tag = "IDdBall";
             }
             else
             {
                 ball.tag = "Ball";
-            }
+            }*/
 
         }
         
@@ -337,13 +346,13 @@ public class GameHandler : MonoBehaviour
         if(previousHoldingBall != holdingBall){ //Need to add checks everytime !holdingBall to see if it was received by astro
             if(previousHeldBallType == 1 && !holdingBall) //1=Green ball
             {
-                popUp.text = "+10 points!";
+                popUp.text = "+2 points!";
                 popUp.color = new Color32(92,255,51,255); //Light green 
                 popUp_time = 0;
             }
             else if(previousHeldBallType == 2 && !holdingBall) //2=Yellow ball
             {
-                popUp.text = "+15 points!";
+                popUp.text = "+10 points!";
                 popUp.color = new Color32(40,191,0,255); //Green
                 popUp_time = 0;
                 timeHoldingYellowBall = 0;
@@ -369,19 +378,6 @@ public class GameHandler : MonoBehaviour
             popUp_time = 0;
         }
     }
-
-    void createJSON(string myStringData)
-    {
-
-        string filePath = "state.json";
-
-        using (StreamWriter file = File.CreateText(filePath))
-        {
-            JsonSerializer serializer = new JsonSerializer();
-            serializer.Serialize(file, myStringData);
-        }
-       
-    }
     
     void readState(string data)
     {   
@@ -389,7 +385,8 @@ public class GameHandler : MonoBehaviour
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
         
-        Debug.Log("JSON RECEIVED: " + data);
+        //Debug.Log("JSON RECEIVED: " + data);
+        Debug.Log("Command: " + gameData.Command);
 
     }
     

@@ -19,7 +19,7 @@ public class ActionRenderingRobot : MonoBehaviour
     private GameObject text;
     private List<Vector3> gridPositions; 
 
-    private 
+    private bool identifying = false;
 
     void Awake()
     {
@@ -159,6 +159,7 @@ public class ActionRenderingRobot : MonoBehaviour
     IEnumerator StartIdAnimation(GameObject ball)
     {
       
+      identifying = true;
       string type = ball.name.Split('_')[0];
       Debug.Log("Ball ID: " + type);
       if (text.GetComponent<TextMeshPro>().enabled)
@@ -175,6 +176,7 @@ public class ActionRenderingRobot : MonoBehaviour
       text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
       yield return new WaitForSeconds(3f);
       text.GetComponent<TextMeshPro>().enabled = false;
+      identifying = false;
       
     }
 
@@ -223,7 +225,7 @@ public class ActionRenderingRobot : MonoBehaviour
         }
       }
       List<Vector3> keyList = new List<Vector3>(Steps.Keys);
-      if (Random.value <0.1f)
+      if (Random.value <0.1f && !identifying)
         { int i = Random.Range(0, keyList.Count);
           return keyList[i];}
 
