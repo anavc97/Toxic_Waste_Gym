@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
@@ -118,9 +119,9 @@ public class GameHandler : MonoBehaviour
     public int previousHeldBallType = 0;
     public int popUp_time = 0;
     public int timeHoldingYellowBall = 0;
-    public int secondCounter = 0;
     public GameObject canvas;
     public TMP_Text popUp;
+    public Stopwatch popUpStopWatch = new Stopwatch();
     
     void Awake()
     {   
@@ -153,7 +154,7 @@ public class GameHandler : MonoBehaviour
         SocketThreadIn.Start();
 
         outbound_socket = GameObject.Find("SceneManager").GetComponent<StartGame>().outbound_socket;
-        Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
+        UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
         //socketOutCode();
     }
 
@@ -170,10 +171,10 @@ public class GameHandler : MonoBehaviour
             inbound_socket.Bind(Inbound_localEndPoint);
             inbound_socket.Listen(10);
             
-            //Debug.Log("Waiting for a connection...");
+            //UnityEngine.Debug.Log("Waiting for a connection...");
             handler = inbound_socket.Accept();
-            Debug.Log("Server Started");
-            Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
+            UnityEngine.Debug.Log("Server Started");
+            UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
 
             while(gameRunning)
             {
@@ -203,7 +204,7 @@ public class GameHandler : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.Log(e.ToString());
+            UnityEngine.Debug.Log(e.ToString());
         }
     }
 
@@ -220,11 +221,11 @@ public class GameHandler : MonoBehaviour
             // Connect to Remote EndPoint
             outbound_socket.Connect(Outbound_localEndPoint);
 
-            Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
+            UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
         }
         catch (Exception e)
         {
-            Debug.Log(e.ToString());
+            UnityEngine.Debug.Log(e.ToString());
         }
     } 
 
@@ -232,7 +233,7 @@ public class GameHandler : MonoBehaviour
     {   
         byte[] msg = Encoding.ASCII.GetBytes(jsonmsg);
         int bytesSent = outbound_socket.Send(msg);
-        Debug.Log("Sending action: " + bytesSent);
+        UnityEngine.Debug.Log("Sending action: " + bytesSent);
     } 
 
     void Update()
@@ -276,8 +277,8 @@ public class GameHandler : MonoBehaviour
 
             else if (gameData.Command == "game_finished")
             {   
-                Debug.Log("Game Over!");
-                Debug.Log("Time remaining: " + time.timeRemaining);
+                UnityEngine.Debug.Log("Game Over!");
+                UnityEngine.Debug.Log("Time remaining: " + time.timeRemaining);
                 /*Transform panel = canvas.transform.Find("Panel");
                 if (time.timeRemaining <1f)
                 {
@@ -290,7 +291,7 @@ public class GameHandler : MonoBehaviour
 
             popUp_time += 1;
 
-            if(popUp_time == 175) //175 frames later
+            if(popUp_time == 200) //200 frames later
             {
                 popUp.text = "";
                 popUp_time = 0;
@@ -356,7 +357,7 @@ public class GameHandler : MonoBehaviour
                 popUp.color = new Color32(40,191,0,255); //Green
                 popUp_time = 0;
                 timeHoldingYellowBall = 0;
-                secondCounter = 0;
+                popUpStopWatch.Reset();
             }
             else if(previousHeldBallType == 3 && holdingBall) //3=Red ball
             {
@@ -367,13 +368,16 @@ public class GameHandler : MonoBehaviour
         }
         if(previousHeldBallType == 2 && holdingBall)
         {
-            secondCounter += 1;
-            if(timeHoldingYellowBall == 0 || secondCounter == 60)
+            if(!popUpStopWatch.IsRunning)
+            {
+                popUpStopWatch.Start();
+            }
+            if(popUpStopWatch.Elapsed.Seconds == 1 || timeHoldingYellowBall == 0)
             {
                 timeHoldingYellowBall += 1;
                 popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
                 popUp.color = new Color32(168,147,0,255);  //Yellow
-                secondCounter = 0;
+                popUpStopWatch.Reset();
             }
             popUp_time = 0;
         }
@@ -385,8 +389,8 @@ public class GameHandler : MonoBehaviour
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
         
-        //Debug.Log("JSON RECEIVED: " + data);
-        Debug.Log("Command: " + gameData.Command);
+        //UnityEngine.Debug.Log("JSON RECEIVED: " + data);
+        UnityEngine.Debug.Log("Command: " + gameData.Command);
 
     }
     
@@ -402,7 +406,7 @@ public class GameHandler : MonoBehaviour
         handler.Shutdown(SocketShutdown.Both);
         handler.Close();
         handler.Disconnect(false);
-        Debug.Log("Inbound disconnected!");
+        UnityEngine.Debug.Log("Inbound disconnected!");
         
     }
     
@@ -411,12 +415,12 @@ public class GameHandler : MonoBehaviour
         outbound_socket.Shutdown(SocketShutdown.Both);
         outbound_socket.Close();
         outbound_socket.Disconnect(false);
-        Debug.Log("Outbound disconnected!");            
+        UnityEngine.Debug.Log("Outbound disconnected!");            
     }
     
     void OnDisable()
     {   
-        Debug.Log("Disabled.");
+        UnityEngine.Debug.Log("Disabled.");
         gameRunning = false;
         stopInboundServer();
         stopOutboundServer();
