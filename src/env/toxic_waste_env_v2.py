@@ -112,7 +112,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	scoring and time remaining. Also, to help with identifying different wastes, the autonomous agent has access to an extra action of identification of waste.
 	"""
 	Observation = namedtuple("Observation",
-							 ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "score"])
+							 ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "time_penalties",
+							  "score"])
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
@@ -291,7 +292,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		return possible_positions[self._np_random.choice(range(len(possible_positions)), p=moves_prob)]
 	
 	def get_time_left(self) -> float:
-		if self._is_train:
+		if not self._is_train:
 			curr_time = time.time() - self._start_time
 		else:
 			curr_time = self.max_steps - self._current_step
@@ -318,6 +319,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								sight=self._agent_sight,
 								current_step=self._current_step,
 								time_left=self.get_time_left(),
+								time_penalties=self._time_penalties,
 								score=self._score)
 	
 	def get_env_log(self) -> str:

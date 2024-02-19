@@ -124,6 +124,8 @@ def main():
 	parser.add_argument('--use-encoding', dest='use_encoding', action='store_true', help='Use one-hot encoding for categorical observations')
 	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
 						help='List of render modes for the environment')
+	parser.add_argument('--inbound', dest='inbound_port', type=int, required=False, default=INBOUND_PORT, help='')
+	parser.add_argument('--outbound', dest='outbound_port', type=int, required=False, default=INBOUND_PORT, help='')
 	args = parser.parse_args()
 	
 	env = ToxicWasteEnvV2(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
@@ -151,9 +153,9 @@ def main():
 	initialized_outbound = False
 	
 	# Inbound has to set up a server side connection
-	inbound_socket.bind((SOCKETS_IP, INBOUND_PORT))
+	inbound_socket.bind((SOCKETS_IP, args.inbound_port))
 	inbound_socket.listen()
-	logger.info('Inbound socket started at %s:%s' % (SOCKETS_IP, INBOUND_PORT))
+	logger.info('Inbound socket started at %s:%s' % (SOCKETS_IP, args.inbound_port))
 	
 	
 	# Create thread for inbound socket to listen for commands
@@ -176,8 +178,8 @@ def main():
 					print("Waiting a bit for Unity.")
 					time.sleep(1)
 					print("Ready to connect.")
-					outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
-					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
+					outbound_socket.connect((SOCKETS_IP, args.outbound_port))
+					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, args.outbound_port))
 					initialized_outbound = True
 
 				# After waking up get robot action and run environment step
@@ -202,8 +204,11 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
-						print("new state: ", out_msg)
-
+						# print("new state: ", out_msg)
+					
+					obs = game.game_env.create_observation()
+					print(obs.time_left)
+					print(obs.time_penalties)
 					i += 1
 					out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
@@ -212,6 +217,9 @@ def main():
 
 				except socket.error as e:
 					logger.error("[MAIN ERROR] Socket error: %s" % e)
+					
+				except KeyError as e:
+					logger.error("[MAIN ERROR] Key error: %s" % e)
 			
 			# TODO: log game data for step
 			time.sleep(1 / float(args.cycles_second))
