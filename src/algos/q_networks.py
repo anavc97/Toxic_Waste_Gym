@@ -56,11 +56,15 @@ class DuelingQNetworkV2(nn.Module):
 	@nn.compact
 	def __call__(self, x_orig: jnp.ndarray):
 		if self.use_cnn:
-			x_shape = x_orig.shape
-			x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_orig[0]))
-			x = nn.avg_pool(x, window_shape=self.pool_window)
-			x = x.reshape((x.shape[0], -1))
-			x = jnp.stack([x, x_orig[1]])
+			if len(x_orig.shape) == 1:
+				x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_orig[0]))
+				x = nn.avg_pool(x, window_shape=self.pool_window)
+				x = x.reshape((x.shape[0], -1))
+				x = jnp.hstack([x, jnp.hstack(x_orig[1:])])
+			else:
+				x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_orig[0]))
+				x = nn.avg_pool(x, window_shape=self.pool_window)
+				x = x.reshape((x.shape[0], -1))
 		else:
 			x = x_orig
 		for i in range(self.num_layers):

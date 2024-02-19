@@ -558,5 +558,6 @@ class BaseToxicEnv(Env):
 	
 	def close(self):
 		super().close()
+		
 		self.close_render()
 		

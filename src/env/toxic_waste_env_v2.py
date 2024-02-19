@@ -123,6 +123,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						 use_encoding, render_mode)
 		self._slip = slip
 		self._slip_prob = 0.0
+		self._max_time = 0.0
 		self._is_train = is_train
 		self._start_time = time.time()
 		self._time_penalties = 0.0
@@ -232,6 +233,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		players_data = config_data['players']
 		objects_data = config_data['objects']
 		self._slip_prob = float(config_data['slip_prob'])
+		self._max_time = float(config_data['max_time'])
 		config_sight = float(config_data['sight'])
 		self._agent_sight = config_sight if config_sight > 0 else min(self._rows, self._cols)
 		n_red = 0
@@ -293,7 +295,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def get_time_left(self) -> float:
 		if not self._is_train:
-			curr_time = time.time() - self._start_time
+			curr_time = self._max_time - (time.time() - self._start_time)
 		else:
 			curr_time = self.max_steps - self._current_step
 		
@@ -475,20 +477,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
 		
-		if seed is not None:
-			self.seed(seed)
-		
-		self._current_step = 0
-		self._n_players = 0
-		self._n_objects = 0
-		self._players: List[PlayerState] = []
-		self._objects: List[WasteStateV2] = []
-		self._field: np.ndarray = np.zeros((self._rows, self._cols))
-		self.setup_env()
-		obs = self.make_obs()
+		obs, info = super().reset(seed=seed, options=options)
 		self._start_time = time.time()
 		
-		return obs, {}
+		return obs, info
 	
 	def step(self, actions: List[int]) -> tuple[np.ndarray, np.ndarray, bool, bool, dict[str, Any]]:
 		
@@ -519,13 +511,14 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				acting_player.orientation = act_direction
 			next_pos = (max(min(acting_player.position[0] + act_direction[0], self._rows), 0),
 						max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
-			if not (self._field[next_pos] == CellEntity.EMPTY or self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
+			if not (self._field[next_pos] == CellEntity.DOOR or self._field[next_pos] == CellEntity.EMPTY or self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
 				new_positions.append(acting_player.position)
 			elif self._slip and self._field[acting_player.position] == CellEntity.ICE:
 				new_positions.append(self.move_ice(acting_player, next_pos))
 				slip_agents.append(acting_player.id)
 			else:
 				new_positions.append(next_pos)
+				print("next pos: " + str(next_pos))
 			
 			# Handle INTERACT action is only necessary for human agents
 			if act == Actions.INTERACT and acting_player.agent_type == AgentType.HUMAN:
@@ -603,8 +596,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			old_pos = old_positions[idx]
 			next_pos = new_positions[idx]
 			ball_pos = [obj.position for obj in self.objects]
-			if moving_player.is_holding_object():
+			if idx == AgentType.HUMAN and moving_player.is_holding_object():
 				self._time_penalties += sum([obj.time_penalty for obj in moving_player.held_objects])	# When the agent moves holding waste apply time penalty
+				print("penalties: ", self._time_penalties)
 			if old_pos != next_pos and next_pos not in ball_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
@@ -635,10 +629,3 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				print('Caught exception %s when trying to import Viewer class.' % str(e.args))
 		
 		return self._render.render(self, return_rgb_array=(self.render_mode == 'rgb_array'))
-	
-	def close_render(self):
-		self._render.close()
-		
-	def close(self):
-		super().close()
-		self.close_render()

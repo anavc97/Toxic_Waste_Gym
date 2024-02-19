@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.IO;
@@ -45,11 +46,14 @@ public class GameHandler : MonoBehaviour
         [JsonProperty("game_id")]
         public int GameId { get; set; }
 
-        [JsonProperty("points")]
-        public int Points { get; set; }
+        [JsonProperty("score")]
+        public float Score { get; set; }
+
+        [JsonProperty("time_left")]
+        public float TimeLeft { get; set; }
 
         [JsonProperty("game_time")]
-        public double GameTime { get; set; }
+        public float GameTime { get; set; }
 
         [JsonProperty("ticks")]
         public int Ticks { get; set; }
@@ -82,6 +86,12 @@ public class GameHandler : MonoBehaviour
         [JsonProperty("hold_state")]
         public int HoldState { get; set; }
 
+        [JsonProperty("identified")]
+        public bool Identified { get; set; }
+
+        [JsonProperty("type")]
+        public int Type { get; set; } //
+
         [JsonProperty("holding_player")]
         public object HoldingPlayer { get; set; }
 
@@ -104,17 +114,18 @@ public class GameHandler : MonoBehaviour
     public InputHandler input_handler;
     public bool gameRunning;
     public bool gameOver = false;
-    public bool timeRunning;
     public bool holdingBall = false;
     public bool previousHoldingBall = false;
-    public string previousHeldBall = "";
+    public int previousHeldBallType = 0;
+    public int popUp_time = 0;
+    public int timeHoldingYellowBall = 0;
     public GameObject canvas;
     public TMP_Text popUp;
+    public Stopwatch popUpStopWatch = new Stopwatch();
     
     void Awake()
     {   
         global_health = 1.0f;
-        timeRunning = time.timeIsRunning;
         
 
         canvas = GameObject.FindWithTag("Canvas");
@@ -143,7 +154,7 @@ public class GameHandler : MonoBehaviour
         SocketThreadIn.Start();
 
         outbound_socket = GameObject.Find("SceneManager").GetComponent<StartGame>().outbound_socket;
-        Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
+        UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
         //socketOutCode();
     }
 
@@ -160,10 +171,10 @@ public class GameHandler : MonoBehaviour
             inbound_socket.Bind(Inbound_localEndPoint);
             inbound_socket.Listen(10);
             
-            //Debug.Log("Waiting for a connection...");
+            //UnityEngine.Debug.Log("Waiting for a connection...");
             handler = inbound_socket.Accept();
-            Debug.Log("Server Started");
-            Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
+            UnityEngine.Debug.Log("Server Started");
+            UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
 
             while(gameRunning)
             {
@@ -193,7 +204,7 @@ public class GameHandler : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.Log(e.ToString());
+            UnityEngine.Debug.Log(e.ToString());
         }
     }
 
@@ -210,11 +221,11 @@ public class GameHandler : MonoBehaviour
             // Connect to Remote EndPoint
             outbound_socket.Connect(Outbound_localEndPoint);
 
-            Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
+            UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
         }
         catch (Exception e)
         {
-            Debug.Log(e.ToString());
+            UnityEngine.Debug.Log(e.ToString());
         }
     } 
 
@@ -222,14 +233,12 @@ public class GameHandler : MonoBehaviour
     {   
         byte[] msg = Encoding.ASCII.GetBytes(jsonmsg);
         int bytesSent = outbound_socket.Send(msg);
-        Debug.Log("Sending action: " + bytesSent);
+        UnityEngine.Debug.Log("Sending action: " + bytesSent);
     } 
 
     void Update()
     {   
-        timeRunning = time.timeIsRunning;    
         //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
-
         if (gameData != null)
         {   
             // Access the data as needed
@@ -243,41 +252,57 @@ public class GameHandler : MonoBehaviour
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
                         action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-                        //Debug.Log("Type of object is: " + player.HeldObject.GetType());
                         if(player.HeldObject != null && player.HeldObject.Count() > 0)
                         {  
                             holdingBall = true;
-                            previousHeldBall = player.HeldObject[0].Name; //Change to type
+                            previousHeldBallType = player.HeldObject[0].Type;
                         }
-                        update_popUp(player.HeldObject);
+                        update_popUp();
                         action.humanInteractWithBall(holdingBall);
 
                         previousHoldingBall = holdingBall;
                         holdingBall = false;
 
-                        update_Score(gameData.Data.Points);
-                        //popUp.text = ""; //Add wait (either co-routine or manual) for message to disappear only after a while
+                        update_Score(gameData.Data.Score);
                     }
 
                 }
 
                 foreach (var obj in gameData.Data.Objects)
                 {
-                    updateBallState(obj.Name, obj.HoldState, obj.Position);
+                    updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);
                     
-                }    
+                }  
             }
-        }
 
-        if (!timeRunning)
-        {
-            canvas.GetComponent<Canvas>().enabled = true;
-            gameOver = true;
+            else if (gameData.Command == "game_finished")
+            {   
+                UnityEngine.Debug.Log("Game Over!");
+                UnityEngine.Debug.Log("Time remaining: " + time.timeRemaining);
+                /*Transform panel = canvas.transform.Find("Panel");
+                if (time.timeRemaining <1f)
+                {
+                    panel.GetComponent<TextMeshPro>().text = "Time is Up!\n Ready for the next level?";
+                }*/
+                
+                canvas.GetComponent<Canvas>().enabled = true;
+                gameOver = true;
+            } 
+
+            popUp_time += 1;
+
+            if(popUp_time == 200) //200 frames later
+            {
+                popUp.text = "";
+                popUp_time = 0;
+            }
+            
+
         }
     
     }
 
-    void updateBallState(string objName, int status, List<int> position)
+    void updateBallState(string objName, int status, List<int> position, bool id)
     {
         GameObject ball = GameObject.Find(objName);
         if (ball != null)
@@ -296,54 +321,66 @@ public class GameHandler : MonoBehaviour
             {   
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
+
+            /*if (id)
+            {
+                ball.tag = "IDdBall";
+            }
+            else
+            {
+                ball.tag = "Ball";
+            }*/
+
         }
         
     }
     
-    void update_Score(int score)
+    void update_Score(float score)
     {      
         //healthBar.SetSize(health);
         ScoreScript.scoreValue = score;
 
     }
 
-    void update_popUp(List<Ball> ballsHeld)
+    void update_popUp()
     {
-        if(previousHoldingBall != holdingBall){
-            if(previousHeldBall == "green" && !holdingBall) 
+        if(previousHoldingBall != holdingBall){ //Need to add checks everytime !holdingBall to see if it was received by astro
+            if(previousHeldBallType == 1 && !holdingBall) //1=Green ball
+            {
+                popUp.text = "+2 points!";
+                popUp.color = new Color32(92,255,51,255); //Light green 
+                popUp_time = 0;
+            }
+            else if(previousHeldBallType == 2 && !holdingBall) //2=Yellow ball
             {
                 popUp.text = "+10 points!";
-                popUp.color = new Color32(92,255,51,255); //Light green 
+                popUp.color = new Color32(40,191,0,255); //Green
+                popUp_time = 0;
+                timeHoldingYellowBall = 0;
+                popUpStopWatch.Reset();
             }
-            else if(previousHeldBall == "yellow" && !holdingBall)
-            {
-                popUp.text = "+15 points!";
-                popUp.color = new Color32(40,191,0,255); //Green 
-            }
-            else if(previousHeldBall == "ball1" && holdingBall) // == red (==ball1 just to test)
+            else if(previousHeldBallType == 3 && holdingBall) //3=Red ball
             {
                 popUp.text = "-5 points!";
                 popUp.color = new Color32(184,0,0,255);   //Red
+                popUp_time = 0;
             }
         }
-        if(previousHeldBall == "yellow" && holdingBall)
+        if(previousHeldBallType == 2 && holdingBall)
         {
-            popUp.text = "-2 seconds!";
-            popUp.color = new Color32(168,147,0,255);  //Yellow
+            if(!popUpStopWatch.IsRunning)
+            {
+                popUpStopWatch.Start();
+            }
+            if(popUpStopWatch.Elapsed.Seconds == 1 || timeHoldingYellowBall == 0)
+            {
+                timeHoldingYellowBall += 1;
+                popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
+                popUp.color = new Color32(168,147,0,255);  //Yellow
+                popUpStopWatch.Reset();
+            }
+            popUp_time = 0;
         }
-    }
-
-    void createJSON(string myStringData)
-    {
-
-        string filePath = "state.json";
-
-        using (StreamWriter file = File.CreateText(filePath))
-        {
-            JsonSerializer serializer = new JsonSerializer();
-            serializer.Serialize(file, myStringData);
-        }
-       
     }
     
     void readState(string data)
@@ -352,7 +389,8 @@ public class GameHandler : MonoBehaviour
         gameData = JsonConvert.DeserializeObject<GameData>(data);
         input_handler.sendAction = true;
         
-        //Debug.Log("JSON RECEIVED: " + data);
+        //UnityEngine.Debug.Log("JSON RECEIVED: " + data);
+        UnityEngine.Debug.Log("Command: " + gameData.Command);
 
     }
     
@@ -368,7 +406,7 @@ public class GameHandler : MonoBehaviour
         handler.Shutdown(SocketShutdown.Both);
         handler.Close();
         handler.Disconnect(false);
-        Debug.Log("Inbound disconnected!");
+        UnityEngine.Debug.Log("Inbound disconnected!");
         
     }
     
@@ -377,12 +415,12 @@ public class GameHandler : MonoBehaviour
         outbound_socket.Shutdown(SocketShutdown.Both);
         outbound_socket.Close();
         outbound_socket.Disconnect(false);
-        Debug.Log("Outbound disconnected!");            
+        UnityEngine.Debug.Log("Outbound disconnected!");            
     }
     
     void OnDisable()
     {   
-        Debug.Log("Disabled.");
+        UnityEngine.Debug.Log("Disabled.");
         gameRunning = false;
         stopInboundServer();
         stopOutboundServer();

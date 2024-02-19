@@ -2,7 +2,7 @@
 
 mkdir -p ~/python_envs
 
-python3 -m venv $HOME/python_envs/astro_waste_env
+python3.10 -m venv $HOME/python_envs/astro_waste_env
 source $HOME/python_envs/astro_waste_env/bin/activate
 
 pip3 install --upgrade pip

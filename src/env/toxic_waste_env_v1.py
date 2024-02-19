@@ -302,21 +302,6 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 		
 		return np.array(state)
 	
-	def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
-		
-		if seed is not None:
-			self.seed(seed)
-		
-		self._current_step = 0
-		self._n_players = 0
-		self._n_objects = 0
-		self._players: List[PlayerState] = []
-		self._objects: List[WasteState] = []
-		self._field: np.ndarray = np.zeros((self._rows, self._cols))
-		self.setup_env()
-		
-		return self.make_obs(), {}
-	
 	def step(self, actions: List[int]) -> tuple[np.ndarray, np.ndarray, bool, bool, dict[str, Any]]:
 		
 		slip_agents = self.execute_transitions(actions)
@@ -448,9 +433,3 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 		
 		return self._render.render(self, return_rgb_array=(self.render_mode == 'rgb_array'))
 	
-	def close_render(self):
-		self._render.close()
-		
-	def close(self):
-		super().close()
-		self.close_render()
