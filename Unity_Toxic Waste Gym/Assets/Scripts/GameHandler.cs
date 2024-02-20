@@ -139,7 +139,6 @@ public class GameHandler : MonoBehaviour
         
         ScoreScript.scoreValue = 0;
         popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
-        popUp.text = "Beginning of level 1";
         gameRunning = true;
         StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();

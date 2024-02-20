@@ -13,13 +13,16 @@ public class ActionRenderingRobot : MonoBehaviour
     public Dictionary<string, bool> BallsIdd;
 
     public GameHandler gameHandler;
-    public GameObject chatBot;
+    //public GameObject chatBot;
+    public GameObject historyChat;
+    public GameObject currentChat;
     private GameObject bubble;
     private GameObject load;
     private GameObject text;
     private List<Vector3> gridPositions; 
 
     private bool identifying = false;
+    private int currentChatNumber = 1;
 
     void Awake()
     {
@@ -29,10 +32,11 @@ public class ActionRenderingRobot : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-      chatBot = GameObject.Find("ChatBot");
-      bubble = chatBot.transform.Find("Bubble").gameObject;
-      load = bubble.transform.Find("Load").gameObject;
-      text = bubble.transform.Find("Text").gameObject;
+      //chatBot = GameObject.Find("ChatBot");
+      //bubble = chatBot.transform.Find("Bubble").gameObject;
+      //load = bubble.transform.Find("Load").gameObject;
+      //text = bubble.transform.Find("Text").gameObject;
+      historyChat = GameObject.Find("HistoryChat");
       defineGrid();
       StartCoroutine(AstroAutomatic());
 
@@ -162,22 +166,26 @@ public class ActionRenderingRobot : MonoBehaviour
       identifying = true;
       string type = ball.name.Split('_')[0];
       Debug.Log("Ball ID: " + type);
+      
+      string currentChatName = "Chat" + currentChatNumber;
+      currentChat = historyChat.transform.Find(currentChatName).gameObject;
+      currentChat.SetActive(true);
+      bubble = currentChat.transform.Find("Bubble").gameObject;
+      load = bubble.transform.Find("Load").gameObject;
+      text = bubble.transform.Find("Text").gameObject;
+
       if (text.GetComponent<TextMeshPro>().enabled)
       {
         text.GetComponent<TextMeshPro>().enabled = false;
       }
-      //GameObject load = ball.transform.Find("Load").gameObject;
-      //GameObject text = ball.transform.Find("Text").gameObject;
       load.GetComponent<TextMeshPro>().enabled = true;
       ball.tag = "IDdBall";
       yield return new WaitForSeconds(3f);
       load.GetComponent<TextMeshPro>().enabled = false;
       text.GetComponent<TextMeshPro>().enabled = true;
       text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
-      yield return new WaitForSeconds(3f);
-      text.GetComponent<TextMeshPro>().enabled = false;
+      currentChatNumber += 1;
       identifying = false;
-      
     }
 
     public (GameObject,float) FindClosestBall(GameObject[] balls)
