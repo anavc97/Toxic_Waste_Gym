@@ -17,6 +17,4 @@ If the script ends without any errors, you have the python environment fully ins
 
 ## Training the model
 
-```
-python3 train_astro_disposal_dqn.py --nagents 2 --nlayers 3 --buffer 50000 --cnn --tensorboard --layer-sizes 128 --iterations 200 --batch 128 --train-freq 10 --target-freq 1000 --field-size 15 15  --max-steps 200 --levels level_one --layer-obs --agent-centered --use-encoding --require_facing
-```
+Run ``` run_train_astro_disposal.py ```
