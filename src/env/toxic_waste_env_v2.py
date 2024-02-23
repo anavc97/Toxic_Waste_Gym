@@ -5,7 +5,7 @@ import yaml
 import gymnasium
 import time
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
+from env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.spaces import Discrete, Box
@@ -518,7 +518,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				slip_agents.append(acting_player.id)
 			else:
 				new_positions.append(next_pos)
-				print("next pos: " + str(next_pos))
 			
 			# Handle INTERACT action is only necessary for human agents
 			if act == Actions.INTERACT and acting_player.agent_type == AgentType.HUMAN:

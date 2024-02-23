@@ -8,7 +8,7 @@ import sys
 import logging
 
 from enum import Enum
-from src.env.toxic_waste_env_v2 import AgentType, Actions
+from env.toxic_waste_env_v2 import AgentType, Actions
 from pathlib import Path
 from datetime import datetime
 

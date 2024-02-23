@@ -13,8 +13,8 @@ import numpy as np
 import optax
 import logging
 
-from src.algos.q_networks import DuelingQNetwork, CNNDuelingQNetwork
-from src.utilities.buffers import ReplayBuffer
+from algos.q_networks import DuelingQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2
+from utilities.buffers import ReplayBuffer
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
 # from stable_baselines3.common.buffers import ReplayBuffer
@@ -84,8 +84,11 @@ class DQNetwork(object):
                 cnn_size = cnn_properties[0]
                 cnn_kernel = tuple(cnn_properties[1:3])
                 pool_window = tuple(cnn_properties[3:5])
-            self._q_network = CNNDuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
-                                                 layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
+            
+            #self._q_network = CNNDuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
+                                                 #layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
+            self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
+                                                 layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window, use_cnn=True)
         else:
             self._q_network = DuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function, layer_sizes=layer_sizes.copy())
         

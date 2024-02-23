@@ -8,8 +8,8 @@ import threading
 import time
 import sys
 
-from src.env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
-from src.env.astro_waste_game import AstroWasteGame
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
+from env.astro_waste_game import AstroWasteGame
 from enum import Enum
 from datetime import datetime
 from pathlib import Path
@@ -125,12 +125,13 @@ def main():
 	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
 						help='List of render modes for the environment')
 	parser.add_argument('--inbound', dest='inbound_port', type=int, required=False, default=INBOUND_PORT, help='')
-	parser.add_argument('--outbound', dest='outbound_port', type=int, required=False, default=INBOUND_PORT, help='')
+	parser.add_argument('--outbound', dest='outbound_port', type=int, required=False, default=OUTBOUND_PORT, help='')
 	args = parser.parse_args()
 	
 	env = ToxicWasteEnvV2(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
 						  args.use_layers, args.centered_obs, args.use_encoding, args.render_mode, slip=args.has_slip)
 	game = AstroWasteGame(args.cycles_second, args.game_levels, env, args.max_game_players, args.game_id)
+	
 	if args.render_mode and 'human' in args.render_mode:
 		render = True
 	else:
@@ -206,11 +207,9 @@ def main():
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
 						# print("new state: ", out_msg)
 					
-					obs = game.game_env.create_observation()
-					print(obs.time_left)
-					print(obs.time_penalties)
+
 					i += 1
-					out_msg = out_msg + "<EOF>"
+					#out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
 					
 					outbound_socket.sendall(out_msg.encode('utf-8'))

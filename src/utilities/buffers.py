@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 from gymnasium import spaces
 
-from dl_utilities.utilities import get_action_dim, get_obs_shape, get_device
+from utilities.utilities import get_action_dim, get_obs_shape, get_device
 from stable_baselines3.common.vec_env import VecNormalize
 
 try:

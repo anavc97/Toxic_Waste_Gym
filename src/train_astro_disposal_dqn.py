@@ -16,9 +16,9 @@ import json
 import yaml
 import logging
 
-from dl_algos.dqn import DQNetwork, EPS_TYPE
-from dl_envs.astro_waste.astro_waste_env import AstroWasteEnv, AgentType, Actions
-from dl_envs.astro_waste.astro_greedy_human_model import GreedyHumanAgent
+from algos.dqn import DQNetwork, EPS_TYPE
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
+from env.astro_greedy_human_model import GreedyHumanAgent
 from pathlib import Path
 from flax.training.train_state import TrainState
 from typing import List
@@ -30,7 +30,7 @@ RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 
 
-def get_history_entry(obs: AstroWasteEnv.Observation, actions: List[int], n_agents: int) -> List:
+def get_history_entry(obs: ToxicWasteEnvV2.Observation, actions: List[int], n_agents: int) -> List:
 	
 	entry = []
 	for a_idx in range(n_agents):
@@ -41,7 +41,7 @@ def get_history_entry(obs: AstroWasteEnv.Observation, actions: List[int], n_agen
 	return entry
 
 
-def train_astro_model(agents_ids: List[str], waste_env: AstroWasteEnv, astro_model: DQNetwork, human_model: GreedyHumanAgent, waste_order: List,
+def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_model: DQNetwork, human_model: GreedyHumanAgent, waste_order: List,
 					  num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 					  eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 					  train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, debug_mode: bool = False) -> List:
@@ -201,14 +201,17 @@ def main():
 	parser.add_argument('--debug', dest='debug', action='store_true', help='Flag signalling debug mode for model training')
 
 	# Environment parameters
-	parser.add_argument('--game-levels', dest='game_levels', type=str, required=True, nargs='+', help='Level to train Astro in.')
-	parser.add_argument('--max-env-steps', dest='max_env_steps', type=int, required=True, help='Maximum number of steps for environment timeout')
+	parser.add_argument('--levels', dest='game_levels', type=str, required=True, nargs='+', help='Level to train Astro in.')
+	parser.add_argument('--max-steps', dest='max_steps', type=int, required=True, help='Maximum number of steps for environment timeout')
 	parser.add_argument('--field-size', dest='field_size', type=int, required=True, nargs='+', help='Number of rows and cols in field')
-	parser.add_argument('--has-slip', dest='has_slip', action='store_true', help='')
-	parser.add_argument('--force-facing', dest='need_facing', action='store_true', help='')
+	parser.add_argument('--slip', dest='has_slip', action='store_true', help='')
+	parser.add_argument('--require_facing', dest='require_facing', action='store_true', help='')
 	parser.add_argument('--agent-centered', dest='centered_obs', action='store_true', help='')
 	parser.add_argument('--use-encoding', dest='use_encoding', action='store_true', help='')
-
+	parser.add_argument('--layer-obs', dest='use_layers', action='store_true', help='Environment observation in layer organization')
+	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
+						help='List of render modes for the environment')
+	
 	args = parser.parse_args()
 	# DQN args
 	n_agents = args.n_agents
@@ -220,7 +223,8 @@ def main():
 	use_ddqn = args.use_ddqn
 	use_cnn = args.use_cnn
 	use_tensorboard = args.use_tensorboard
-	tensorboard_details = args.tensorboard_details
+	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
+	#tensorboard_details = [log_dir]
 	layer_sizes = args.layer_sizes
 	
 	# Train args
@@ -246,10 +250,12 @@ def main():
 	field_size = tuple(args.field_size) if len(args.field_size) == 2 else tuple([args.field_size[0], args.field_size[0]])
 	n_players = args.n_agents
 	has_slip = args.has_slip
-	max_episode_steps = args.max_env_steps
-	facing = args.need_facing
+	max_episode_steps = args.max_steps
+	facing = args.require_facing
 	centered_obs = args.centered_obs
 	use_encoding = args.use_encoding
+	render_mode = args.render_mode
+	
 
 	os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 	if not use_gpu:
@@ -258,8 +264,10 @@ def main():
 	now = datetime.now()
 	home_dir = Path(__file__).parent.absolute().parent.absolute()
 	log_dir = home_dir / 'logs'
+	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
+	tensorboard_details = [str(log_dir)]
 	models_dir = home_dir / 'models'
-	configs_dir = Path(__file__).parent.absolute() / 'dl_envs' / 'astro_waste' / 'data' / 'configs'
+	configs_dir = Path(__file__).parent.absolute() / 'env' / 'data' / 'configs'
 	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(RNG_SEED)
 
@@ -280,8 +288,11 @@ def main():
 		logger.info('Starting Astro Waste Disposal DQN Train')
 		logger.info('#######################################')
 		logger.info('Level %s setup' % game_level)
-		env = AstroWasteEnv(field_size, game_level, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, use_cnn, centered_obs, use_encoding)
+		env = ToxicWasteEnvV2(field_size, game_levels[0], n_players, n_objects, max_episode_steps, RNG_SEED, facing,
+						  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip)
+		
 		obs, *_ = env.reset(seed=RNG_SEED)
+		print(obs)
 		human_agents = [env.players[idx] for idx in range(n_agents) if env.players[idx].agent_type == AgentType.HUMAN]
 		agents_id = [agent.id for agent in env.players]
 		
@@ -308,8 +319,9 @@ def main():
 		logger.info('Creating DQN and starting train')
 		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
 		tensorboard_details += ['astro_' + game_level]
+		
 		astro_dqn = DQNetwork(env.action_space.n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.observation_space[0], use_gpu, dueling_dqn, use_ddqn,
-							  use_cnn, False, use_tensorboard, tensorboard_details)
+							  cnn_layer=use_cnn, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details)
 		history = train_astro_model(agents_id, env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
 									target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
 									tensorboard_freq, debug_mode=debug)
