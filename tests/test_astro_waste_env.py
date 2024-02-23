@@ -3,7 +3,8 @@
 import numpy as np
 import yaml
 
-from env.astro_waste_env import AstroWasteEnv, PlayerState, ObjectState, Actions
+from src.env.toxic_waste_env_base import PlayerState, Actions
+from src.env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2
 from pathlib import Path
 
 
@@ -25,7 +26,8 @@ def main():
 	centered_obs = False
 	encoding = False
 	rng_gen = np.random.default_rng(RNG_SEED)
-	env = AstroWasteEnv(field_size, layout, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding)
+	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding,
+						  slip=has_slip, is_train=True)
 	state, *_ = env.reset()
 	print(env.get_filled_field())
 	

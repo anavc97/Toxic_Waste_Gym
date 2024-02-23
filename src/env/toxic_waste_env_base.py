@@ -278,9 +278,10 @@ class BaseToxicEnv(Env):
 		self._use_layer_obs = layer_obs
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
+		self.setup_env()
 		
 		self.action_space = Discrete(self._n_actions)
-		self.observation_space = gymnasium.spaces.Tuple(tuple([self._get_observation_space()] * self._n_players))
+		self.observation_space = gymnasium.spaces.Tuple([self._get_observation_space()] * self._n_players)
 		self.action_space.seed(rnd_seed)
 		self.observation_space.seed(rnd_seed)
 		if render_mode is None:

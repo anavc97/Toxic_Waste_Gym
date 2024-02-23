@@ -39,5 +39,7 @@ objects : {
 }
 
 slip_prob: 0.1
+
 max_time: 200.0
+
 sight: -1
