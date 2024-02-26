@@ -43,4 +43,6 @@ slip_prob: 0.1
 
 sight: -1
 
-max_time: 200.0
+max_game_time: 200.0
+
+max_train_time: 400

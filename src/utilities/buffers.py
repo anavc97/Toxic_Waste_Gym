@@ -8,7 +8,7 @@ import jax
 import jax.numpy as jnp
 from gymnasium import spaces
 
-from utilities.utilities import get_action_dim, get_obs_shape, get_device
+from src.utilities.utilities import get_action_dim, get_obs_shape, get_device
 from stable_baselines3.common.vec_env import VecNormalize
 
 try:
@@ -30,6 +30,14 @@ class ReplaySample(NamedTuple):
     observations: jax.Array
     actions: jax.Array
     next_observations: jax.Array
+    dones: jax.Array
+    rewards: jax.Array
+
+
+class DictReplaySample(NamedTuple):
+    observations: Dict[str, jax.Array]
+    actions: jax.Array
+    next_observations: Dict[str, jax.Array]
     dones: jax.Array
     rewards: jax.Array
 
@@ -86,42 +94,24 @@ class GeneralBuffer(ABC):
         return arr.swapaxes(0, 1).reshape(shape[0] * shape[1], *shape[2:])
 
     def size(self) -> int:
-        """
-        :return: The current size of the buffer
-        """
         if self.full:
             return self.buffer_size
         return self.pos
 
     def add(self, *args, **kwargs) -> None:
-        """
-        Add elements to the buffer.
-        """
         raise NotImplementedError()
 
     def extend(self, *args, **kwargs) -> None:
-        """
-        Add a new batch of transitions to the buffer
-        """
         # Do a for loop along the batch axis
         for data in zip(*args):
             self.add(*data)
 
     def reset(self) -> None:
-        """
-        Reset the buffer.
-        """
         self.pos = 0
         self.full = False
         self.reset_seed()
 
     def sample(self, batch_size: int, env: Optional[VecNormalize] = None):
-        """
-        :param batch_size: Number of element to sample
-        :param env: associated gym VecEnv
-            to normalize the observations/rewards when sampling
-        :return:
-        """
         upper_bound = self.buffer_size if self.full else self.pos
         self.rng_key, subkey = jax.random.split(self.rng_key)
         batch_inds = jax.random.randint(subkey, shape=(batch_size, ), minval=0, maxval=upper_bound, dtype=int)
@@ -133,12 +123,7 @@ class GeneralBuffer(ABC):
         return jax.device_put(arr, device=self.device)
 
     @abstractmethod
-    def _get_samples(self, batch_inds: Union[np.ndarray, jax.Array], env: Optional[VecNormalize] = None) -> Union[ReplaySample, RolloutSample]:
-        """
-        :param batch_inds:
-        :param env:
-        :return:
-        """
+    def _get_samples(self, batch_inds: Union[np.ndarray, jax.Array], env: Optional[VecNormalize] = None) -> Union[ReplaySample, RolloutSample, DictReplaySample]:
         raise NotImplementedError()
 
     @staticmethod
@@ -250,16 +235,6 @@ class ReplayBuffer(GeneralBuffer):
             self.pos = 0
 
     def sample(self, batch_size: int, env: Optional[VecNormalize] = None) -> ReplaySample:
-        """
-        Sample elements from the replay buffer.
-        Custom sampling when using memory efficient variant,
-        as we should not sample the element with index `self.pos`
-
-        :param batch_size: Number of element to sample
-        :param env: associated gym VecEnv
-            to normalize the observations/rewards when sampling
-        :return:
-        """
         if not self.optimize_memory_usage:
             return super().sample(batch_size=batch_size, env=env)
         
@@ -450,3 +425,117 @@ class RolloutBuffer(GeneralBuffer):
             self.returns[batch_inds].flatten(),
         )
         return RolloutSample(*tuple(map(self.to_torch, data)))
+    
+
+class DictReplayBuffer(ReplayBuffer):
+    
+    def __init__(self, buffer_size: int, observation_space: spaces.Dict, action_space: spaces.Space, device: Union[jax.Device, str] = "auto",
+                 n_envs: int = 1, n_agents: int = 1, rng_seed: int = 1234567890, optimize_memory_usage: bool = False, handle_timeout_termination: bool = True):
+        super(ReplayBuffer, self).__init__(buffer_size, observation_space, action_space, device, n_envs=n_envs, n_agents=n_agents,rng_seed=rng_seed)
+
+        assert isinstance(self.obs_shape, dict), "DictReplayBuffer must be used with Dict obs space only"
+        self.buffer_size = max(buffer_size // n_envs, 1)
+
+        # Check that the replay buffer can fit into the memory
+        if psutil is not None:
+            mem_available = psutil.virtual_memory().available
+
+        assert optimize_memory_usage is False, "DictReplayBuffer does not support optimize_memory_usage"
+        self.optimize_memory_usage = optimize_memory_usage
+
+        self.observations = {
+            key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
+            for key, _obs_shape in self.obs_shape.items()
+        }
+        self.next_observations = {
+            key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
+            for key, _obs_shape in self.obs_shape.items()
+        }
+
+        self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=action_space.dtype)
+        self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        self.dones = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+
+        # Handle timeouts termination properly if needed
+        self.handle_timeout_termination = handle_timeout_termination
+        self.timeouts = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+
+        if psutil is not None:
+            obs_nbytes = 0
+            for _, obs in self.observations.items():
+                obs_nbytes += obs.nbytes
+
+            total_memory_usage = obs_nbytes + self.actions.nbytes + self.rewards.nbytes + self.dones.nbytes
+            if self.next_observations is not None:
+                next_obs_nbytes = 0
+                for _, obs in self.observations.items():
+                    next_obs_nbytes += obs.nbytes
+                total_memory_usage += next_obs_nbytes
+
+            if total_memory_usage > mem_available:
+                # Convert to GB
+                total_memory_usage /= 1e9
+                mem_available /= 1e9
+                warnings.warn(
+                    "This system does not have apparently enough memory to store the complete "
+                    f"replay buffer {total_memory_usage:.2f}GB > {mem_available:.2f}GB"
+                )
+
+    def add(self, obs: Dict[str, np.ndarray], next_obs: Dict[str, np.ndarray], action: np.ndarray, reward: np.ndarray, done: np.ndarray,
+            infos: List[Dict[str, Any]]) -> None:
+       
+        # Copy to avoid modification by reference
+        for key in self.observations.keys():
+            if isinstance(self.observation_space.spaces[key], spaces.Discrete):
+                obs[key] = obs[key].reshape((self.n_envs,) + self.obs_shape[key])
+            self.observations[key][self.pos] = np.array(obs[key])
+
+        for key in self.next_observations.keys():
+            if isinstance(self.observation_space.spaces[key], spaces.Discrete):
+                next_obs[key] = next_obs[key].reshape((self.n_envs,) + self.obs_shape[key])
+            self.next_observations[key][self.pos] = np.array(next_obs[key]).copy()
+
+        # Reshape to handle multi-dim and discrete action spaces, see GH #970 #1392
+        action = action.reshape((self.n_envs, self.action_dim))
+
+        self.actions[self.pos] = np.array(action).copy()
+        self.rewards[self.pos] = np.array(reward).copy()
+        self.dones[self.pos] = np.array(done).copy()
+
+        if self.handle_timeout_termination:
+            self.timeouts[self.pos] = np.array([info.get("TimeLimit.truncated", False) for info in infos])
+
+        self.pos += 1
+        if self.pos == self.buffer_size:
+            self.full = True
+            self.pos = 0
+
+    def sample(self, batch_size: int, env: Optional[VecNormalize] = None) -> DictReplaySample:
+        return super(ReplayBuffer, self).sample(batch_size=batch_size, env=env)
+
+    def _get_samples(self, batch_inds: Union[np.ndarray, jax.Array], env: Optional[VecNormalize] = None) -> DictReplaySample:
+        # Sample randomly the env idx
+        if self.n_envs > 1:
+            env_indices = jax.random.randint(self.rng_key, shape=(len(batch_inds),), minval=0, maxval=self.n_envs, dtype=int)
+        else:
+            env_indices = 0
+
+        # Normalize if needed and remove extra dimension (we are using only one env for now)
+        obs_ = self._normalize_obs({key: obs[batch_inds, env_indices] for key, obs in self.observations.items()}, env)
+        next_obs_ = self._normalize_obs({key: obs[batch_inds, env_indices] for key, obs in self.next_observations.items()}, env)
+
+        # Convert to torch tensor
+        observations = {key: self.to_tensor(obs) for key, obs in obs_.items()}
+        next_observations = {key: self.to_tensor(obs) for key, obs in next_obs_.items()}
+        
+        dones = self.dones[batch_inds, env_indices] * (1 - self.timeouts[batch_inds, env_indices])
+        rewards = (self.rewards[batch_inds, env_indices].reshape(-1, 1) if self.n_agents < 2 else
+                   self.rewards[batch_inds, env_indices].reshape(-1, *self.rewards.shape[2:]))
+
+        return DictReplaySample(
+            observations=observations,
+            actions=self.to_tensor(self.actions[batch_inds, env_indices]),
+            next_observations=next_observations,
+            dones=self.to_tensor(dones).reshape(-1, 1),
+            rewards=self.to_tensor(self._normalize_reward(rewards, env)),
+        )

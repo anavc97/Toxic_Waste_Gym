@@ -64,9 +64,10 @@ class GreedyHumanAgent(object):
 	_waste_order: List[int] = None
 	_rng_gen: np.random.Generator
 	_map_adjacencies: Dict[Tuple[int, int], List[Tuple[int, int]]]
+	_version: int
 	
 	def __init__(self, pos_init: Tuple[int, int], orient_init: Tuple[int, int], agent_id: str, objs_pos: Dict[int, Tuple[int, int]],
-				 rng_seed: int, field: np.ndarray):
+				 rng_seed: int, field: np.ndarray, version: int, door_pos: Tuple = (-1, -1)):
 		
 		self._pos = pos_init
 		self._orientation = orient_init
@@ -75,10 +76,13 @@ class GreedyHumanAgent(object):
 		self._nxt_waste_idx = -1
 		self._waste_pos = objs_pos.copy()
 		self._rng_gen = np.random.default_rng(rng_seed)
+		self._version = version
+		self._door_pos = door_pos
 		
 		# Create adjacency map
 		rows, cols = field.shape
-		free_pos = [(row, col) for row in range(rows) for col in range(cols) if field[row, col] == CellEntity.EMPTY or field[row, col] == CellEntity.ICE]
+		free_pos = [(row, col) for row in range(rows) for col in range(cols)
+					if field[row, col] == CellEntity.EMPTY or field[row, col] == CellEntity.ICE or field[row, col] == CellEntity.TOXIC]
 		free_pos.sort()
 		self._map_adjacencies = {}
 		for pos in free_pos:
@@ -149,7 +153,7 @@ class GreedyHumanAgent(object):
 		def are_facing(h_or: Tuple[int, int], r_or: Tuple[int, int]) -> bool:
 			return (h_or[0] + r_or[0]) == 0 and (h_or[1] + r_or[1]) == 0
 		
-		self_agent = [agent for agent in obs.players if agent.id == self._agent_id][0]
+		self_agent = [agent for agent in obs.players if agent.name == self._agent_id][0]
 		robot = [agent for agent in obs.players if agent.agent_type == AgentType.ROBOT][0]
 		self._pos = self_agent.position
 		self._orientation = self_agent.orientation
@@ -178,8 +182,13 @@ class GreedyHumanAgent(object):
 						break
 			
 			if not found_waste:
-				self._nxt_waste_idx = self._waste_order.pop(0)
-				nxt_waste = self._waste_pos[self._nxt_waste_idx]
+				if self._version == 1 or (self._version == 2 and len(self._waste_order) > 0):
+					self._nxt_waste_idx = self._waste_order.pop(0)
+					nxt_waste = self._waste_pos[self._nxt_waste_idx]
+				
+				else:
+					if self._version == 2:
+						nxt_waste = self._door_pos
 			
 			human_adj_pos = get_adj_pos(self._pos)
 			if nxt_waste in human_adj_pos and nxt_waste[0] == (self._pos[0] + self._orientation[0]) and nxt_waste[1] == (self._pos[1] + self._orientation[1]):
@@ -215,7 +224,7 @@ class GreedyHumanAgent(object):
 			for nxt_pos in self._map_adjacencies[node_pos]:
 				nodes_visit += [PosNode(nxt_pos, cost + 1, None)]
 				seen_nodes += [nodes_visit[-1]]
-				
+			
 			nxt_node = None
 			done = False
 			while not done:

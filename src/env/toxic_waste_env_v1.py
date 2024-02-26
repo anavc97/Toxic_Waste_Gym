@@ -128,14 +128,14 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 				cell_val = field_data[row][col]
 				if cell_val == ' ':
 					pass
-				elif cell_val == 'X':
+				elif cell_val == 'X' or cell_val == 'D':
 					self._field[row, col] = CellEntity.COUNTER
 				elif cell_val == 'T':
 					self._field[row, col] = CellEntity.TOXIC
 				elif cell_val == 'I':
 					self._field[row, col] = CellEntity.ICE
-				elif cell_val == 'O':
-					self.add_object((row, col), objects_data[['unspecified'][self._n_objects]])
+				elif cell_val == 'O' or cell_val == 'R' or cell_val == 'G' or cell_val == 'Y':
+					self.add_object((row, col), objects_data['unspecified'][self._n_objects])
 					self._field[row, col] = CellEntity.COUNTER
 				elif cell_val.isdigit():
 					nxt_player_data = players_data[self._n_players]
@@ -277,26 +277,26 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 		state = []
 		
 		for player in self._players:
-			player_state = [player.position, self.encode_orientation(player.orientation), int(player.is_holding_object())]
+			player_state = [*player.position, *self.encode_orientation(player.orientation), int(player.is_holding_object())]
 			for other_player in self._players:
 				if other_player.id != player.id:
-					player_state.append(other_player.position)
-					player_state.append(self.encode_orientation(other_player.orientation))
-					player_state.append(int(other_player.is_holding_object()))
+					player_state += [*other_player.position]
+					player_state += [*self.encode_orientation(other_player.orientation)]
+					player_state += [int(other_player.is_holding_object())]
 			for obj in self._objects:
 				if obj.hold_state == HoldState.DISPOSED:  # When disposed, object position is a virtual trash bin at (-1, -1)
-					player_state.append((-1, -1))
+					player_state += [-1, -1]
 				else:
-					player_state.append(obj.position)
+					player_state += [*obj.position]
 				hold_state = [0] * len(HoldState)
 				hold_state[obj.hold_state] = 1
-				player_state.append(*hold_state)
+				player_state += [*hold_state]
 				if obj.hold_state == HoldState.FREE:  # If the object is not held, the agent holding it is 0 (None)
-					player_state.append([0] * self._n_players)
+					player_state += [0] * self._n_players
 				else:
 					hold_player = [0] * self._n_players
 					hold_player[self._players.index(obj.holding_player)] = 1
-					player_state.append(*hold_player)
+					player_state += [*hold_player]
 			
 			state.append(player_state)
 		

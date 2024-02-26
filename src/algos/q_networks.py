@@ -2,7 +2,7 @@
 
 import flax.linen as nn
 import jax.numpy as jnp
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, Union, Dict
 
 
 class DuelingQNetwork(nn.Module):
@@ -51,22 +51,15 @@ class DuelingQNetworkV2(nn.Module):
 	cnn_size: int
 	cnn_kernel: Tuple[int]
 	pool_window: Tuple[int]
-	use_cnn: bool
 	
 	@nn.compact
-	def __call__(self, x_orig: jnp.ndarray):
-		if self.use_cnn:
-			if len(x_orig.shape) == 1:
-				x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_orig[0]))
-				x = nn.avg_pool(x, window_shape=self.pool_window)
-				x = x.reshape((x.shape[0], -1))
-				x = jnp.hstack([x, jnp.hstack(x_orig[1:])])
-			else:
-				x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_orig[0]))
-				x = nn.avg_pool(x, window_shape=self.pool_window)
-				x = x.reshape((x.shape[0], -1))
-		else:
-			x = x_orig
+	def __call__(self, x_conv: jnp.ndarray, x_arr: jnp.ndarray):
+		if len(x_arr.shape) < 1:
+			x_arr = x_arr.reshape((1, 1))
+		x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_conv))
+		x = nn.avg_pool(x, window_shape=self.pool_window)
+		x = x.reshape((x.shape[0], -1))
+		x = jnp.hstack([x, x_arr])
 		for i in range(self.num_layers):
 			x = self.activation_function(nn.Dense(self.layer_sizes[i])(x))
 		a = nn.Dense(self.action_dim)(x)

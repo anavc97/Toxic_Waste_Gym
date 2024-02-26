@@ -116,18 +116,20 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							  "score"])
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
-				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
-				 render_mode: List[str] = None, slip: bool = False, is_train: bool = False):
-		
-		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, layer_obs, agent_centered,
-						 use_encoding, render_mode)
+				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, slip: bool = False, is_train: bool = False,
+				 dict_obs: bool = True):
+
+		self._dict_obs = dict_obs
+		self._is_train = is_train
 		self._slip = slip
 		self._slip_prob = 0.0
 		self._max_time = 0.0
-		self._is_train = is_train
-		self._start_time = time.time()
 		self._time_penalties = 0.0
 		self._score = 0.0
+		self._door_pos = (-1, 1)
+		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, True, agent_centered,
+						 False, render_mode)
+		self._start_time = time.time()
 	
 	###########################
 	### GETTERS AND SETTERS ###
@@ -144,6 +146,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def score(self) -> float:
 		return self._score
 	
+	@property
+	def door_pos(self) -> Tuple:
+		return self._door_pos
+	
 	#######################
 	### UTILITY METHODS ###
 	#######################
@@ -157,72 +163,66 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			print(colored('[ADD_OBJECT] Max number of objects (%d) already reached, cannot add a new one.' % self._max_objects, 'yellow'))
 			return False
 	
-	def _get_observation_space(self) -> gymnasium.spaces.Tuple:
+	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict]:
 		
-		if self._use_layer_obs:
-			if self._agent_centered_obs:
-				# grid observation space
-				grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
-				
-				# agents layer: agent levels
-				agents_min = np.zeros(grid_shape, dtype=np.int32)
-				agents_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# waste layer: waste pos
-				green_min = np.zeros(grid_shape, dtype=np.int32)
-				green_max = np.ones(grid_shape, dtype=np.int32)
-				yellow_min = np.zeros(grid_shape, dtype=np.int32)
-				yellow_max = np.ones(grid_shape, dtype=np.int32)
-				red_min = np.zeros(grid_shape, dtype=np.int32)
-				red_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# access layer: i the cell available
-				occupancy_min = np.zeros(grid_shape, dtype=np.int32)
-				occupancy_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# total layer
-				min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min])
-				max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max])
+		if self._agent_centered_obs:
+			# grid observation space
+			grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
 			
-			else:
-				# grid observation space
-				grid_shape = (self._rows, self._cols)
-				
-				# agents layer
-				agents_min = np.zeros(grid_shape, dtype=np.int32)
-				agents_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# objects layer
-				green_min = np.zeros(grid_shape, dtype=np.int32)
-				green_max = np.ones(grid_shape, dtype=np.int32)
-				yellow_min = np.zeros(grid_shape, dtype=np.int32)
-				yellow_max = np.ones(grid_shape, dtype=np.int32)
-				red_min = np.zeros(grid_shape, dtype=np.int32)
-				red_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# occupancy layer
-				occupancy_min = np.zeros(grid_shape, dtype=np.int32)
-				occupancy_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# acting agent layer
-				acting_agent_min = np.zeros(grid_shape, dtype=np.int32)
-				acting_agent_max = np.ones(grid_shape, dtype=np.int32)
-				
-				# total layer
-				min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min, acting_agent_min])
-				max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max, acting_agent_max])
+			# agents layer: agent levels
+			agents_min = np.zeros(grid_shape, dtype=np.int32)
+			agents_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# waste layer: waste pos
+			green_min = np.zeros(grid_shape, dtype=np.int32)
+			green_max = np.ones(grid_shape, dtype=np.int32)
+			yellow_min = np.zeros(grid_shape, dtype=np.int32)
+			yellow_max = np.ones(grid_shape, dtype=np.int32)
+			red_min = np.zeros(grid_shape, dtype=np.int32)
+			red_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# access layer: i the cell available
+			occupancy_min = np.zeros(grid_shape, dtype=np.int32)
+			occupancy_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# total layer
+			min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min])
+			max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max])
 		
 		else:
-			if self._use_encoding:
-				min_obs = [-1, -1, 0, 0, 0] * self._n_players + [-1, -1, *[0] * len(HoldState), *[0] * self._n_players] * self._n_objects
-				max_obs = ([self._rows - 1, self._cols - 1, 1, 1, 1] * self._n_players +
-						   [self._rows - 1, self._cols - 1, *[1] * len(HoldState), *[1] * self._n_players] * self._n_objects)
-			else:
-				min_obs = [-1, -1, -1, -1, 0] * self._n_players + [-1, -1, 0, 0] * self._n_objects
-				max_obs = [self._rows - 1, self._cols - 1, 1, 1, 1] * self._n_players + [self._rows - 1, self._cols - 1, 2, self._n_players - 1] * self._n_objects
+			# grid observation space
+			grid_shape = (self._rows, self._cols)
 			
-		return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
-									   Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
+			# agents layer
+			agents_min = np.zeros(grid_shape, dtype=np.int32)
+			agents_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# objects layer
+			green_min = np.zeros(grid_shape, dtype=np.int32)
+			green_max = np.ones(grid_shape, dtype=np.int32)
+			yellow_min = np.zeros(grid_shape, dtype=np.int32)
+			yellow_max = np.ones(grid_shape, dtype=np.int32)
+			red_min = np.zeros(grid_shape, dtype=np.int32)
+			red_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# occupancy layer
+			occupancy_min = np.zeros(grid_shape, dtype=np.int32)
+			occupancy_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# acting agent layer
+			acting_agent_min = np.zeros(grid_shape, dtype=np.int32)
+			acting_agent_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# total layer
+			min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min, acting_agent_min])
+			max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max, acting_agent_max])
+		
+		if self._dict_obs:
+			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
+										  'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
+		else:
+			return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
+										   Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
 	
 	def setup_env(self) -> None:
 		
@@ -233,7 +233,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		players_data = config_data['players']
 		objects_data = config_data['objects']
 		self._slip_prob = float(config_data['slip_prob'])
-		self._max_time = float(config_data['max_time'])
+		self._max_time = float(config_data['max_train_time']) if self._is_train else float(config_data['max_game_time'])
 		config_sight = float(config_data['sight'])
 		self._agent_sight = config_sight if config_sight > 0 else min(self._rows, self._cols)
 		n_red = 0
@@ -253,6 +253,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.ICE
 				elif cell_val == 'D':
 					self._field[row, col] = CellEntity.DOOR
+					self._door_pos = (row, col)
 				elif cell_val == 'G':
 					self.add_object((row, col), objects_data['green']['ids'][n_green], objects_data['green']['points'],
 									objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
@@ -336,37 +337,12 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				env_log += '\t- ' + str(obj) + '\n'
 		
 		env_log += 'Field layout: %s\n' % str(self._field)
-		env_log += 'Current timestep: %d\nGame is finished: %r\nGame has timed out: %r\n' % (self._current_step, self.is_game_finished(), self.is_game_timedout())
+		env_log += 'Current timestep: %d\nGame is finished: %r\n' % (self._current_step, self.is_game_finished())
+		env_log += 'Game has timed out: %r\nTime left: %f' % (self.is_game_timedout(), self.get_time_left())
 		
 		return env_log
 	
-	def make_obs_array(self) -> np.ndarray:
-		state = []
-		
-		for player in self._players:
-			player_state = [player.position, player.orientation, int(player.is_holding_object())]
-			for other_player in self._players:
-				if other_player.id != player.id:
-					player_state.append(other_player.position)
-					player_state.append(other_player.orientation)
-					player_state.append(int(other_player.is_holding_object()))
-			for obj in self._objects:
-				if obj.hold_state == HoldState.DISPOSED:  # When disposed, object position is a virtual trash bin at (-1, -1)
-					player_state.append((-1, -1))
-				else:
-					player_state.append(obj.position)
-				player_state.append(obj.hold_state)
-				player_state.append(obj.waste_type)
-				if obj.hold_state == HoldState.FREE:  # If the object is not held, the agent holding it is 0 (None)
-					player_state.append(0)
-				else:
-					player_state.append(self._players.index(obj.holding_player) + 1)
-			
-			state.append(player_state)
-		
-		return np.array(state)
-	
-	def make_obs_grid(self) -> np.ndarray:
+	def make_obs_grid(self) -> Union[np.ndarray, List]:
 		
 		if self._agent_centered_obs:
 			layers_size = (self._rows + 2 * self._agent_sight, self._cols + 2 * self._agent_sight)
@@ -400,13 +376,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					if self._field[row, col] == CellEntity.COUNTER:
 						occupancy_layer[row + self._agent_sight, col + self._agent_sight] = 0
 			
-			obs = np.stack([agent_layer, green_layer, occupancy_layer])
+			obs = np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
 			padding = 2 * self._agent_sight + 1
 			time_left = self.get_time_left()
 			
-			return np.array([np.array([obs[:, a.position[0]:a.position[0] + padding, a.position[1]:a.position[1] + padding], np.array(time_left)],
-									  dtype=object)
-							 for a in self._players])
+			if self._dict_obs:
+				return [{'conv': obs[:, a.position[0]:a.position[0] + padding, a.position[1]:a.position[1] + padding], 'array': np.array(time_left)}
+						for a in self._players]
+			else:
+				return np.array([np.array([obs[:, a.position[0]:a.position[0] + padding, a.position[1]:a.position[1] + padding], np.array(time_left)],
+										  dtype=object)
+								 for a in self._players])
 		
 		else:
 			layers_size = (self._rows, self._cols)
@@ -439,41 +419,14 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						occupancy_layer[row, col] = 0
 			time_left = self.get_time_left()
 			
-			return np.array([np.array([np.stack([agent_layer, green_layer, occupancy_layer, acting_layer[idx]]), np.array(time_left)],
-									  dtype=object)
-							 for idx in range(self._n_players)])
-	
-	def make_obs_dqn(self) -> np.ndarray:
-		state = []
-		
-		for player in self._players:
-			player_state = [player.position, self.encode_orientation(player.orientation), int(player.is_holding_object())]
-			for other_player in self._players:
-				if other_player.id != player.id:
-					player_state.append(other_player.position)
-					player_state.append(self.encode_orientation(other_player.orientation))
-					player_state.append(int(other_player.is_holding_object()))
-			for obj in self._objects:
-				if obj.hold_state == HoldState.DISPOSED:  # When disposed, object position is a virtual trash bin at (-1, -1)
-					player_state.append((-1, -1))
-				else:
-					player_state.append(obj.position)
-				hold_state = [0] * len(HoldState)
-				hold_state[obj.hold_state] = 1
-				player_state.append(*hold_state)
-				waste_type = [0] * len(WasteType)
-				waste_type[obj.waste_type - 1] = 1
-				player_state.append(*waste_type)
-				if obj.hold_state == HoldState.FREE:  # If the object is not held, the agent holding it is 0 (None)
-					player_state.append([0] * self._n_players)
-				else:
-					hold_player = [0] * self._n_players
-					hold_player[self._players.index(obj.holding_player)] = 1
-					player_state.append(*hold_player)
-			
-			state.append(player_state)
-		
-		return np.array(state)
+			if self._dict_obs:
+				return [{'conv': np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]), 'array': np.array(time_left)}
+						for idx in range(self._n_players)]
+			else:
+				return np.array([np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+										   np.array(time_left)],
+										  dtype=object)
+								 for idx in range(self._n_players)])
 	
 	def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
 		
@@ -511,7 +464,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				acting_player.orientation = act_direction
 			next_pos = (max(min(acting_player.position[0] + act_direction[0], self._rows), 0),
 						max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
-			if not (self._field[next_pos] == CellEntity.DOOR or self._field[next_pos] == CellEntity.EMPTY or self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
+			if not (self._field[next_pos] == CellEntity.DOOR or self._field[next_pos] == CellEntity.EMPTY or
+					self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
 				new_positions.append(acting_player.position)
 			elif self._slip and self._field[acting_player.position] == CellEntity.ICE:
 				new_positions.append(self.move_ice(acting_player, next_pos))
@@ -597,7 +551,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			ball_pos = [obj.position for obj in self.objects]
 			if idx == AgentType.HUMAN and moving_player.is_holding_object():
 				self._time_penalties += sum([obj.time_penalty for obj in moving_player.held_objects])	# When the agent moves holding waste apply time penalty
-				print("penalties: ", self._time_penalties)
 			if old_pos != next_pos and next_pos not in ball_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
