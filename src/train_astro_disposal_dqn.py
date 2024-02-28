@@ -420,8 +420,8 @@ def main():
 			env = ToxicWasteEnvV1(field_size, game_levels[0], n_players, n_objects, max_episode_steps, RNG_SEED, facing,
 								  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip)
 		else:
-			env = ToxicWasteEnvV2(field_size, game_levels[0], n_players, n_objects, max_episode_steps, RNG_SEED, facing,
-								  centered_obs, args.render_mode, slip=has_slip, is_train=True)
+			env = ToxicWasteEnvV2(terrain_size=field_size, layout=game_levels[0], max_players=n_players, max_objects=n_objects, max_steps=max_episode_steps, rnd_seed=RNG_SEED, require_facing=facing,
+								  agent_centered=centered_obs, render_mode=args.render_mode, slip=has_slip, is_train=True)
 		
 		obs, *_ = env.reset(seed=RNG_SEED)
 		human_agents = [env.players[idx] for idx in range(n_agents) if env.players[idx].agent_type == AgentType.HUMAN]

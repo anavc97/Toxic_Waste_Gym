@@ -41,8 +41,8 @@ RESTART_INFO = ["20230724-171745", "food_5x4_cycle_2", 2]
 USE_RENDER = False
 
 # Environment params
-# GAME_LEVEL = ['level_one', 'level_two']
-GAME_LEVEL = ['cramped_room']
+GAME_LEVEL = ['level_one']
+#GAME_LEVEL = ['cramped_room']
 STEPS_EPISODE = 400
 WARMUP_STEPS = STEPS_EPISODE * 2
 FIELD_LENGTH = 15
