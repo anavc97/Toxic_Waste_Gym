@@ -121,6 +121,7 @@ public class GameHandler : MonoBehaviour
     public int timeHoldingYellowBall = 0;
     public GameObject canvas;
     public TMP_Text popUp;
+    public BallInteraction ballInteraction;
     public Stopwatch popUpStopWatch = new Stopwatch();
     
     void Awake()
@@ -139,11 +140,10 @@ public class GameHandler : MonoBehaviour
         
         ScoreScript.scoreValue = 0;
         popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
+        ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
         gameRunning = true;
         StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();
-        
-
     }
 
     void StartServer()
@@ -264,16 +264,21 @@ public class GameHandler : MonoBehaviour
 
                         update_Score(gameData.Data.Score);
                     }
+                    if (player.Name == "astro")
+                    {
+                        GameObject player_obj = GameObject.Find(player.Name);
+                        ActionRenderingRobot action = player_obj.GetComponent<ActionRenderingRobot>();
+
+                        action.moveOrRotateRobot(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
+
+                    }
 
                 }
-
                 foreach (var obj in gameData.Data.Objects)
                 {
-                    updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);
-                    
+                    updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);    
                 }  
             }
-
             else if (gameData.Command == "game_finished")
             {   
                 UnityEngine.Debug.Log("Game Over!");
@@ -321,11 +326,12 @@ public class GameHandler : MonoBehaviour
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
 
-            /*if (id)
+            if (id)
             {
-                ball.tag = "IDdBall";
+                ballInteraction.StartIdAnimation(ball);
+                //ball.tag = "IDdBall";
             }
-            else
+            /*else
             {
                 ball.tag = "Ball";
             }*/

@@ -36,12 +36,13 @@ public class ActionRenderingRobot : MonoBehaviour
       //bubble = chatBot.transform.Find("Bubble").gameObject;
       //load = bubble.transform.Find("Load").gameObject;
       //text = bubble.transform.Find("Text").gameObject;
-      historyChat = GameObject.Find("HistoryChat");
-      defineGrid();
-      StartCoroutine(AstroAutomatic());
+      historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
+      //defineGrid();
+      //StartCoroutine(AstroAutomatic());
 
     }
 
+    // Not used
     void defineGrid()
     {
      gridPositions = new List<Vector3>();
@@ -75,6 +76,7 @@ public class ActionRenderingRobot : MonoBehaviour
       
     }
     
+    //Not used
     public void AstroManual()
     {
       float pos_x = transform.position.x;
@@ -105,6 +107,7 @@ public class ActionRenderingRobot : MonoBehaviour
       }
     }
 
+    //Not used
     IEnumerator AstroAutomatic()
     { 
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
@@ -140,26 +143,22 @@ public class ActionRenderingRobot : MonoBehaviour
         StartCoroutine(StartIdAnimation(IDball));
         yield return new WaitForSeconds(3f);
       }
-
-      
     }
+    //Only Function used here now besides awake
     public void moveOrRotateRobot(Vector3 newPosition, Vector2 newOrientation)
     { 
-      //Debug.Log("Current position: " + transform.position);
-      //Debug.Log("New position: " + newPosition); 
-      //Debug.Log(newOrientation);
-
-      if(transform.position != newPosition)
-      {  
-        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
-      }
-      else if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
+      if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {
         animator.SetFloat("moveX", newOrientation.x);
         animator.SetFloat("moveY", newOrientation.y);
       }
+      else if(transform.position != newPosition)
+      {
+        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);    
+      }
     }
   
+    //Not used - Migrated to BallInteraction script
     IEnumerator StartIdAnimation(GameObject ball)
     {
       
@@ -188,6 +187,7 @@ public class ActionRenderingRobot : MonoBehaviour
       identifying = false;
     }
 
+    //Not used
     public (GameObject,float) FindClosestBall(GameObject[] balls)
     {
 
@@ -212,6 +212,7 @@ public class ActionRenderingRobot : MonoBehaviour
       return (closestBall,closestDistance);
     }
 
+    //Not used
     public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
     {
       // Initialize variables to keep track of the closest ball and its distance

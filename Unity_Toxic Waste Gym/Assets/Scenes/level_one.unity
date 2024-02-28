@@ -12682,6 +12682,7 @@ GameObject:
   - component: {fileID: 1694360932}
   - component: {fileID: 1694360931}
   - component: {fileID: 1694360930}
+  - component: {fileID: 1694360934}
   m_Layer: 8
   m_Name: red_1
   m_TagString: Ball
@@ -12830,6 +12831,19 @@ Transform:
   - {fileID: 1666985767}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1694360934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1694360929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b45f4f6612bc9af38a1339a05a1598a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  movePoint: {fileID: 0}
 --- !u!1 &1703479789
 GameObject:
   m_ObjectHideFlags: 0
@@ -14607,6 +14621,7 @@ GameObject:
   - component: {fileID: 2026953304}
   - component: {fileID: 2026953306}
   - component: {fileID: 2026953307}
+  - component: {fileID: 2026953308}
   m_Layer: 0
   m_Name: astro
   m_TagString: Untagged
@@ -14725,6 +14740,27 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!95 &2026953308
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2026953303}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 6f0cfb79d7f525f10b272955b8accac0, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &2042814945
 GameObject:
   m_ObjectHideFlags: 0
