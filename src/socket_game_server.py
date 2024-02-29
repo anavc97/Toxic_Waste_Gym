@@ -26,7 +26,7 @@ SOCKETS_IP = "127.0.0.1"
 INBOUND_PORT = 20500
 OUTBOUND_PORT = 20501
 SOCK_TIMEOUT = 5
-BUFFER_SIZE = 1024
+BUFFER_SIZE = 2048
 
 models_dir = Path(__file__).parent.absolute().parent.absolute() / 'models'
 
@@ -183,7 +183,6 @@ def main():
 	use_tensorboard = args.use_tensorboard
 	tensorboard_details = args.tensorboard_details
 	layer_sizes = [args.layer_sizes[0], args.layer_sizes[0]]
-	print(layer_sizes)
 	env_version = args.env_version
 	
 	env = ToxicWasteEnvV2(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
@@ -251,7 +250,7 @@ def main():
 				actions = []
 				q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
 				action = q_values.argmax(axis=-1)
-				print("action: ", int(jax.device_get(action)))
+				#print("action: ", int(jax.device_get(action)))
 				game.enque_action(1, int(jax.device_get(action)))
 				obs, _, actions = game.env_step()
 				model_obs = get_model_obs(obs[AgentType.ROBOT])
@@ -274,11 +273,11 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
-						#print("new state: ", out_msg)
+						print("new state: ", new_state)
 					
 
 					i += 1
-					#out_msg = out_msg + "<EOF>"
+					out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
 					
 					outbound_socket.sendall(out_msg.encode('utf-8'))

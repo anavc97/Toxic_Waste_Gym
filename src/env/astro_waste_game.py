@@ -3,7 +3,7 @@
 import numpy as np
 
 from typing import List, Tuple, Dict, Any
-from src.env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
 from collections import namedtuple
 
 
@@ -167,7 +167,6 @@ class AstroWasteGame(object):
 	def env_step(self) -> tuple:
 		actions = []
 		env_agents = self._game_env.players
-		
 		for agent_idx in range(self._game_env.n_players):
 			actions += [self._player_actions[env_agents[agent_idx].id]]
 		

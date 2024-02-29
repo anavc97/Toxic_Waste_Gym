@@ -27,11 +27,11 @@ public class BallInteraction : MonoBehaviour
        
     }
 
-    public void StartIdAnimation(GameObject ball)
+    public IEnumerator StartIdAnimation(GameObject ball)
     {
         if(BallsIdentified.Contains(ball.name)) //Check if ball had already been identified before
         {
-            return;
+            yield return 0;
         }
         string type = ball.name.Split('_')[0];
         Debug.Log("Ball ID: " + type);
@@ -49,7 +49,7 @@ public class BallInteraction : MonoBehaviour
         }
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
-        Thread.Sleep(3000);
+        yield return new WaitForSeconds(3f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";

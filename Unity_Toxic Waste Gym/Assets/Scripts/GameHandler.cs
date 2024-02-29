@@ -170,7 +170,7 @@ public class GameHandler : MonoBehaviour
             inbound_socket.Bind(Inbound_localEndPoint);
             inbound_socket.Listen(10);
             
-            //UnityEngine.Debug.Log("Waiting for a connection...");
+            UnityEngine.Debug.Log("Waiting for a connection...");
             handler = inbound_socket.Accept();
             UnityEngine.Debug.Log("Server Started");
             UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
@@ -232,7 +232,7 @@ public class GameHandler : MonoBehaviour
     {   
         byte[] msg = Encoding.ASCII.GetBytes(jsonmsg);
         int bytesSent = outbound_socket.Send(msg);
-        UnityEngine.Debug.Log("Sending action: " + bytesSent);
+        UnityEngine.Debug.Log("Sending action: " + jsonmsg);
     } 
 
     void Update()
@@ -242,11 +242,12 @@ public class GameHandler : MonoBehaviour
         {   
             // Access the data as needed
             if (gameData.Command == "new_state")
-            {
+            {   
+                
                 foreach (var player in gameData.Data.Players)
                 {
                     if (player.Name == "human")
-                    {
+                    {   
                         GameObject player_obj = GameObject.Find(player.Name);
                         ActionRendering action = player_obj.GetComponent<ActionRendering>();
 
@@ -257,6 +258,7 @@ public class GameHandler : MonoBehaviour
                             previousHeldBallType = player.HeldObject[0].Type;
                         }
                         update_popUp();
+                        
                         action.humanInteractWithBall(holdingBall);
 
                         previousHoldingBall = holdingBall;
@@ -328,7 +330,7 @@ public class GameHandler : MonoBehaviour
 
             if (id)
             {
-                ballInteraction.StartIdAnimation(ball);
+                ballInteraction.StartCoroutine(ballInteraction.StartIdAnimation(ball));
                 //ball.tag = "IDdBall";
             }
             /*else
@@ -371,6 +373,7 @@ public class GameHandler : MonoBehaviour
                 popUp_time = 0;
             }
         }
+        
         if(previousHeldBallType == 2 && holdingBall)
         {
             if(!popUpStopWatch.IsRunning)
@@ -395,7 +398,7 @@ public class GameHandler : MonoBehaviour
         input_handler.sendAction = true;
         
         //UnityEngine.Debug.Log("JSON RECEIVED: " + data);
-        UnityEngine.Debug.Log("Command: " + gameData.Command);
+        //UnityEngine.Debug.Log("Command: " + gameData.Command);
 
     }
     

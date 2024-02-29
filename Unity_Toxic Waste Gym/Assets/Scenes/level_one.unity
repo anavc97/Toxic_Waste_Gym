@@ -10829,7 +10829,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1480879290
 Transform:
   m_ObjectHideFlags: 0
@@ -10893,6 +10893,7 @@ MonoBehaviour:
   timeHoldingYellowBall: 0
   canvas: {fileID: 0}
   popUp: {fileID: 0}
+  ballInteraction: {fileID: 0}
 --- !u!4 &1531758260
 Transform:
   m_ObjectHideFlags: 0
@@ -12843,7 +12844,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b45f4f6612bc9af38a1339a05a1598a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movePoint: {fileID: 0}
+  historyChat: {fileID: 0}
+  currentChat: {fileID: 0}
+  BallsIdentified: []
 --- !u!1 &1703479789
 GameObject:
   m_ObjectHideFlags: 0
@@ -15081,7 +15084,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b45f4f6612bc9af38a1339a05a1598a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movePoint: {fileID: 2042814946}
+  historyChat: {fileID: 0}
+  currentChat: {fileID: 0}
+  BallsIdentified: []
 --- !u!95 &2108296918
 Animator:
   serializedVersion: 5

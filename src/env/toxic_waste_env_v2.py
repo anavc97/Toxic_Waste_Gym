@@ -5,7 +5,7 @@ import yaml
 import gymnasium
 import time
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
+from env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.spaces import Discrete, Box
@@ -482,14 +482,15 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						agent_idx = self._players.index(agent_facing)
 						agent_action = actions[agent_idx]
 						agent_type = agent_facing.agent_type
-						if agent_type == AgentType.ROBOT and (
-								agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
+						if agent_type == AgentType.ROBOT: # and (
+								#agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
 							if self.require_facing and not self.are_facing(acting_player, agent_facing):
 								continue
 							# Place object in robot
 							place_obj = acting_player.held_objects[0]
 							acting_player.drop_object(place_obj.id)
 							place_obj.hold_state = HoldState.DISPOSED
+							place_obj.identified = True
 							place_obj.holding_player = agent_facing
 							place_obj.position = (-1, -1)
 							agent_facing.hold_object(place_obj)
@@ -516,7 +517,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								pick_obj.position = acting_player.position
 								pick_obj.hold_state = HoldState.HELD
 								pick_obj.holding_player = acting_player
-								pick_obj.identified = True
+								#pick_obj.identified = True
 								acting_player.hold_object(pick_obj)
 								# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
@@ -542,7 +543,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					break
 			if add_move:
 				can_move.append(idx)
-		
 		# Update position for agents with valid movements
 		for idx in can_move:
 			moving_player = self._players[idx]
