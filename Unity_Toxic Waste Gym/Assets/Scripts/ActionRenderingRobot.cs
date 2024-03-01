@@ -154,7 +154,11 @@ public class ActionRenderingRobot : MonoBehaviour
       }
       else if(transform.position != newPosition)
       {
-        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);    
+        Vector3 human_position = GameObject.Find("human").transform.position;
+        if(human_position.x != newPosition.x || human_position.y != newPosition.y)
+        {
+          transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);
+        }    
       }
     }
   

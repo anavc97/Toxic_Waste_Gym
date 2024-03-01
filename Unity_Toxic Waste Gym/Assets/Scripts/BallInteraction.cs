@@ -49,12 +49,12 @@ public class BallInteraction : MonoBehaviour
         }
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
+        BallsIdentified.Add(ball.name);
         yield return new WaitForSeconds(3f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
         currentChatNumber += 1;
-        BallsIdentified.Add(ball.name);
     }
         
 }
