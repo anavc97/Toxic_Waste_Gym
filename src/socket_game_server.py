@@ -248,10 +248,10 @@ def main():
 
 				# After waking up get robot action and run environment step
 				actions = []
-				q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
-				action = q_values.argmax(axis=-1)
+				#q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
+				#action = q_values.argmax(axis=-1)
 				#print("action: ", int(jax.device_get(action)))
-				game.enque_action(1, int(jax.device_get(action)))
+				#game.enque_action(1, int(jax.device_get(action)))
 				obs, _, actions = game.env_step()
 				model_obs = get_model_obs(obs[AgentType.ROBOT])
 				try:

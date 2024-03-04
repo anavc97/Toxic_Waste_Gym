@@ -41,6 +41,11 @@ public class ActionRenderingRobot : MonoBehaviour
     private bool identifying = false;
     private int currentChatNumber = 1;
 
+    public List<Vector3> pos_around = new List<Vector3>();
+    public float pos_x;
+    public float pos_y;
+    public string jsonString;
+
     void Awake()
     {
       animator = GetComponent<Animator>();
@@ -53,9 +58,12 @@ public class ActionRenderingRobot : MonoBehaviour
       //bubble = chatBot.transform.Find("Bubble").gameObject;
       //load = bubble.transform.Find("Load").gameObject;
       //text = bubble.transform.Find("Text").gameObject;
+      Debug.Log("Start of action rendering robot evoked");
+      action.command = "p_act";
       historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
       defineGrid();
       StartCoroutine(AstroAutomatic());
+      Debug.Log("Start of action rendering robot executed");
 
     }
 
@@ -128,24 +136,55 @@ public class ActionRenderingRobot : MonoBehaviour
     IEnumerator AstroAutomatic()
     { 
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
+      GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
       Debug.Log("Started astro automatic");
 
       //Missing check to see if human is holding a ball (if yes move towards him)
       while (balls != null)
       { 
         float closestDistance = Mathf.Infinity;
+        float distanceToHuman = Mathf.Infinity;
         balls = GameObject.FindGameObjectsWithTag("Ball");
+
+        GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
+        allBalls = new GameObject[balls.Length + identifiedBalls.Length];
+        balls.CopyTo(allBalls, 0);
+        identifiedBalls.CopyTo(allBalls, balls.Length);
 
         while (closestDistance >  Mathf.Sqrt(2))
         { 
+          //Move towards human if human is holding a ball
+          while(humanHoldingBall(allBalls) && distanceToHuman > Mathf.Sqrt(2))
+          {
+            pos_x = transform.position.x;
+            pos_y = transform.position.y;
+            pos_around = new List<Vector3>();
+            pos_around.Add(new Vector3(pos_x, pos_y+1f,0)); // square up
+            pos_around.Add(new Vector3(pos_x, pos_y-1f,0)); // square down
+            pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
+            pos_around.Add(new Vector3(pos_x+1f, pos_y,0)); // square right
+            GameObject humanPlayer = GameObject.Find("human");
+            int next_step_human = FindNextStep(pos_around, humanPlayer);
+            distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+
+            action.data = new ActionDataRobot(); 
+            action.data.id = 1;
+            action.data.action = next_step_human;
+            jsonString = JsonConvert.SerializeObject(action);
+            Debug.Log("robot command sent: " + jsonString);
+            GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);
+            yield return new WaitForSeconds(0.5f);
+          }
+          
+          //Move towards closest ball if human isn't holding a ball
           Debug.Log("Entered while to move towards nearest ball");
           var results = FindClosestBall(balls);
           GameObject ball = results.Item1;
           closestDistance = results.Item2;
 
-          float pos_x = transform.position.x;
-          float pos_y = transform.position.y;
-          List<Vector3> pos_around = new List<Vector3>();
+          pos_x = transform.position.x;
+          pos_y = transform.position.y;
+          pos_around = new List<Vector3>();
           pos_around.Add(new Vector3(pos_x, pos_y+1f,0)); // square up
           pos_around.Add(new Vector3(pos_x, pos_y-1f,0)); // square down
           pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
@@ -154,28 +193,29 @@ public class ActionRenderingRobot : MonoBehaviour
 
           //Vector3 next_step = FindNextStep(pos_around, ball);
           int next_step = FindNextStep(pos_around, ball);
-          action = new ActionRobot();
+          action.data = new ActionDataRobot(); 
           action.data.id = 1;
           action.data.action = next_step;
-          string jsonString = JsonConvert.SerializeObject(action);
+          jsonString = JsonConvert.SerializeObject(action);
           Debug.Log("robot command sent: " + jsonString);
           GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);
 
           //moveOrRotateRobot(next_step, new Vector2(0,-1));
           
-          //yield return new WaitForSeconds(0.5f);
-          yield return new WaitForSeconds(0.3f);
+          yield return new WaitForSeconds(0.5f);
         }
         
         //var res = FindClosestBall(balls);
         //GameObject IDball = res.Item1;
         //StartCoroutine(StartIdAnimation(IDball));
-        action = new ActionRobot();
+
+        //Identify ball
+        action.data = new ActionDataRobot();
         action.data.id = 1;
         action.data.action = 4; 
-        string jsonString2 = JsonConvert.SerializeObject(action);
-        Debug.Log("robot command sent: " + jsonString2);
-        GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString2);
+        jsonString = JsonConvert.SerializeObject(action);
+        Debug.Log("robot command sent: " + jsonString);
+        GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);
         yield return new WaitForSeconds(3f);
       }
     }
@@ -253,46 +293,58 @@ public class ActionRenderingRobot : MonoBehaviour
 
     
     //public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
-    public int FindNextStep(List<Vector3> stepList, GameObject ball)
+    public int FindNextStep(List<Vector3> stepList, GameObject distantObject)
     {
       // Initialize variables to keep track of the closest ball and its distance
-      Dictionary<Vector3, float> Steps = new Dictionary<Vector3, float>();
+      //Dictionary<Vector3, float> Steps = new Dictionary<Vector3, float>();
+      Dictionary<int, float> Steps = new Dictionary<int, float>();
       //List<Vector3> closestSteps = new List<Vector3>();
       List<int> closestStepsAction = new List<int>();
       float closestDistance = Mathf.Infinity;
 
-      // Find the closest ball
+      // Find the closest tile to distantObject
       foreach (Vector3 step in stepList)
       {   
         if (!gridPositions.Contains(step))
         {
-          float distance = Vector3.Distance(step, ball.transform.position);
-          Steps.Add(step, distance);
+          float distance = Vector3.Distance(step, distantObject.transform.position);
+          Steps.Add(stepList.IndexOf(step), distance);
           if (distance < closestDistance)
           {
               closestDistance = distance;
           }
         }
       }
-      List<Vector3> keyList = new List<Vector3>(Steps.Keys);
+      //List<Vector3> keyList = new List<Vector3>(Steps.Keys);
+      List<int> keyList = new List<int>(Steps.Keys);
       if (Random.value <0.1f && !identifying)
         { int i = Random.Range(0, keyList.Count);
-        return i;}
+        return keyList[i];}
           //return keyList[i];}
 
-      int j = 0;
       foreach (var c_step in Steps)
       {
         if(c_step.Value == closestDistance)
         {
           //closestSteps.Add(c_step.Key);
-          closestStepsAction.Add(j);
+          closestStepsAction.Add(c_step.Key);
         }
-        j += 1;
       }
 
       //return closestSteps[Random.Range(0, closestSteps.Count)];
       return closestStepsAction[Random.Range(0, closestStepsAction.Count)];
+    }
+
+    public bool humanHoldingBall(GameObject[] balls)
+    {
+      foreach (GameObject ball in balls)
+      {   
+        if(!ball.GetComponent<SpriteRenderer>().enabled)
+        {
+          return true;
+        }
+      }
+      return false;
     }
 
 }
