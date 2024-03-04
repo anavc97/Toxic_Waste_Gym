@@ -14713,7 +14713,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   movementSpeed: 700
-  gameHandler: {fileID: 0}
+  action:
+    command: 
+  gameHandler: {fileID: 1531758259}
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
 --- !u!50 &2026953307

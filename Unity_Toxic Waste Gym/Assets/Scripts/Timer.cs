@@ -25,7 +25,7 @@ public class Timer : MonoBehaviour
     void Update()
     {   
         gameData = gHandler.GetComponent<GameHandler>().gameData;
-        Debug.Log(" -- " +gHandler + gameData);
+        //Debug.Log(" -- " +gHandler + gameData);
         gameTime = gameData.Data.TimeLeft;
 
         if(timeIsRunning)
