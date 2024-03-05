@@ -50,7 +50,7 @@ public class BallInteraction : MonoBehaviour
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
         BallsIdentified.Add(ball.name);
-        yield return new WaitForSeconds(3f);
+        yield return new WaitForSeconds(2.5f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";

@@ -6890,7 +6890,7 @@ Transform:
   m_GameObject: {fileID: 935431279}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12.051, y: 0.973, z: 0}
+  m_LocalPosition: {x: 6.98, y: 14, z: 0}
   m_LocalScale: {x: 0.5, y: 0.42813224, z: 0.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -14716,8 +14716,15 @@ MonoBehaviour:
   action:
     command: 
   gameHandler: {fileID: 1531758259}
+  ballInteraction: {fileID: 0}
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
+  humanPlayer: {fileID: 0}
+  pos_around: []
+  pos_x: 0
+  pos_y: 0
+  jsonString: 
+  previousStepAction: 0
 --- !u!50 &2026953307
 Rigidbody2D:
   serializedVersion: 4

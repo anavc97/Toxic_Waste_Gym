@@ -26,7 +26,10 @@ public class Timer : MonoBehaviour
     {   
         gameData = gHandler.GetComponent<GameHandler>().gameData;
         //Debug.Log(" -- " +gHandler + gameData);
-        gameTime = gameData.Data.TimeLeft;
+        if(gameData != null)
+        {
+            gameTime = gameData.Data.TimeLeft;
+        }
 
         if(timeIsRunning)
         {   

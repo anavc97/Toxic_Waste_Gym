@@ -317,6 +317,7 @@ public class GameHandler : MonoBehaviour
 
             if(status == 2)
             {
+                ball.tag = "CollectedBall";
                 Destroy(ball);
             }
             else if(status == 1)
@@ -328,11 +329,11 @@ public class GameHandler : MonoBehaviour
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
 
-            if (id)
-            {
-                ballInteraction.StartCoroutine(ballInteraction.StartIdAnimation(ball));
-                //ball.tag = "IDdBall";
-            }
+            //if (id)
+            //{
+            //    ballInteraction.StartCoroutine(ballInteraction.StartIdAnimation(ball));
+               
+            //}
             /*else
             {
                 ball.tag = "Ball";
