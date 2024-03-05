@@ -11,16 +11,21 @@ from enum import Enum
 from env.toxic_waste_env_v2 import AgentType, Actions
 from pathlib import Path
 from datetime import datetime
+from pyngrok import ngrok
 
 
 RNG_SEED = 12012024
 SOCKETS_IP = "127.0.0.1"
 INBOUND_PORT = 20501
 OUTBOUND_PORT = 20500
+HOST="7.tcp.eu.ngrok.io"
+PORT = 18785
 SOCK_TIMEOUT = 5
 BUFFER_SIZE = 1024
 ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT, 'r': Actions.IDENTIFY}
 
+#public_url = ngrok.connect(INBOUND_PORT, "tcp", remote_addr=f"{HOST}:{PORT}").public_url
+#print(f"ngrok tunnel {public_url} -> tcp://127.0.0.1:{PORT}")
 
 class GameOperations(Enum):
 	ADD_PLAYER = 'n_play'
@@ -78,9 +83,10 @@ def main():
 	logger.info('Inbound socket started at %s:%s' % (SOCKETS_IP, INBOUND_PORT))
 	
 	# Outbound only has to connect to front end socket
-	outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
-	print('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
-	logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, OUTBOUND_PORT))
+	#outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
+	outbound_socket.connect((HOST, PORT))
+	print('Outbound socket connected at: %s:%s' % (HOST, PORT))
+	logger.info('Outbound socket connected at: %s:%s' % (HOST, PORT))
 	print("Sockets up and running")
 	logger.info("Sockets up and running")
 	

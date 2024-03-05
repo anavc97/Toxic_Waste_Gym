@@ -23,10 +23,12 @@ from typing import List, Union, Dict
 
 RNG_SEED = 12012024
 SOCKETS_IP = "127.0.0.1"
+HOST="5.tcp.eu.ngrok.io"
+PORT = 13583
 INBOUND_PORT = 20500
 OUTBOUND_PORT = 20501
 SOCK_TIMEOUT = 5
-BUFFER_SIZE = 2048
+BUFFER_SIZE = 1024
 
 models_dir = Path(__file__).parent.absolute().parent.absolute() / 'models'
 
@@ -48,6 +50,7 @@ class GameOperations(Enum):
 
 def process_inbound(sock: socket.socket, stop_condition, game: AstroWasteGame, logger: logging.Logger, close_game: bool):
 	conn, addr = sock.accept()
+	print('Receiving updates from front end at %s:%d' % (addr[0], addr[1]))
 	logger.info('Receiving updates from front end at %s:%d' % (addr[0], addr[1]))
 	with conn:
 		while not stop_condition.is_set():
@@ -69,7 +72,8 @@ def process_inbound(sock: socket.socket, stop_condition, game: AstroWasteGame, l
 			if message == 'TIMEOUT' or message == 'ERROR' or message == '':	# On error or timeout do nothing
 				pass
 			
-			else:															# If a message was received process to find the command sent
+			else:	
+				print(message)														# If a message was received process to find the command sent
 				json_message = json.loads(message)
 				command = json_message['command']
 				data = json_message['data']
@@ -183,6 +187,7 @@ def main():
 	use_tensorboard = args.use_tensorboard
 	tensorboard_details = args.tensorboard_details
 	layer_sizes = [args.layer_sizes[0], args.layer_sizes[0]]
+	print(layer_sizes)
 	env_version = args.env_version
 	
 	env = ToxicWasteEnvV2(args.field_size, args.game_levels[0], args.max_env_players, args.max_objects, args.max_steps, RNG_SEED, args.require_facing,
@@ -242,16 +247,16 @@ def main():
 					print("Waiting a bit for Unity.")
 					time.sleep(1)
 					print("Ready to connect.")
-					outbound_socket.connect((SOCKETS_IP, args.outbound_port))
+					outbound_socket.connect((HOST, PORT))
 					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, args.outbound_port))
 					initialized_outbound = True
 
 				# After waking up get robot action and run environment step
 				actions = []
-				#q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
-				#action = q_values.argmax(axis=-1)
-				#print("action: ", int(jax.device_get(action)))
-				#game.enque_action(1, int(jax.device_get(action)))
+				q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
+				action = q_values.argmax(axis=-1)
+				print("action: ", int(jax.device_get(action)))
+				game.enque_action(1, int(jax.device_get(action)))
 				obs, _, actions = game.env_step()
 				model_obs = get_model_obs(obs[AgentType.ROBOT])
 				try:
@@ -273,11 +278,11 @@ def main():
 					else:
 						new_state = game.get_game_metadata()
 						out_msg = json.dumps({'command': 'new_state', 'data': new_state})
-						print("new state: ", new_state)
+						#print("new state: ", out_msg)
 					
 
 					i += 1
-					out_msg = out_msg + "<EOF>"
+					#out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
 					
 					outbound_socket.sendall(out_msg.encode('utf-8'))
