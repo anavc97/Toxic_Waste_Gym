@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TMPro;
 using System.Threading;
 using Newtonsoft.Json;
@@ -67,14 +68,15 @@ public class ActionRenderingRobot : MonoBehaviour
       historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
       humanPlayer = GameObject.Find("human");
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
-      defineGrid();
+      Scene currentScene = SceneManager.GetActiveScene();
+		  if(currentScene.name == "level_one"){defineGridLevelOne();}
+      else if(currentScene.name == "level_two"){defineGridLevelTwo();}
       StartCoroutine(AstroAutomatic());
       Debug.Log("Start of action rendering robot executed");
 
     }
 
-    // Not used
-    void defineGrid()
+    void defineGridLevelOne()
     {
      gridPositions = new List<Vector3>();
 
@@ -101,6 +103,36 @@ public class ActionRenderingRobot : MonoBehaviour
           }
       }
     }
+    //Change to be accurate with level two positions
+    void defineGridLevelTwo()
+    {
+     gridPositions = new List<Vector3>();
+
+      // Add positions to the list using nested loops
+      for (int x = 0; x <= 14; x++)
+      {
+          for (int y = 0; y <= 14; y++)
+          {
+              // Add positions according to the specified patterns
+              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14)))
+                  gridPositions.Add(new Vector3(x, y,0));
+              else if ((x == 0 && (y >= 1 && y <= 14)) || (x == 14 && (y >= 1 && y <= 14)))
+                  gridPositions.Add(new Vector3(x, y,0));
+              else if ((x == 1 && y == 2) || (x == 2 && (y == 2 || y == 3)) || ((x >= 5 && x <= 9) && y == 2) ||
+                        ((x >= 12 && x <= 14) && y == 2) || (x == 1 && y == 3) || (x == 2 && y == 3) ||
+                        ((x >= 6 && x <= 8) && y == 3) || ((x >= 6 && x <= 8) && y == 4) || ((x >= 10 && x <= 11) && y == 4) ||
+                        (x == 7 && (y == 5 || y == 6 || y == 7)) || ((x >= 10 && x <= 11) && (y == 5 || y == 6 || y == 7)) ||
+                        ((x >= 4 && x <= 5) && y == 5) || ((x >= 2 && x <= 4) && y == 6) || (x == 7 && y == 6) ||
+                        ((x >= 9 && x <= 12) && y == 6) || (x == 7 && y == 7) || ((x >= 10 && x <= 11) && y == 7) ||
+                        (x == 5 && y == 8) || ((x >= 10 && x <= 11) && y == 8) || ((x >= 1 && x <= 5) && y == 9) ||
+                        (x == 7 && y == 9) || ((x >= 1 && x <= 5) && y == 10) || ((x >= 8 && x <= 11) && y == 11) ||
+                        ((x >= 2 && x <= 6) && y == 12) || ((x >= 10 && x <= 11) && y == 12))
+                  gridPositions.Add(new Vector3(x, y,0));
+          }
+      }
+    }
+
+
 
     void Update()
     {
@@ -204,6 +236,7 @@ public class ActionRenderingRobot : MonoBehaviour
       }
 
       //When all balls identified robot still follows human when he's holding a ball
+      //TODO: Add check to see if human next to robot without ball and if yes move away to not block him
       balls = GameObject.FindGameObjectsWithTag("IDdBall");
       while(balls.Length != 0)
       {

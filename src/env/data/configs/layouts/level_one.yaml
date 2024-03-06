@@ -33,7 +33,7 @@ objects : {
   },
   green: {
          ids: ['green_1', 'green_2'],
-         points: 2,
+         points: 3,
          time_penalty: 0
   }
 }
