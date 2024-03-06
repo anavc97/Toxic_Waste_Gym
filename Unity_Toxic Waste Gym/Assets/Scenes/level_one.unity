@@ -7189,7 +7189,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: +10 points
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
   m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
@@ -14725,6 +14725,7 @@ MonoBehaviour:
   pos_y: 0
   jsonString: 
   previousStepAction: 0
+  astroStation: {x: 0, y: 0, z: 0}
 --- !u!50 &2026953307
 Rigidbody2D:
   serializedVersion: 4

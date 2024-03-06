@@ -51,6 +51,7 @@ public class ActionRenderingRobot : MonoBehaviour
     public float pos_y;
     public string jsonString;
     public int previousStepAction = 0;
+    public Vector3 astroStation;
     void Awake()
     {
       animator = GetComponent<Animator>();
@@ -69,8 +70,8 @@ public class ActionRenderingRobot : MonoBehaviour
       humanPlayer = GameObject.Find("human");
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
       Scene currentScene = SceneManager.GetActiveScene();
-		  if(currentScene.name == "level_one"){defineGridLevelOne();}
-      else if(currentScene.name == "level_two"){defineGridLevelTwo();}
+		  if(currentScene.name == "level_one"){defineGridLevelOne(); astroStation = new Vector3(6, 6,0);}
+      else if(currentScene.name == "level_two"){defineGridLevelTwo(); astroStation = new Vector3(7, 7,0);}
       StartCoroutine(AstroAutomatic());
       Debug.Log("Start of action rendering robot executed");
 
@@ -86,16 +87,17 @@ public class ActionRenderingRobot : MonoBehaviour
           for (int y = 0; y <= 14; y++)
           {
               // Add positions according to the specified patterns
-              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14)))
+              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14))) //Corners
                   gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 0 && (y >= 1 && y <= 14)) || (x == 14 && (y >= 1 && y <= 14)))
+              else if ((x == 0 && (y >= 1 && y < 14)) || (x == 14 && (y >= 1 && y < 14))) //Outside horizontal
                   gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 1 && y == 2) || (x == 2 && (y == 2 || y == 3)) || ((x >= 5 && x <= 9) && y == 2) ||
-                        ((x >= 12 && x <= 14) && y == 2) || (x == 1 && y == 3) || (x == 2 && y == 3) ||
+              else if ((y == 0 && (x >= 1 && x < 14)) || (y == 0 && (x >= 1 && x < 14)))//Outside vertical
+                  gridPositions.Add(new Vector3(x, y,0));
+              else if ((x == 1 && y == 2) || (x == 1 && y == 3) || (x == 2 && (y == 2 || y == 3)) ||
+                        ((x >= 5 && x <= 9) && y == 2) || ((x >= 12 && x <= 13) && y == 2) ||
                         ((x >= 6 && x <= 8) && y == 3) || ((x >= 6 && x <= 8) && y == 4) || ((x >= 10 && x <= 11) && y == 4) ||
                         (x == 7 && (y == 5 || y == 6 || y == 7)) || ((x >= 10 && x <= 11) && (y == 5 || y == 6 || y == 7)) ||
-                        ((x >= 4 && x <= 5) && y == 5) || ((x >= 2 && x <= 4) && y == 6) || (x == 7 && y == 6) ||
-                        ((x >= 9 && x <= 12) && y == 6) || (x == 7 && y == 7) || ((x >= 10 && x <= 11) && y == 7) ||
+                        (x == 4 && y == 5) || ((x >= 2 && x <= 4) && y == 6) || ((x == 9 || x == 12) && y == 6) || 
                         (x == 5 && y == 8) || ((x >= 10 && x <= 11) && y == 8) || ((x >= 1 && x <= 5) && y == 9) ||
                         (x == 7 && y == 9) || ((x >= 1 && x <= 5) && y == 10) || ((x >= 8 && x <= 11) && y == 11) ||
                         ((x >= 2 && x <= 6) && y == 12) || ((x >= 10 && x <= 11) && y == 12))
@@ -114,24 +116,27 @@ public class ActionRenderingRobot : MonoBehaviour
           for (int y = 0; y <= 14; y++)
           {
               // Add positions according to the specified patterns
-              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14)))
+              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14))) //Corners
                   gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 0 && (y >= 1 && y <= 14)) || (x == 14 && (y >= 1 && y <= 14)))
+              else if ((x == 0 && (y >= 1 && y < 14)) || (x == 14 && (y >= 1 && y < 14))) //Outside horizontal
                   gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 1 && y == 2) || (x == 2 && (y == 2 || y == 3)) || ((x >= 5 && x <= 9) && y == 2) ||
-                        ((x >= 12 && x <= 14) && y == 2) || (x == 1 && y == 3) || (x == 2 && y == 3) ||
-                        ((x >= 6 && x <= 8) && y == 3) || ((x >= 6 && x <= 8) && y == 4) || ((x >= 10 && x <= 11) && y == 4) ||
-                        (x == 7 && (y == 5 || y == 6 || y == 7)) || ((x >= 10 && x <= 11) && (y == 5 || y == 6 || y == 7)) ||
-                        ((x >= 4 && x <= 5) && y == 5) || ((x >= 2 && x <= 4) && y == 6) || (x == 7 && y == 6) ||
-                        ((x >= 9 && x <= 12) && y == 6) || (x == 7 && y == 7) || ((x >= 10 && x <= 11) && y == 7) ||
-                        (x == 5 && y == 8) || ((x >= 10 && x <= 11) && y == 8) || ((x >= 1 && x <= 5) && y == 9) ||
-                        (x == 7 && y == 9) || ((x >= 1 && x <= 5) && y == 10) || ((x >= 8 && x <= 11) && y == 11) ||
-                        ((x >= 2 && x <= 6) && y == 12) || ((x >= 10 && x <= 11) && y == 12))
+              else if ((y == 0 && (x >= 1 && x < 14)) || (y == 0 && (x >= 1 && x < 14)))//Outside vertical
+                  gridPositions.Add(new Vector3(x, y,0));
+              else if ((y == 1 && (x == 1 || x == 2)) || (y == 1 && (x >= 7 && x <= 10)) || 
+                        (y == 1 && (x == 12 || x == 13)) || (y == 2 && (x == 9 || x == 10)) ||
+                        (y == 2 && (x == 12 || x == 13)) || (y == 3 && (x == 9 || x == 10)) ||
+                        (y == 3 && (x == 4 || x == 5)) || (y == 4 && (x >= 2 && x <= 7)) ||
+                        (y == 5 && (x >= 2 && x <= 5)) || (y == 5 && (x >= 9 && x <= 11)) ||
+                        (y == 6 && (x >= 2 && x <= 5)) || (y == 6 && (x >= 7 && x <= 11)) ||
+                        (y == 7 && (x == 2 || x == 3)) || (y == 8 && x == 2) || (y == 9 && x == 4) ||
+                        (y == 9 && (x >= 6 && x <= 11)) || (y == 10 && (x >= 6 && x <= 11)) ||
+                        (y == 10 && (x >= 1 && x <= 3)) || (x == 6 && (y >= 11 && y <= 13)) ||
+                        (y == 11 && (x == 10 || x == 11)) || (y == 12 && (x == 10 || x == 11)) ||
+                        (y == 12 && (x >= 2 && x <= 5)) || (x == 8 && (y == 12 && y == 13)))
                   gridPositions.Add(new Vector3(x, y,0));
           }
       }
     }
-
 
 
     void Update()
@@ -201,7 +206,7 @@ public class ActionRenderingRobot : MonoBehaviour
               continue;
             }
             distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
-            ObtainNextAction(humanPlayer);
+            ObtainNextAction(humanPlayer.transform.position);
             yield return new WaitForSeconds(0.4f);
           }
           
@@ -213,7 +218,7 @@ public class ActionRenderingRobot : MonoBehaviour
           GameObject ball = results.Item1;
           closestDistance = results.Item2;
 
-          ObtainNextAction(ball);
+          ObtainNextAction(ball.transform.position);
           //moveOrRotateRobot(next_step, new Vector2(0,-1));
           yield return new WaitForSeconds(0.4f);
         }
@@ -241,9 +246,13 @@ public class ActionRenderingRobot : MonoBehaviour
       while(balls.Length != 0)
       {
         distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
-        if(humanHoldingBall(balls) && distanceToHuman > Mathf.Sqrt(2))
+        if(humanHoldingBall(balls) && distanceToHuman > Mathf.Sqrt(2)) //Move towards human
         {
-          ObtainNextAction(humanPlayer);
+          ObtainNextAction(humanPlayer.transform.position);
+        }
+        else if(!humanHoldingBall(balls) && transform.position != astroStation) //Move towards station
+        {
+          ObtainNextAction(astroStation);
         }
         yield return new WaitForSeconds(0.4f);
         balls = GameObject.FindGameObjectsWithTag("IDdBall");
@@ -298,7 +307,7 @@ public class ActionRenderingRobot : MonoBehaviour
     }*/
 
     //Obtain next step action according to target destination (move towards human or ball)
-    public void ObtainNextAction(GameObject target)
+    public void ObtainNextAction(Vector3 targetPosition)
     {
       pos_x = transform.position.x;
       pos_y = transform.position.y;
@@ -307,7 +316,7 @@ public class ActionRenderingRobot : MonoBehaviour
       pos_around.Add(new Vector3(pos_x, pos_y-1f,0)); // square down
       pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
       pos_around.Add(new Vector3(pos_x+1f, pos_y,0)); // square right
-      int next_step= FindNextStep(pos_around, target);
+      int next_step= FindNextStep(pos_around, targetPosition);
       SendNextAction(next_step);
     }
 
@@ -349,7 +358,7 @@ public class ActionRenderingRobot : MonoBehaviour
 
     
     //public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
-    public int FindNextStep(List<Vector3> stepList, GameObject distantObject)
+    public int FindNextStep(List<Vector3> stepList, Vector3 distantObjectPosition)
     {
       // Initialize variables to keep track of the closest ball and its distance
       //Dictionary<Vector3, float> Steps = new Dictionary<Vector3, float>();
@@ -357,15 +366,17 @@ public class ActionRenderingRobot : MonoBehaviour
       //List<Vector3> closestSteps = new List<Vector3>();
       List<int> closestStepsAction = new List<int>();
       float closestDistance = Mathf.Infinity;
+      int previousStepActionOpposite = oppositeStepActions[previousStepAction];
+      Debug.Log("Current Position X: " + transform.position.x + " Y: " + transform.position.y);
 
       // Find the closest tile to distantObject
       foreach (Vector3 step in stepList)
       {   
         if (!gridPositions.Contains(step))
         {
-          float distance = Vector3.Distance(step, distantObject.transform.position);
+          float distance = Vector3.Distance(step, distantObjectPosition);
           Steps.Add(stepList.IndexOf(step), distance);
-          //Debug.Log("New possible step action added: " + stepList.IndexOf(step) + " with distance: " + distance);
+          Debug.Log("New possible step action added: " + stepList.IndexOf(step) + " with distance: " + distance);
           if (distance < closestDistance)
           {
               closestDistance = distance;
@@ -373,13 +384,14 @@ public class ActionRenderingRobot : MonoBehaviour
         }
       }
       //List<Vector3> keyList = new List<Vector3>(Steps.Keys);
-      List<int> keyList = new List<int>(Steps.Keys);
+      /*List<int> keyList = new List<int>(Steps.Keys);
       if (Random.value <0.1f && !identifying)
       { 
         int i = Random.Range(0, keyList.Count);
         previousStepAction = keyList[i];
+        Debug.Log("Random action selected: " + keyList[i]);
         return keyList[i];
-      }
+      }*/
           //return keyList[i];}
 
       foreach (var c_step in Steps)
@@ -392,7 +404,6 @@ public class ActionRenderingRobot : MonoBehaviour
       }
 
       //Prevent robot from getting stuck in a cycle moving back and forth to same positions
-      int previousStepActionOpposite = oppositeStepActions[previousStepAction];
       if(Steps.Count > 1 && closestStepsAction.Contains(previousStepActionOpposite))
       {
         Debug.Log("Previous step action opposite: " + previousStepActionOpposite);
@@ -400,8 +411,16 @@ public class ActionRenderingRobot : MonoBehaviour
         closestStepsAction.Remove(previousStepActionOpposite);
         if(closestStepsAction.Count == 0)
         {
-          closestStepsAction = new List<int>(Steps.Keys);
-          closestStepsAction.Remove(previousStepActionOpposite);
+          closestDistance = Mathf.Infinity;
+          closestStepsAction = new List<int>();
+          foreach (var step in Steps)
+          {
+            if(step.Value <= closestDistance && step.Key != previousStepActionOpposite)
+            {
+              closestStepsAction.Add(step.Key);
+              closestDistance = step.Value;
+            }
+          }
           Debug.Log("Next necessary steps: " + closestStepsAction.Count);
         }
       }
