@@ -197,6 +197,7 @@ def main():
 	else:
 		render = False
 	close_game = False
+	next_level_flag = False
 	now = datetime.now()
 	log_dir = Path(__file__).parent.absolute().parent.absolute() / 'logs'
 	log_filename = ('game-%d' % args.game_id + '_' + now.strftime("%Y%m%d-%H%M%S"))
@@ -266,7 +267,7 @@ def main():
 						game.level_idx += 1
 						nxt_level = game.levels[game.level_idx]
 						game.game_env.layout = nxt_level
-						game.env_reset()
+						next_level_flag = True
 						out_msg = json.dumps({'command': 'new_level', 'data': nxt_level})
 
 					# Standard behaviour sends message with new state data to front end
@@ -281,6 +282,12 @@ def main():
 					logger.info(out_msg)
 					
 					outbound_socket.sendall(out_msg.encode('utf-8'))
+					if next_level_flag:
+						logger.info("waiting for new level to begin")
+						time.sleep(5)
+						game.env_reset()
+						logger.info("new level has begun")
+						next_level_flag = False
 
 				except socket.error as e:
 					logger.error("[MAIN ERROR] Socket error: %s" % e)
