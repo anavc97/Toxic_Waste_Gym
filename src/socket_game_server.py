@@ -267,8 +267,10 @@ def main():
 						game.level_idx += 1
 						nxt_level = game.levels[game.level_idx]
 						game.game_env.layout = nxt_level
+						new_state = game.get_game_metadata()
+						new_state['layout'] = nxt_level
 						next_level_flag = True
-						out_msg = json.dumps({'command': 'new_level', 'data': nxt_level})
+						out_msg = json.dumps({'command': 'new_level', 'data': new_state})
 
 					# Standard behaviour sends message with new state data to front end
 					else:
