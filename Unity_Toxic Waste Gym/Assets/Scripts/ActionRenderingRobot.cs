@@ -26,8 +26,6 @@ public class ActionRenderingRobot : MonoBehaviour
     public float movementSpeed;
     public ActionRobot action = new ActionRobot();
 
-    private bool hasBall = false;
-    private bool waitingForConnection = false;
     private Animator animator;
     public Dictionary<string, bool> BallsIdd;
 
@@ -215,6 +213,7 @@ public class ActionRenderingRobot : MonoBehaviour
           //Move towards closest ball if human isn't holding a ball
           balls = GameObject.FindGameObjectsWithTag("Ball");
           if(balls.Length ==0){break;}
+          if(!arrayContains(balls,randomBall)){randomBall = balls[Random.Range(0, balls.Length)];}
           Debug.Log("Entered while to move towards nearest ball");
           /*//Go to closer ball
           var results = FindClosestBall(balls);
@@ -448,6 +447,12 @@ public class ActionRenderingRobot : MonoBehaviour
           return true;
         }
       }
+      return false;
+    }
+
+    public bool arrayContains (GameObject[] array, GameObject objToCheck) 
+    {
+      foreach (GameObject obj in array) {if(obj == objToCheck) return true;}
       return false;
     }
 }
