@@ -188,6 +188,8 @@ public class ActionRenderingRobot : MonoBehaviour
       { 
         float closestDistance = Mathf.Infinity;
         balls = GameObject.FindGameObjectsWithTag("Ball");
+        if(balls.Length == 0){break;}
+        GameObject randomBall = balls[Random.Range(0, balls.Length)];
 
         GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
         allBalls = new GameObject[balls.Length + identifiedBalls.Length];
@@ -214,11 +216,16 @@ public class ActionRenderingRobot : MonoBehaviour
           balls = GameObject.FindGameObjectsWithTag("Ball");
           if(balls.Length ==0){break;}
           Debug.Log("Entered while to move towards nearest ball");
+          /*//Go to closer ball
           var results = FindClosestBall(balls);
           GameObject ball = results.Item1;
-          closestDistance = results.Item2;
+          closestDistance = results.Item2;*/
+          //Go to random ball
+          closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
 
-          ObtainNextAction(ball.transform.position);
+
+          //ObtainNextAction(ball.transform.position);
+          ObtainNextAction(randomBall.transform.position);
           //moveOrRotateRobot(next_step, new Vector2(0,-1));
           yield return new WaitForSeconds(0.4f);
         }
@@ -316,7 +323,7 @@ public class ActionRenderingRobot : MonoBehaviour
       pos_around.Add(new Vector3(pos_x, pos_y-1f,0)); // square down
       pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
       pos_around.Add(new Vector3(pos_x+1f, pos_y,0)); // square right
-      int next_step= FindNextStep(pos_around, targetPosition);
+      int next_step = FindNextStep(pos_around, targetPosition);
       SendNextAction(next_step);
     }
 
