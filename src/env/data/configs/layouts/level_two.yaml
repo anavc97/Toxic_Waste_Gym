@@ -1,7 +1,7 @@
 field: ["XXXXXXXDXXXXXXX",
-        "X     X X     X",
+        "X     X X    2X",
         "X GXXXX X XX  X",
-        "X     X   YX  X",
+        "X1    X   YX  X",
         "XXXX  XXXXXX  X",
         "X   R XXXXXX  X",
         "X X           X",
@@ -11,7 +11,7 @@ field: ["XXXXXXXDXXXXXXX",
         "X XXXXRX      X",
         "X   XX   XX   X",
         "X        XX XXX",
-        "XXX1   XXXX2XXX",
+        "XXX    XXXX XXX",
         "XXXXXXXXXXXXXXX"]
 
 players: [

@@ -273,7 +273,6 @@ def main():
 						nxt_level = game.levels[game.level_idx]
 						game.game_env.layout = nxt_level
 						new_state = game.get_game_metadata()
-						new_state['layout'] = nxt_level
 						next_level_flag = True
 						out_msg = json.dumps({'command': 'new_level', 'data': new_state})
 
@@ -285,12 +284,14 @@ def main():
 					
 
 					i += 1
-					#out_msg = out_msg + "<EOF>"
+					out_msg = out_msg + "<EOF>"
 					logger.info(out_msg)
 					
 					outbound_socket.sendall(out_msg.encode('utf-8'))
+					time.sleep(0.1)
 					if next_level_flag:
 						logger.info("waiting for new level to begin")
+						print("CHANGING LEVELS")
 						time.sleep(5)
 						game.env_reset()
 						logger.info("new level has begun")

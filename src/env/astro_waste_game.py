@@ -233,6 +233,7 @@ class AstroWasteGame(object):
 		# metadata['points'] = self._points
 		metadata['game_time'] = self._time_spent
 		metadata['ticks'] = self._cycles_run
+		metadata['layout'] = self._levels[self._lvl_idx]
 		return metadata
 	
 	
