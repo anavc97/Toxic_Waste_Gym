@@ -16,9 +16,10 @@ from copy import deepcopy
 
 
 MOVE_REWARD = 0.0
-HOLD_REWARD = -3.0
+HOLD_REWARD = -1.0
 DELIVER_WASTE = 10
 ROOM_CLEAN = 50
+IDENTIFY_REWARD = 1
 
 
 class Actions(IntEnum):
@@ -482,8 +483,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						agent_idx = self._players.index(agent_facing)
 						agent_action = actions[agent_idx]
 						agent_type = agent_facing.agent_type
-						if agent_type == AgentType.ROBOT: # and (
-								#agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
+						if agent_type == AgentType.ROBOT  and (
+								agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
 							if self.require_facing and not self.are_facing(acting_player, agent_facing):
 								continue
 							# Place object in robot
@@ -497,7 +498,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							agents_disposed_waste.append(acting_player)
 							agents_disposed_waste.append(agent_facing)
 							waste_disposed[acting_player.id] = place_obj.points
-							waste_disposed[agent_facing.id] = place_obj.points
+							if place_obj.waste_type == WasteType.RED:
+								waste_disposed[agent_facing.id] = 0
+							else:
+								waste_disposed[agent_facing.id] = place_obj.points
 							self._score += place_obj.points
 					else:
 						# Drop object to the field
@@ -524,6 +528,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			# IDENTIFY action only has impact by robot agents
 			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
 				object_facing = self.get_object_facing(acting_player)
+				acting_player.reward = IDENTIFY_REWARD
 				if not object_facing.identified:
 					object_facing.identified = True
 		
@@ -551,6 +556,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			ball_pos = [obj.position for obj in self.objects]
 			if idx == AgentType.HUMAN and moving_player.is_holding_object():
 				self._time_penalties += sum([obj.time_penalty for obj in moving_player.held_objects])	# When the agent moves holding waste apply time penalty
+				self._players[AgentType.ROBOT].reward = HOLD_REWARD
 			if old_pos != next_pos and next_pos not in ball_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
