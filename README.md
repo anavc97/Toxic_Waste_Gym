@@ -24,6 +24,13 @@ If the script ends without any errors, you have the python environment fully ins
 
 Server and Unity should be synced - server should be sending states, Unity should be sending actions
 
+# To test local web implementation:
+
+1. Build game with WebGL (In player Settings >> Publishing Settings >> Compression format, chosse Disabled)
+2. Go to the Build folder
+3. Run ```python3 -m http.server```
+4. Open localhost:8000 on browser
+
 ## Common errors: 
 
 1. *Socket Error: Address already in use*
@@ -31,10 +38,3 @@ Server and Unity should be synced - server should be sending states, Unity shoul
 
 ## Current issues
 
-# In Unity
-1. Unity Human orientation and Server orientation don't match
-2. Unity Human holding ball animation is not working 
-
-# In Backend
-1. Balls can be dropped on the floor (illegal move)
-2. Step must change the orientation before it moves the position
