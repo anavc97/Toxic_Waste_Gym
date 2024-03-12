@@ -18,7 +18,7 @@ If the script ends without any errors, you have the python environment fully ins
 
 1. Start virtual environment (*activateWaste*)
 2. Open Unity in Scene "Intro"
-3. Open terminal and run ``` python3.10 socket_game_server.py --field-size 15 15 --max-env-players 2 --max-game-players 2 --max-objects 6 --max-steps 200 --cycles-second 5 --game-id 000 --levels level_one --layer-obs --centered-obs ```
+3. Open terminal and run ``` python3.10 socket_game_server.py --field-size 15 15 --max-env-players 2 --max-game-players 2 --max-objects 6 --max-steps 200 --cycles-second 5 --game-id 000 --levels level_one level_two --layer-obs --centered-obs --nlayers 2 --buffer 1000 --layer-size 256 --version 2 --cnn --vdn --ddqn --tau 0.1 ```
 4. Run Unity Scene "Intro"
 5. Press Start button
 
