@@ -10799,68 +10799,6 @@ Transform:
   - {fileID: 784906506}
   m_Father: {fileID: 1543727608}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1531758258
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1531758260}
-  - component: {fileID: 1531758259}
-  m_Layer: 0
-  m_Name: GameHandler
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1531758259
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1531758258}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 99f6f1a7736ab6201a00638e40408314, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  time: {fileID: 746641823}
-  global_health: 0
-  SOCKETS_IP: 127.0.0.1
-  INBOUND_PORT: 20501
-  OUTBOUND_PORT: 20500
-  SOCK_TIMEOUT: 5
-  BUFFER_SIZE: 1024
-  input_handler: {fileID: 0}
-  gameRunning: 0
-  gameOver: 0
-  holdingBall: 0
-  previousHoldingBall: 0
-  previousHeldBallType: 0
-  popUp_time: 0
-  timeHoldingYellowBall: 0
-  canvas: {fileID: 0}
-  popUp: {fileID: 0}
-  ballInteraction: {fileID: 0}
---- !u!4 &1531758260
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1531758258}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1543727607
 GameObject:
   m_ObjectHideFlags: 0
@@ -14667,7 +14605,7 @@ MonoBehaviour:
   movementSpeed: 700
   action:
     command: 
-  gameHandler: {fileID: 1531758259}
+  gameHandler: {fileID: 0}
   ballInteraction: {fileID: 0}
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
@@ -15461,7 +15399,6 @@ SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 464830693}
-  - {fileID: 1531758260}
   - {fileID: 746641826}
   - {fileID: 1437081731}
   - {fileID: 1694360933}

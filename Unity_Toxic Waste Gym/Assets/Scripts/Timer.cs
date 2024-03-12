@@ -1,7 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class Timer : MonoBehaviour
@@ -19,7 +16,6 @@ public class Timer : MonoBehaviour
         timeRemaining = 120.0f;
         gHandler = GameObject.Find("GameHandler");
         gameData = gHandler.GetComponent<GameHandler>().gameData;
-        Debug.Log(" -- " +gHandler + gameData);
     }
 
     void Update()

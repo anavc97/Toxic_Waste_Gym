@@ -1,9 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using CodeMonkey.Utils;
-using UnityEditor.Scripting.Python;
-using UnityEditor;
 using System;
 using System.Linq;
 using System.Net;
@@ -12,9 +8,8 @@ using System.Text;
 using System.Threading;
 using System.Diagnostics;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using System.IO;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class GameHandler : MonoBehaviour
 {   
@@ -100,7 +95,6 @@ public class GameHandler : MonoBehaviour
     
     //[SerializeField] private HealthBar healthBar;
     [SerializeField] private Timer time;
-    public float global_health;
     public string SOCKETS_IP = "127.0.0.1";
     public int INBOUND_PORT = 20501;
     public int OUTBOUND_PORT = 20500;
@@ -108,8 +102,8 @@ public class GameHandler : MonoBehaviour
     public int BUFFER_SIZE = 1024;
     public Socket handler;
     public Socket outbound_socket;
+    public Socket inbound_socket;
     Thread SocketThreadIn;
-    Thread SocketThreadOut;
     public GameData gameData;
     public InputHandler input_handler;
     public bool gameRunning;
@@ -123,87 +117,97 @@ public class GameHandler : MonoBehaviour
     public TMP_Text popUp;
     public BallInteraction ballInteraction;
     public Stopwatch popUpStopWatch = new Stopwatch();
+    public string currentScene;
+    public string layout;
     
     void Awake()
+    {        
+        DontDestroyOnLoad(gameObject);
+        
+    }
+
+    void Start()
     {   
-        global_health = 1.0f;
-        
-
+        DontDestroyOnLoad(gameObject);
+        currentScene = SceneManager.GetActiveScene().name;
+        layout = currentScene;
         canvas = GameObject.FindWithTag("Canvas");
-        /*FunctionPeriodic.Create(() => {
-            if (global_health > 0){
-                global_health -= 0.1f;
-                healthBar.SetSize(global_health);            }
-
-       
-        }, 0.1f);*/
+        canvas.GetComponent<Canvas>().enabled = false;
+        StartServer();
         
+
         ScoreScript.scoreValue = 0;
         popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
         ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
         gameRunning = true;
-        StartServer();
         input_handler = GameObject.Find("human").GetComponent<InputHandler>();
+        
+        // VARIABLES
+
+        gameData = null;
+        gameOver = false;
+        holdingBall = false;
+        previousHoldingBall = false;
+        previousHeldBallType = 0;
+        popUp_time = 0;
+        timeHoldingYellowBall = 0;
+        
+        
     }
 
     void StartServer()
     {   
+        stopInboundServer();
         SocketThreadIn = new Thread(socketInCode);
         SocketThreadIn.IsBackground = true;
         SocketThreadIn.Start();
 
         outbound_socket = GameObject.Find("SceneManager").GetComponent<StartGame>().outbound_socket;
-        UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
-        //socketOutCode();
+        if (outbound_socket != null){UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());}
+        //socketOutCode();  
+    
     }
 
     void socketInCode()
-    {
+    {   
         IPAddress ipAddress = IPAddress.Parse(SOCKETS_IP);
         IPEndPoint Inbound_localEndPoint = new IPEndPoint(ipAddress, INBOUND_PORT);
 
-        try {    
-            // Create Outbound Sockets
-            Socket inbound_socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            
-            // Set up Unity side connection: Listen to Backend Socket
-            inbound_socket.Bind(Inbound_localEndPoint);
-            inbound_socket.Listen(10);
-            
-            UnityEngine.Debug.Log("Waiting for a connection...");
-            handler = inbound_socket.Accept();
-            UnityEngine.Debug.Log("Server Started");
-            UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " ," + INBOUND_PORT);
-
-            while(gameRunning)
-            {
-                // Incoming data from the client.
-                string data = null;
-                byte[] bytes = null;
-
-                while (true)
-                {
-                    bytes = new byte[BUFFER_SIZE];
-                    int bytesRec = handler.Receive(bytes);
-                    data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                    if (data.IndexOf("<EOF>") > -1)
-                    {
-                        break;
-                    }
-
-                    System.Threading.Thread.Sleep(1);
-                }
-                System.Threading.Thread.Sleep(1);
-
-                //Trim data to JSON format
-                string jsonData = data.TrimEnd('<', 'E', 'O', 'F', '>');
-                // Read new state
-                readState(jsonData);
-            }
-        }
-        catch (Exception e)
+        // Create Outbound Sockets
+        Socket inbound_socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        
+        // Set up Unity side connection: Listen to Backend Socket
+        inbound_socket.Bind(Inbound_localEndPoint);
+        inbound_socket.Listen(10);
+        UnityEngine.Debug.Log("Waiting for a connection...");
+        handler = inbound_socket.Accept();
+        UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " :" + INBOUND_PORT);
+        
+        while(gameRunning)
         {
-            UnityEngine.Debug.Log(e.ToString());
+            // Incoming data from the client.
+            string data = null;
+            byte[] bytes = null;
+
+            while (true)
+            {
+                bytes = new byte[BUFFER_SIZE];
+                int bytesRec = handler.Receive(bytes);
+                data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
+                if (data.IndexOf("<EOF>") > -1)
+                {
+                    data = data.Substring(0, data.IndexOf("<EOF>")); // Extract data up to <EOF>
+                    break;
+                }
+
+                System.Threading.Thread.Sleep(1);
+            }
+            System.Threading.Thread.Sleep(1);
+
+            //Trim data to JSON format
+            string jsonData = data.TrimEnd('<', 'E', 'O', 'F', '>');
+            // Read new state
+            readState(jsonData);
         }
     }
 
@@ -232,14 +236,19 @@ public class GameHandler : MonoBehaviour
     {   
         byte[] msg = Encoding.ASCII.GetBytes(jsonmsg);
         int bytesSent = outbound_socket.Send(msg);
-        UnityEngine.Debug.Log("Sending action: " + jsonmsg);
+        //UnityEngine.Debug.Log("Sending action: " + jsonmsg);
     } 
 
     void Update()
     {   
-        //if (global_health > 0) {update_Score_Health(50, global_health-0.00016f);}
         if (gameData != null)
         {   
+
+            if (layout != currentScene)
+            {
+                SceneManager.LoadScene(layout);
+            }
+
             // Access the data as needed
             if (gameData.Command == "new_state")
             {   
@@ -280,28 +289,32 @@ public class GameHandler : MonoBehaviour
                 {
                     updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);    
                 }  
+                
+                popUp_time += 1;
+                if(popUp_time == 200) //200 frames later
+                {
+                    popUp.text = "";
+                    popUp_time = 0;
+                }
+
+                layout = gameData.Data.Layout;
             }
-            else if (gameData.Command == "game_finished")
+            else if (gameData.Command == "new_level" && !gameOver)
             {   
+                canvas.GetComponent<Canvas>().enabled = true;
                 UnityEngine.Debug.Log("Game Over!");
-                UnityEngine.Debug.Log("Time remaining: " + time.timeRemaining);
                 /*Transform panel = canvas.transform.Find("Panel");
                 if (time.timeRemaining <1f)
                 {
                     panel.GetComponent<TextMeshPro>().text = "Time is Up!\n Ready for the next level?";
                 }*/
                 
-                canvas.GetComponent<Canvas>().enabled = true;
                 gameOver = true;
+                //new System.Threading.ManualResetEvent(false).WaitOne(3000);
+    
+                UnityEngine.Debug.Log("SCENE: " + layout);
+        
             } 
-
-            popUp_time += 1;
-
-            if(popUp_time == 200) //200 frames later
-            {
-                popUp.text = "";
-                popUp_time = 0;
-            }
             
 
         }
@@ -395,10 +408,15 @@ public class GameHandler : MonoBehaviour
     void readState(string data)
     {   
         // Deserialize the JSON content into a Game object
-        gameData = JsonConvert.DeserializeObject<GameData>(data);
-        input_handler.sendAction = true;
         
-        //UnityEngine.Debug.Log("JSON RECEIVED: " + data);
+        if (data.StartsWith(@"{""command"":"))
+        {
+            UnityEngine.Debug.Log("JSON RECEIVED");
+            gameData = JsonConvert.DeserializeObject<GameData>(data);
+            input_handler.sendAction = true;
+        }
+        else{UnityEngine.Debug.Log("Invalid data ignored: " + data);}
+        
         //UnityEngine.Debug.Log("Command: " + gameData.Command);
 
     }
@@ -410,12 +428,23 @@ public class GameHandler : MonoBehaviour
         if (SocketThreadIn != null)
         {
             SocketThreadIn.Abort();
+            UnityEngine.Debug.Log("Socket aborted.");
         }
-
-        handler.Shutdown(SocketShutdown.Both);
-        handler.Close();
-        handler.Disconnect(false);
-        UnityEngine.Debug.Log("Inbound disconnected!");
+        else
+        {
+            UnityEngine.Debug.Log("Socket is null.");
+        }
+        if (handler != null)
+        {
+            handler.Shutdown(SocketShutdown.Both);
+            handler.Close();
+            handler.Disconnect(false);
+            UnityEngine.Debug.Log("Inbound disconnected!");
+        }
+        else 
+        {
+            UnityEngine.Debug.Log("Handler is null.");
+        }
         
     }
     
@@ -432,7 +461,7 @@ public class GameHandler : MonoBehaviour
         UnityEngine.Debug.Log("Disabled.");
         gameRunning = false;
         stopInboundServer();
-        stopOutboundServer();
+        //stopOutboundServer();
     }
 
 }

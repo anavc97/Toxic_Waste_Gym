@@ -14,11 +14,11 @@ from env.toxic_waste_env_base import AgentType
 from enum import Enum
 from datetime import datetime
 from pathlib import Path
-from algos.dqn import DQNetwork
-import flax.linen as nn
-import jax
+#from algos.dqn import DQNetwork
+#import flax.linen as nn
+#import jax
 import numpy as np
-import jax.numpy as jnp
+#import jax.numpy as jnp
 from typing import List, Union, Dict
 
 RNG_SEED = 12012024
@@ -194,8 +194,8 @@ def main():
 					    	args.centered_obs, args.render_mode, slip=args.has_slip)
 	game = AstroWasteGame(args.cycles_second, args.game_levels, env, args.max_game_players, args.game_id)
 
-	astro_dqn = DQNetwork(env.action_space.n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.observation_space[0], use_gpu, use_ddqn, use_vdn,
-						cnn_layer=use_cnn, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2))
+	#astro_dqn = DQNetwork(env.action_space.n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.observation_space[0], use_gpu, use_ddqn, use_vdn,
+						#cnn_layer=use_cnn, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2))
 
 	if args.render_mode and 'human' in args.render_mode:
 		render = True
@@ -233,8 +233,8 @@ def main():
 	# Main game cycle
 	try:
 		obs, *_ = game.env_reset()
-		model_obs = get_model_obs(obs[AgentType.ROBOT])
-		astro_dqn.load_model_v2((args.game_levels[0] + '.model'), model_path, (model_obs[0].shape, model_obs[1].shape))
+		#model_obs = get_model_obs(obs[AgentType.ROBOT])
+		#astro_dqn.load_model_v2((args.game_levels[0] + '.model'), model_path, (model_obs[0].shape, model_obs[1].shape))
 
 		while not (game.game_finished() or close_game):
 			if not game.game_started:	# Only works when game has started
@@ -248,16 +248,17 @@ def main():
 					print("Waiting a bit for Unity.")
 					time.sleep(1)
 					print("Ready to connect.")
-					outbound_socket.connect((HOST, PORT))
+					#outbound_socket.connect((HOST, PORT))
+					outbound_socket.connect((SOCKETS_IP, OUTBOUND_PORT))
 					logger.info('Outbound socket connected at: %s:%s' % (SOCKETS_IP, args.outbound_port))
 					initialized_outbound = True
 
 				# After waking up get robot action and run environment step
-				actions = []
-				q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
-				action = q_values.argmax(axis=-1)
-				print("action: ", int(jax.device_get(action)))
-				game.enque_action(1, int(jax.device_get(action)))
+				#actions = []
+				#q_values = astro_dqn.q_network.apply(astro_dqn.online_state.params, model_obs[0], model_obs[1])[0]
+				#action = q_values.argmax(axis=-1)
+				#print("action: ", int(jax.device_get(action)))
+				#game.enque_action(1, int(jax.device_get(action)))
 				obs, _, actions = game.env_step()
 				model_obs = get_model_obs(obs[AgentType.ROBOT])
 				try:
