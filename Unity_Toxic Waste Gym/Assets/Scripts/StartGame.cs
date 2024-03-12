@@ -32,8 +32,14 @@ public class StartGame : MonoBehaviour
 
         // Create Outbound Sockets
         outbound_socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-        outbound_socket.Connect(Outbound_localEndPoint);
+        try{
+            outbound_socket.Connect(Outbound_localEndPoint);
+        }
+        catch(SocketException e)
+        {
+            Debug.Log(e.Message);
+            Debug.Log("error code: " + e.ErrorCode);
+        }
 
         Debug.Log("Outbound socket connected to" + outbound_socket.RemoteEndPoint.ToString());
         

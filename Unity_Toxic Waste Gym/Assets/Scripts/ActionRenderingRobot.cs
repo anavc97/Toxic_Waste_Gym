@@ -2,12 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using TMPro;
-using System.Threading;
 using Newtonsoft.Json;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 
 public class ActionRenderingRobot : MonoBehaviour
 {
@@ -62,7 +57,7 @@ public class ActionRenderingRobot : MonoBehaviour
       //bubble = chatBot.transform.Find("Bubble").gameObject;
       //load = bubble.transform.Find("Load").gameObject;
       //text = bubble.transform.Find("Text").gameObject;
-      Debug.Log("Start of action rendering robot evoked");
+      //Debug.Log("Start of action rendering robot evoked");
       action.command = "p_act";
       historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
       humanPlayer = GameObject.Find("human");
@@ -71,7 +66,7 @@ public class ActionRenderingRobot : MonoBehaviour
 		  if(currentScene.name == "level_one"){defineGridLevelOne(); astroStation = new Vector3(6, 6,0);}
       else if(currentScene.name == "level_two"){defineGridLevelTwo(); astroStation = new Vector3(7, 7,0);}
       StartCoroutine(AstroAutomatic());
-      Debug.Log("Start of action rendering robot executed");
+      //Debug.Log("Start of action rendering robot executed");
 
     }
 
@@ -180,7 +175,7 @@ public class ActionRenderingRobot : MonoBehaviour
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
       GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
       float distanceToHuman = Mathf.Infinity;
-      Debug.Log("Started astro automatic");
+      //Debug.Log("Started astro automatic");
 
       while (balls.Length != 0)
       { 
@@ -214,7 +209,7 @@ public class ActionRenderingRobot : MonoBehaviour
           balls = GameObject.FindGameObjectsWithTag("Ball");
           if(balls.Length ==0){break;}
           if(!arrayContains(balls,randomBall)){randomBall = balls[Random.Range(0, balls.Length)];}
-          Debug.Log("Entered while to move towards nearest ball");
+          //Debug.Log("Entered while to move towards nearest ball");
           /*//Go to closer ball
           var results = FindClosestBall(balls);
           GameObject ball = results.Item1;
@@ -358,7 +353,7 @@ public class ActionRenderingRobot : MonoBehaviour
           }
         }
       }
-      Debug.Log("Ball: " + closestBall.name + " pos: " + closestBall.transform.position);
+      //Debug.Log("Ball: " + closestBall.name + " pos: " + closestBall.transform.position);
       return (closestBall,closestDistance);
     }
 
@@ -373,7 +368,7 @@ public class ActionRenderingRobot : MonoBehaviour
       List<int> closestStepsAction = new List<int>();
       float closestDistance = Mathf.Infinity;
       int previousStepActionOpposite = oppositeStepActions[previousStepAction];
-      Debug.Log("Current Position X: " + transform.position.x + " Y: " + transform.position.y);
+      //Debug.Log("Current Position X: " + transform.position.x + " Y: " + transform.position.y);
 
       // Find the closest tile to distantObject
       foreach (Vector3 step in stepList)
@@ -382,7 +377,7 @@ public class ActionRenderingRobot : MonoBehaviour
         {
           float distance = Vector3.Distance(step, distantObjectPosition);
           Steps.Add(stepList.IndexOf(step), distance);
-          Debug.Log("New possible step action added: " + stepList.IndexOf(step) + " with distance: " + distance);
+          //Debug.Log("New possible step action added: " + stepList.IndexOf(step) + " with distance: " + distance);
           if (distance < closestDistance)
           {
               closestDistance = distance;
@@ -412,8 +407,8 @@ public class ActionRenderingRobot : MonoBehaviour
       //Prevent robot from getting stuck in a cycle moving back and forth to same positions
       if(Steps.Count > 1 && closestStepsAction.Contains(previousStepActionOpposite))
       {
-        Debug.Log("Previous step action opposite: " + previousStepActionOpposite);
-        Debug.Log("All possible next steps: " + closestStepsAction.Count);
+        //Debug.Log("Previous step action opposite: " + previousStepActionOpposite);
+        //Debug.Log("All possible next steps: " + closestStepsAction.Count);
         closestStepsAction.Remove(previousStepActionOpposite);
         if(closestStepsAction.Count == 0)
         {
@@ -427,7 +422,7 @@ public class ActionRenderingRobot : MonoBehaviour
               closestDistance = step.Value;
             }
           }
-          Debug.Log("Next necessary steps: " + closestStepsAction.Count);
+          //Debug.Log("Next necessary steps: " + closestStepsAction.Count);
         }
       }
       previousStepAction = closestStepsAction[Random.Range(0, closestStepsAction.Count)];

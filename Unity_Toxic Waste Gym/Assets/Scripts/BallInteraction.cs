@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 using UnityEngine;
 using TMPro;
-using System.Threading;
 
 public class BallInteraction : MonoBehaviour
 {
@@ -34,7 +33,7 @@ public class BallInteraction : MonoBehaviour
             yield return 0;
         }
         string type = ball.name.Split('_')[0];
-        Debug.Log("Ball ID: " + type);
+        //Debug.Log("Ball ID: " + type);
       
         string currentChatName = "Chat" + currentChatNumber;
         currentChat = historyChat.transform.Find(currentChatName).gameObject;
