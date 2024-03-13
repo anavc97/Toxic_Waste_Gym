@@ -307,20 +307,20 @@ class DQNetwork(object):
             f.write(flax.serialization.to_bytes(self._online_state))
         logger.info("Model state saved to file: " + str(file_path))
     
-    def load_model(self, filename: str, model_dir: Path, obs_shape: tuple) -> None: #logger: logging.Logger, 
+    def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
         file_path = model_dir / filename
         template = TrainState.create(apply_fn=self._q_network.apply,
                                      params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
-        #logger.info("Loaded model state from file: " + str(file_path))
+        logger.info("Loaded model state from file: " + str(file_path))
 
-    def load_model_v2(self, filename: str, model_dir: Path, obs_shape: tuple) -> None: #logger: logging.Logger,
+    def load_model_v2(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
         file_path = model_dir / filename
         template = TrainState.create(apply_fn=self._q_network.apply,
                                      params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape[0]), jnp.empty(obs_shape[1])),
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
-        #logger.info("Loaded model state from file: " + str(file_path))
+        logger.info("Loaded model state from file: " + str(file_path))
