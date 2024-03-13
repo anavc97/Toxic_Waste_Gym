@@ -431,7 +431,7 @@ class DictReplayBuffer(ReplayBuffer):
     
     def __init__(self, buffer_size: int, observation_space: spaces.Dict, action_space: spaces.Space, device: Union[jax.Device, str] = "auto",
                  n_envs: int = 1, n_agents: int = 1, rng_seed: int = 1234567890, optimize_memory_usage: bool = False, handle_timeout_termination: bool = True):
-        super(ReplayBuffer, self).__init__(buffer_size, observation_space, action_space, device, n_envs=n_envs, n_agents=n_agents,rng_seed=rng_seed)
+        super(ReplayBuffer, self).__init__(buffer_size, observation_space, action_space, device, n_envs=n_envs, n_agents=n_agents, rng_seed=rng_seed)
 
         assert isinstance(self.obs_shape, dict), "DictReplayBuffer must be used with Dict obs space only"
         self.buffer_size = max(buffer_size // n_envs, 1)
@@ -443,17 +443,32 @@ class DictReplayBuffer(ReplayBuffer):
         assert optimize_memory_usage is False, "DictReplayBuffer does not support optimize_memory_usage"
         self.optimize_memory_usage = optimize_memory_usage
 
-        self.observations = {
-            key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
-            for key, _obs_shape in self.obs_shape.items()
-        }
-        self.next_observations = {
-            key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
-            for key, _obs_shape in self.obs_shape.items()
-        }
+        if self.n_agents == 1:
+            self.observations = {
+                key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
+                for key, _obs_shape in self.obs_shape.items()
+            }
+            self.next_observations = {
+                key: np.zeros((self.buffer_size, self.n_envs, *_obs_shape), dtype=observation_space[key].dtype)
+                for key, _obs_shape in self.obs_shape.items()
+            }
+        else:
+            self.observations = {
+                key: np.zeros((self.buffer_size, self.n_envs, self.n_agents, *_obs_shape), dtype=observation_space[key].dtype)
+                for key, _obs_shape in self.obs_shape.items()
+            }
+            self.next_observations = {
+                key: np.zeros((self.buffer_size, self.n_envs, self.n_agents, *_obs_shape), dtype=observation_space[key].dtype)
+                for key, _obs_shape in self.obs_shape.items()
+            }
 
         self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=action_space.dtype)
-        self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        
+        if self.n_agents == 1:
+            self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        else:
+            self.rewards = np.zeros((self.buffer_size, self.n_envs, self.n_agents), dtype=np.float32)
+        
         self.dones = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
 
         # Handle timeouts termination properly if needed

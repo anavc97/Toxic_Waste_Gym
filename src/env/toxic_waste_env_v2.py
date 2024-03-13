@@ -8,7 +8,7 @@ import time
 from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
-from gymnasium.spaces import Discrete, Box
+from gymnasium.spaces import Discrete, Box, MultiDiscrete
 from typing import List, Tuple, Any, Union
 from termcolor import colored
 from collections import namedtuple
@@ -16,9 +16,11 @@ from copy import deepcopy
 
 
 MOVE_REWARD = 0.0
-HOLD_REWARD = -3.0
-DELIVER_WASTE = 10
-ROOM_CLEAN = 50
+HOLD_REWARD = -0.1
+DELIVER_WASTE = 1
+ROOM_CLEAN = 2
+PICK_REWARD = 0.1
+ADJ_REWARD = 0.1
 
 
 class Actions(IntEnum):
@@ -51,6 +53,7 @@ class WasteStateV2(WasteState):
 	_points: float
 	_time_penalty: float
 	_identified: bool
+	_was_picked: bool
 	_waste_type: int
 	
 	def __init__(self, position: Tuple[int, int], obj_id: str, points: float = 1, time_penalty: float = 0.0, hold_state: int = HoldState.FREE.value,
@@ -60,6 +63,7 @@ class WasteStateV2(WasteState):
 		self._time_penalty = time_penalty
 		self._identified = identified
 		self._waste_type = waste_type
+		self._was_picked = False
 	
 	@property
 	def identified(self) -> bool:
@@ -77,10 +81,18 @@ class WasteStateV2(WasteState):
 	def time_penalty(self) -> float:
 		return self._time_penalty
 	
+	@property
+	def was_picked(self) -> bool:
+		return self._was_picked
+	
 	@identified.setter
 	def identified(self, new_val: bool) -> None:
 		self._identified = new_val
-		
+	
+	@was_picked.setter
+	def was_picked(self, new_val: bool) -> None:
+		self._was_picked = new_val
+	
 	def deepcopy(self):
 		new_obj = WasteStateV2(self._position, self._id, self._points, self._time_penalty, identified=self._identified)
 		new_obj.hold_state = self._hold_state
@@ -116,8 +128,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							  "score"])
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
-				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, slip: bool = False, is_train: bool = False,
-				 dict_obs: bool = True):
+				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
+				 is_train: bool = False, dict_obs: bool = True):
 
 		self._dict_obs = dict_obs
 		self._is_train = is_train
@@ -128,7 +140,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, True, agent_centered,
-						 False, render_mode)
+						 False, use_render, render_mode)
 		self._start_time = time.time()
 	
 	###########################
@@ -163,59 +175,40 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			print(colored('[ADD_OBJECT] Max number of objects (%d) already reached, cannot add a new one.' % self._max_objects, 'yellow'))
 			return False
 	
+	def _get_action_space(self) -> MultiDiscrete:
+		return MultiDiscrete([len(Actions)] * self._n_players)
+		
+	
 	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict]:
 		
+		# grid observation space
 		if self._agent_centered_obs:
-			# grid observation space
 			grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
 			
-			# agents layer: agent levels
-			agents_min = np.zeros(grid_shape, dtype=np.int32)
-			agents_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# waste layer: waste pos
-			green_min = np.zeros(grid_shape, dtype=np.int32)
-			green_max = np.ones(grid_shape, dtype=np.int32)
-			yellow_min = np.zeros(grid_shape, dtype=np.int32)
-			yellow_max = np.ones(grid_shape, dtype=np.int32)
-			red_min = np.zeros(grid_shape, dtype=np.int32)
-			red_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# access layer: i the cell available
-			occupancy_min = np.zeros(grid_shape, dtype=np.int32)
-			occupancy_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# total layer
-			min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min])
-			max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max])
-		
 		else:
-			# grid observation space
 			grid_shape = (self._rows, self._cols)
 			
-			# agents layer
-			agents_min = np.zeros(grid_shape, dtype=np.int32)
-			agents_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# objects layer
-			green_min = np.zeros(grid_shape, dtype=np.int32)
-			green_max = np.ones(grid_shape, dtype=np.int32)
-			yellow_min = np.zeros(grid_shape, dtype=np.int32)
-			yellow_max = np.ones(grid_shape, dtype=np.int32)
-			red_min = np.zeros(grid_shape, dtype=np.int32)
-			red_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# occupancy layer
-			occupancy_min = np.zeros(grid_shape, dtype=np.int32)
-			occupancy_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# acting agent layer
-			acting_agent_min = np.zeros(grid_shape, dtype=np.int32)
-			acting_agent_max = np.ones(grid_shape, dtype=np.int32)
-			
-			# total layer
-			min_obs = np.stack([agents_min, green_min, yellow_min, red_min, occupancy_min, acting_agent_min])
-			max_obs = np.stack([agents_max, green_max, yellow_max, red_max, occupancy_max, acting_agent_max])
+		# agents layer: agent levels
+		agents_min = np.zeros(grid_shape, dtype=np.int32)
+		agents_max = np.ones(grid_shape, dtype=np.int32)
+		
+		# waste layer: waste pos
+		balls_min = np.zeros(grid_shape, dtype=np.int32)
+		balls_max = np.ones(grid_shape, dtype=np.int32)
+		green_min = np.zeros(grid_shape, dtype=np.int32)
+		green_max = np.ones(grid_shape, dtype=np.int32)
+		yellow_min = np.zeros(grid_shape, dtype=np.int32)
+		yellow_max = np.ones(grid_shape, dtype=np.int32)
+		red_min = np.zeros(grid_shape, dtype=np.int32)
+		red_max = np.ones(grid_shape, dtype=np.int32)
+		
+		# access layer: i the cell available
+		occupancy_min = np.zeros(grid_shape, dtype=np.int32)
+		occupancy_max = np.ones(grid_shape, dtype=np.int32)
+		
+		# total layer
+		min_obs = np.stack([agents_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
+		max_obs = np.stack([agents_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
 		
 		if self._dict_obs:
 			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
@@ -347,6 +340,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		if self._agent_centered_obs:
 			layers_size = (self._rows + 2 * self._agent_sight, self._cols + 2 * self._agent_sight)
 			agent_layer = np.zeros(layers_size, dtype=np.int32)
+			balls_layer = np.zeros(layers_size, dtype=np.int32)
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
 			red_layer = np.zeros(layers_size, dtype=np.int32)
@@ -363,20 +357,22 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				
 			for obj in self._objects:
 				pos = obj.position
-				if obj.waste_type == WasteType.GREEN:
-					green_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
-				elif obj.waste_type == WasteType.YELLOW:
-					yellow_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
-				elif obj.waste_type == WasteType.RED:
-					red_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				balls_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				occupancy_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 0
+				if obj.identified:
+					if obj.waste_type == WasteType.GREEN:
+						green_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+					elif obj.waste_type == WasteType.YELLOW:
+						yellow_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+					elif obj.waste_type == WasteType.RED:
+						red_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 			
 			for row in range(self._rows):
 				for col in range(self._cols):
 					if self._field[row, col] == CellEntity.COUNTER:
 						occupancy_layer[row + self._agent_sight, col + self._agent_sight] = 0
 			
-			obs = np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
+			obs = np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
 			padding = 2 * self._agent_sight + 1
 			time_left = self.get_time_left()
 			
@@ -391,6 +387,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		else:
 			layers_size = (self._rows, self._cols)
 			agent_layer = np.zeros(layers_size, dtype=np.int32)
+			balls_layer = np.zeros(layers_size, dtype=np.int32)
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
 			red_layer = np.zeros(layers_size, dtype=np.int32)
@@ -405,13 +402,15 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			for obj in self._objects:
 				pos = obj.position
-				if obj.waste_type == WasteType.GREEN:
-					green_layer[pos[0], pos[1]] = 1
-				elif obj.waste_type == WasteType.YELLOW:
-					yellow_layer[pos[0], pos[1]] = 1
-				elif obj.waste_type == WasteType.RED:
-					red_layer[pos[0], pos[1]] = 1
+				balls_layer[pos[0], pos[1]] = 1
 				occupancy_layer[pos[0], pos[1]] = 0
+				if obj.identified:
+					if obj.waste_type == WasteType.GREEN:
+						green_layer[pos[0], pos[1]] = 1
+					elif obj.waste_type == WasteType.YELLOW:
+						yellow_layer[pos[0], pos[1]] = 1
+					elif obj.waste_type == WasteType.RED:
+						red_layer[pos[0], pos[1]] = 1
 			
 			for row in range(self._rows):
 				for col in range(self._cols):
@@ -420,7 +419,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			time_left = self.get_time_left()
 			
 			if self._dict_obs:
-				return [{'conv': np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]), 'array': np.array(time_left)}
+				return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+						 'array': np.array(time_left)}
 						for idx in range(self._n_players)]
 			else:
 				return np.array([np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
@@ -430,6 +430,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
 		
+		self._max_time = 0.0
+		self._time_penalties = 0.0
+		self._score = 0.0
+		self._door_pos = (-1, 1)
 		obs, info = super().reset(seed=seed, options=options)
 		self._start_time = time.time()
 		
@@ -476,27 +480,26 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			# Handle INTERACT action is only necessary for human agents
 			if act == Actions.INTERACT and acting_player.agent_type == AgentType.HUMAN:
 				facing_pos = (acting_player.position[0] + acting_player.orientation[0], acting_player.position[1] + acting_player.orientation[1])
-				agent_facing = self.get_agent_facing(acting_player)
+				adjacent_agent = self.get_agent_facing(acting_player)
 				if acting_player.is_holding_object():
-					if agent_facing is not None:  # facing an agent
-						agent_idx = self._players.index(agent_facing)
+					if adjacent_agent is not None:  # facing an agent
+						agent_idx = self._players.index(adjacent_agent)
 						agent_action = actions[agent_idx]
-						agent_type = agent_facing.agent_type
-						if agent_type == AgentType.ROBOT and (
-								agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
-							if self.require_facing and not self.are_facing(acting_player, agent_facing):
+						agent_type = adjacent_agent.agent_type
+						if agent_type == AgentType.ROBOT and (agent_action == Actions.STAY or agent_action == Actions.INTERACT):  # check if the agent is a robot and is not trying to move
+							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
 							# Place object in robot
 							place_obj = acting_player.held_objects[0]
 							acting_player.drop_object(place_obj.id)
 							place_obj.hold_state = HoldState.DISPOSED
-							place_obj.holding_player = agent_facing
+							place_obj.holding_player = adjacent_agent
 							place_obj.position = (-1, -1)
-							agent_facing.hold_object(place_obj)
+							adjacent_agent.hold_object(place_obj)
 							agents_disposed_waste.append(acting_player)
-							agents_disposed_waste.append(agent_facing)
+							agents_disposed_waste.append(adjacent_agent)
 							waste_disposed[acting_player.id] = place_obj.points
-							waste_disposed[agent_facing.id] = place_obj.points
+							waste_disposed[adjacent_agent.id] = DELIVER_WASTE
 							self._score += place_obj.points
 					else:
 						# Drop object to the field
@@ -508,7 +511,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							dropped_obj.holding_player = None
 				
 				else:
-					if agent_facing is None:
+					if adjacent_agent is None:
 						# Pick object from counter or floor
 						for obj in self._objects:
 							if obj.position == facing_pos and obj.hold_state == HoldState.FREE:
@@ -518,12 +521,15 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								pick_obj.holding_player = acting_player
 								pick_obj.identified = True
 								acting_player.hold_object(pick_obj)
+								if not pick_obj.was_picked:
+									acting_player.reward += PICK_REWARD
+									pick_obj.was_picked = True
 								# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
 			# IDENTIFY action only has impact by robot agents
 			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
 				object_facing = self.get_object_facing(acting_player)
-				if not object_facing.identified:
+				if object_facing is not None and not object_facing.identified:
 					object_facing.identified = True
 		
 		# Handle movement and collisions
@@ -560,24 +566,19 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		for player in self._players:
 			if self.is_game_finished():
-				player.reward = ROOM_CLEAN
+				# Game finished reward
+				player.reward = ROOM_CLEAN * self._score
 			elif player in agents_disposed_waste:
+				# Disposal reward
 				player.reward = waste_disposed[player.id]
 			else:
+				# Adjacency reward
 				facing_agent = self.get_agent_facing(player)
 				if (facing_agent is not None and
 						((player.agent_type == AgentType.HUMAN and facing_agent.agent_type == AgentType.ROBOT and player.is_holding_object()) or
 						 (player.agent_type == AgentType.ROBOT and facing_agent.agent_type == AgentType.HUMAN and facing_agent.is_holding_object()))):
-					player.reward = DELIVER_WASTE / self._max_time_steps
+					# if players have to face each other, reward only given when they are facing
+					if (self.require_facing and self.are_facing(player, facing_agent)) or not self.require_facing:
+						player.reward = ADJ_REWARD
 		
 		return slip_agents
-	
-	def render(self) -> np.ndarray | list[np.ndarray] | None:
-		if self._render is None:
-			try:
-				from .render import Viewer
-				self._render = Viewer((self.rows, self.cols), visible=self._show_viewer)
-			except Exception as e:
-				print('Caught exception %s when trying to import Viewer class.' % str(e.args))
-		
-		return self._render.render(self, return_rgb_array=(self.render_mode == 'rgb_array'))

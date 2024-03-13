@@ -7,9 +7,9 @@ import gymnasium
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.utils import seeding
-from gymnasium.spaces import Discrete, Box
+from gymnasium.spaces import Discrete, Box, MultiDiscrete
 from gymnasium import Env
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
 from copy import deepcopy
 from termcolor import colored
 from collections import namedtuple
@@ -254,8 +254,11 @@ class PlayerState(object):
 class BaseToxicEnv(Env):
 	Observation = namedtuple("Observation", ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step"])
 	
+	action_space: MultiDiscrete
+	observation_space: gymnasium.spaces.Tuple
+	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str,
-				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
+				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, use_render: bool = False,
 				 render_mode: List[str] = None):
 		
 		self._np_random, _ = seeding.np_random(rnd_seed)
@@ -275,15 +278,15 @@ class BaseToxicEnv(Env):
 		self._agent_sight = 0
 		self._require_facing = require_facing
 		self._render = None
+		self._use_render = use_render
 		self._use_layer_obs = layer_obs
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
 		self.setup_env()
 		
-		self.action_space = Discrete(self._n_actions)
+		self.action_space = self._get_action_space()
 		self.observation_space = gymnasium.spaces.Tuple([self._get_observation_space()] * self._n_players)
-		self.action_space.seed(rnd_seed)
-		self.observation_space.seed(rnd_seed)
+		self.seed(rnd_seed)
 		if render_mode is None:
 			self.metadata = {"render_modes": ['human']}
 			self._show_viewer = True
@@ -348,20 +351,38 @@ class BaseToxicEnv(Env):
 	def field(self) -> np.ndarray:
 		return self._field
 	
+	@property
+	def use_render(self) -> bool:
+		return self._use_render
+	
 	@layout.setter
 	def layout(self, new_layout: str) -> None:
 		self._room_layout = new_layout
 	
-	def seed(self, rng_seed: int):
-		self._np_random, _ = seeding.np_random(rng_seed)
-		self.action_space.seed(rng_seed)
-		self.observation_space.seed(rng_seed)
+	@use_render.setter
+	def use_render(self, new_val: bool) -> None:
+		self._use_render = new_val
+	
+	def seed(self, seed=None):
+		self._np_random, seed = seeding.np_random(seed)
+		self.action_space.seed(seed)
+		if isinstance(self.action_space, gymnasium.spaces.Tuple):
+			for idx in range(len(self.action_space)):
+				self.action_space[idx].seed(seed)
+		self.observation_space.seed(seed)
+		if isinstance(self.observation_space, gymnasium.spaces.Tuple):
+			for idx in range(len(self.observation_space)):
+				self.observation_space[idx].seed(seed)
+		return [seed]
 	
 	#######################
 	### UTILITY METHODS ###
 	#######################
 	def _get_observation_space(self) -> Box:
 		raise NotImplementedError('The observation space has to be implemented by the version of the environment to use')
+	
+	def _get_action_space(self) -> MultiDiscrete:
+		raise NotImplementedError('The action space has to be implemented by the version of the environment to use')
 	
 	def get_filled_field(self) -> np.ndarray:
 		
@@ -555,10 +576,11 @@ class BaseToxicEnv(Env):
 		return self._render.render(self, return_rgb_array=(self.render_mode == 'rgb_array'))
 	
 	def close_render(self):
-		self._render.close()
+		if self._render is not None:
+			self._render.close()
+			self._render = None
 	
 	def close(self):
 		super().close()
-		
 		self.close_render()
 		

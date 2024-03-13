@@ -21,7 +21,7 @@ USE_CNN = True
 USE_TENSORBOARD = True
 
 # Train params
-N_ITERATIONS = 500
+N_ITERATIONS = 2000
 BATCH_SIZE = 32
 TRAIN_FREQ = 1
 TARGET_FREQ = 10
@@ -65,7 +65,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --restart --restart-info %s %s %s" % (RESTART_INFO[0], RESTART_INFO[1], str(RESTART_INFO[2])) if RESTART else "") +
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else ""))
-commamd = "python " + str(src_dir / 'train_astro_disposal_dqn.py') + args
+commamd = "python " + str(src_dir / 'train_toxic_single_model_astro_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
 

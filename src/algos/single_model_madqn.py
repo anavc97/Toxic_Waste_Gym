@@ -12,21 +12,29 @@ import logging
 from flax.training.train_state import TrainState
 from gymnasium.spaces import Space
 from pathlib import Path
-from dl_algos.dqn import DQNetwork, EPS_TYPE
+from src.algos.dqn import DQNetwork, EPS_TYPE
+from src.utilities.buffers import ReplayBuffer, DictReplayBuffer
 from typing import List, Dict, Callable, Tuple
 from datetime import datetime
+from functools import partial
+from jax import jit
 
 
 # noinspection DuplicatedCode,PyTypeChecker
 class SingleModelMADQN(object):
 	
-	_num_agents: int
+	_n_agents: int
 	_agent_dqn: DQNetwork
+	_replay_buffer: ReplayBuffer
 	_write_tensorboard: bool
+	_use_vdn: bool
+	_use_ddqn: bool
+	_use_v2: bool
 	
 	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float,
-				 observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_vdn: bool = False, use_cnn: bool = False,
-				 handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None, cnn_properties: List[int] = None):
+				 action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_vdn: bool = False,
+				 use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None,
+				 cnn_properties: List[int] = None):
 		
 		"""
 		Initialize a multi-agent scenario DQN with a single DQN model
@@ -59,8 +67,11 @@ class SingleModelMADQN(object):
         :type tensorboard_data: list
 		"""
 		
-		self._num_agents = num_agents
+		self._n_agents = num_agents
 		self._write_tensorboard = use_tensorboard
+		self._use_vdn = use_vdn
+		self._use_ddqn = use_ddqn
+		self._use_v2 = use_v2
 		now = datetime.now()
 		if use_tensorboard and tensorboard_data is not None:
 			log_name = (tensorboard_data[0] + '/single_model_' + ('vdn_' if use_vdn else '') + now.strftime("%Y%m%d-%H%M%S"))
@@ -70,15 +81,23 @@ class SingleModelMADQN(object):
 				board_data = [log_name + '_' + tensorboard_data[4], tensorboard_data[1], tensorboard_data[2], tensorboard_data[3], 'central_train']
 		else:
 			board_data = tensorboard_data
-		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, num_agents * buffer_size, gamma, observation_space, use_gpu, dueling_dqn,
-									use_ddqn, use_vdn, use_cnn, handle_timeout, use_tensorboard, board_data, cnn_properties, num_agents)
-	
+		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
+									board_data, cnn_properties, use_v2)
+		has_dict_space = isinstance(observation_space, gymnasium.spaces.Dict)
+		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
+		if use_vdn:
+			self._replay_buffer = buffer_type(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
+											   handle_timeout_termination=handle_timeout, n_agents=num_agents)
+		else:
+			self._replay_buffer = buffer_type(buffer_size * num_agents, observation_space, action_space, "cuda" if use_gpu else "cpu",
+											   handle_timeout_termination=handle_timeout)
+		
 	########################
 	### Class Properties ###
 	########################
 	@property
 	def num_agents(self) -> int:
-		return self._num_agents
+		return self._n_agents
 	
 	@property
 	def agent_dqn(self) -> DQNetwork:
@@ -88,27 +107,81 @@ class SingleModelMADQN(object):
 	def write_tensorboard(self) -> bool:
 		return self._write_tensorboard
 	
-	@num_agents.setter
-	def num_agents(self, num_agents: int):
-		self._num_agents = num_agents
+	@property
+	def replay_buffer(self) -> ReplayBuffer:
+		return self._replay_buffer
 	
-	@agent_dqn.setter
-	def agent_dqn(self, agent_dqn: DQNetwork):
-		self._agent_dqn = agent_dqn
-	
-	@write_tensorboard.setter
-	def write_tensorboard(self, write_tensorboard: bool):
-		self._write_tensorboard = write_tensorboard
+	@property
+	def use_vdn(self) -> bool:
+		return self._use_vdn
 	
 	#####################
 	### Class Methods ###
 	#####################
+	def mse_loss(self, params: flax.core.FrozenDict, observations: jnp.ndarray, actions: jnp.ndarray, next_q_value: jnp.ndarray):
+		q = jnp.zeros((next_q_value.shape[0]))
+		for idx in range(self._n_agents):
+			qa = self._agent_dqn.q_network.apply(params, observations[:, idx])
+			q += qa[np.arange(qa.shape[0]), actions[:, idx].squeeze()]
+		q = q.reshape(-1, 1)
+		return ((q - next_q_value) ** 2).mean(), q
+	
+	def l2_v2_loss(self, params: flax.core.FrozenDict, observations_conv: jnp.ndarray, observations_arr: jnp.ndarray, actions: jnp.ndarray,
+				   next_q_value: jnp.ndarray):
+		q = jnp.zeros((next_q_value.shape[0]))
+		for idx in range(self._n_agents):
+			qa = self._agent_dqn.q_network.apply(params, observations_conv[idx], observations_arr[idx, :, None])
+			q += qa[np.arange(qa.shape[0]), actions[idx].squeeze()]
+		q = q.reshape(-1, 1)
+		return ((q - next_q_value) ** 2).mean(), q
+	
+	@partial(jit, static_argnums=(0,))
+	def compute_vdn_dqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: jnp.ndarray, actions: jnp.ndarray,
+							  next_observations: jnp.ndarray, rewards: jnp.ndarray, dones: jnp.ndarray):
+		n_obs = len(observations)
+		next_q_value = jnp.zeros(n_obs)
+		for idx in range(self._n_agents):
+			next_q_value += self._agent_dqn.compute_dqn_targets(dones, next_observations[:, idx], rewards[:, idx], target_state_params)
+		# next_q_value = next_q_value / n_agents
+		
+		(loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value)
+		new_q_state = q_state.apply_gradients(grads=grads)
+		return loss_value, q_pred, new_q_state
+	
+	@partial(jit, static_argnums=(0,))
+	def compute_vdn_ddqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: jnp.ndarray, actions: jnp.ndarray,
+							  next_observations: jnp.ndarray, rewards: jnp.ndarray, dones: jnp.ndarray):
+		n_obs = len(observations)
+		next_q_value = jnp.zeros((n_obs, 1))
+		for idx in range(self._n_agents):
+			next_q_value += self._agent_dqn.compute_ddqn_targets(dones, next_observations[:, idx], q_state, rewards[:, idx].reshape(-1, 1),
+																 target_state_params)
+		# next_q_value = next_q_value / n_agents
+		
+		(loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value)
+		new_q_state = q_state.apply_gradients(grads=grads)
+		return loss_value, q_pred, new_q_state
+	
+	@partial(jit, static_argnums=(0,))
+	def compute_vdn_v2_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations_conv: jnp.ndarray,
+							observations_arr: jnp.ndarray, actions: jnp.ndarray, next_observations_conv: jnp.ndarray, next_observations_arr: jnp.ndarray,
+							rewards: jnp.ndarray, dones: jnp.ndarray):
+		n_obs = len(observations_conv[0])
+		next_q_value = jnp.zeros(n_obs)
+		for idx in range(self._n_agents):
+			next_q_value += self._agent_dqn.compute_v2_targets(dones[idx], next_observations_conv[idx], next_observations_arr[idx],
+															   q_state, rewards[idx].reshape(-1, 1), target_state_params)
+		(loss_value, q_vals), grads = jax.value_and_grad(self.l2_v2_loss, has_aux=True)(q_state.params, observations_conv, observations_arr, actions,
+																						next_q_value)
+		new_q_state = q_state.apply_gradients(grads=grads)
+		return loss_value, q_vals, new_q_state
+	
 	def train_dqn(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
 				  final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, train_freq: int = 1,
 				  target_freq: int = 100, tensorboard_frequency: int = 1, use_render: bool = False, cycle: int = 0, greedy_action: bool = True):
 		
 		rng_gen = np.random.default_rng(rng_seed)
-		self._agent_dqn.replay_buffer.reseed(rng_seed)
+		self._replay_buffer.reseed(rng_seed)
 		
 		# Setup DQNs for training
 		obs, *_ = env.reset()
@@ -147,7 +220,7 @@ class SingleModelMADQN(object):
 					actions = np.array(env.action_space.sample())
 				else: # Exploitation
 					actions = []
-					for a_idx in range(self._num_agents):
+					for a_idx in range(self._n_agents):
 						# Compute q_values
 						if self._agent_dqn.cnn_layer:
 							q_values = self._agent_dqn.q_network.apply(self._agent_dqn.online_state.params, obs[a_idx].reshape((1, *obs[a_idx].shape)))[0]
@@ -161,45 +234,37 @@ class SingleModelMADQN(object):
 							pol = pol / pol.sum()
 							action = rng_gen.choice(range(env.action_space[0].n), p=pol)
 						action = jax.device_get(action)
-						episode_q_vals += (float(q_values[int(action)]) / self._num_agents)
+						episode_q_vals += (float(q_values[int(action)]) / self._n_agents)
 						actions += [action]
 					actions = np.array(actions)
 				if not self._agent_dqn.cnn_layer:
 					episode_history += [self.get_history_entry(obs, actions)]
 				next_obs, rewards, terminated, timeout, infos = env.step(actions)
-				logger.info('Epoch: %d - Explore? %r Actions: ' % (epoch, explore) + str(actions) + ' Rewards: ' + str(rewards) +
-							' Terminated? %r Timeout? %r' % (terminated, timeout))
 				if use_render:
 					env.render()
 				
 				if len(rewards) == 1:
-					rewards = np.array([rewards] * self._num_agents)
+					rewards = np.array([rewards] * self._n_agents)
 				
-				if terminated or timeout:
-					finished = np.ones(self._num_agents)
+				if terminated:
+					finished = np.ones(self._n_agents)
 				else:
-					finished = np.zeros(self._num_agents)
+					finished = np.zeros(self._n_agents)
 				
 				# store new samples
-				real_next_obs = list(next_obs).copy()
-				if self._agent_dqn.use_vdn:
-					self._agent_dqn.replay_buffer.add(obs, real_next_obs, actions, rewards, finished[0], infos)
-					episode_rewards += sum(rewards) / self._num_agents
+				if self.use_vdn:
+					self.replay_buffer.add(obs, next_obs, actions, rewards, finished[0], infos)
+					episode_rewards += sum(rewards) / self._n_agents
 				else:
-					for a_idx in range(self._num_agents):
-						self._agent_dqn.replay_buffer.add(obs[a_idx], real_next_obs[a_idx], actions[a_idx], rewards[a_idx], finished[a_idx], infos)
-						episode_rewards += (rewards[a_idx] / self._num_agents)
+					for a_idx in range(self._n_agents):
+						self.replay_buffer.add(obs[a_idx], next_obs[a_idx], actions[a_idx], rewards[a_idx], finished[a_idx], infos)
+						episode_rewards += (rewards[a_idx] / self._n_agents)
 				if self._agent_dqn.use_summary:
-					self._agent_dqn.summary_writer.add_scalar("charts/reward", sum(rewards) / self._num_agents, epoch + start_record_epoch)
+					self._agent_dqn.summary_writer.add_scalar("charts/reward", sum(rewards) / self._n_agents, epoch + start_record_epoch)
 				obs = next_obs
 				
 				# update Q-network and target network
-				if epoch >= warmup:
-					if epoch % train_freq == 0:
-						self.update_model(batch_size, epoch, start_time, tensorboard_frequency, logger)
-					
-					if epoch % target_freq == 0:
-						self._agent_dqn.update_target_model(tau)
+				self.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, tensorboard_frequency, train_freq, warmup)
 				
 				epoch += 1
 				sys.stdout.flush()
@@ -208,8 +273,9 @@ class SingleModelMADQN(object):
 				if terminated or timeout:
 					if self._write_tensorboard:
 						episode_len = epoch - episode_start
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_q_vals", episode_q_vals / episode_len, epoch + start_record_epoch)
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_return", episode_rewards, it + start_record_it)
+						self._agent_dqn.summary_writer.add_scalar("charts/mean_episode_q_vals", episode_q_vals / episode_len, epoch + start_record_epoch)
+						self._agent_dqn.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
+						self._agent_dqn.summary_writer.add_scalar("charts/mean_episode_return", episode_rewards / episode_len, it + start_record_it)
 						self._agent_dqn.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
 						self._agent_dqn.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
 					logger.debug("Episode over:\tLength: %d\tEpsilon: %.5f\tReward: %f" % (epoch - episode_start, eps, episode_rewards))
@@ -221,121 +287,203 @@ class SingleModelMADQN(object):
 		
 		return history
 	
+	def update_dqn_models(self, batch_size: int, epoch: int, start_time: float, target_freq: int, tau: float, tensorboard_frequency: int,
+						  train_freq: int, warmup: int):
+		if epoch >= warmup:
+			if epoch % train_freq == 0:
+				data = self._replay_buffer.sample(batch_size)
+				
+				if self._use_v2:
+					obs_conv = []
+					obs_array = []
+					next_obs_conv = []
+					next_obs_array = []
+					for idx in range(self._n_agents):
+						if isinstance(data[idx].observations, dict):
+							obs_conv.append(data[idx].observations['conv'])
+							obs_array.append(data[idx].observations['array'])
+							next_obs_conv.append(data[idx].next_observations['conv'])
+							next_obs_array.append(data[idx].next_observations['array'])
+						else:
+							obs_conv.append(data[idx].observations[0])
+							obs_array.append(data[idx].observations[1])
+							next_obs_conv.append(data[idx].next_observations[0])
+							next_obs_array.append(data[idx].next_observations[1])
+					obs_conv = np.array(obs_conv)
+					obs_array = np.array(obs_array)
+					next_obs_conv = np.array(next_obs_conv)
+					next_obs_array = np.array(next_obs_array)
+					
+					actions = jnp.array([data[idx].actions for idx in range(self._n_agents)])
+					rewards = jnp.array([data[idx].rewards for idx in range(self._n_agents)])
+					dones = jnp.array([data[idx].dones for idx in range(self._n_agents)])
+					
+					if self._use_vdn:
+						q_state = self._agent_dqn.online_state
+						target_params = self._agent_dqn.target_params
+						
+						loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_v2_loss(q_state, target_params, obs_conv, obs_array, actions,
+																							  next_obs_conv, next_obs_array, rewards, dones)
+						
+						#  update tensorboard
+						if self._agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
+							self._agent_dqn.tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss), epoch)
+							self._agent_dqn.tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
+							self._agent_dqn.tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+					else:
+						for a_idx in range(self._n_agents):
+							self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
+																(next_obs_conv[a_idx], next_obs_array[a_idx]), rewards[a_idx], dones[a_idx],
+																epoch, start_time, tensorboard_frequency)
+				
+				else:
+					observations = jnp.array([data[idx].observations for idx in range(self._n_agents)])
+					next_observations = jnp.array([data[idx].next_observations for idx in range(self._n_agents)])
+					actions = jnp.array([data[idx].actions for idx in range(self._n_agents)])
+					rewards = jnp.array([data[idx].rewards for idx in range(self._n_agents)])
+					dones = jnp.array([data[idx].dones for idx in range(self._n_agents)])
+					if self._use_vdn:
+						q_state = self._agent_dqn.online_state
+						target_params = self._agent_dqn.target_params
+						
+						if self._use_ddqn:
+							loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_ddqn_loss(q_state, target_params, observations, actions,
+																									next_observations, rewards, dones)
+						else:
+							loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_dqn_loss(q_state, target_params, observations, actions,
+																								   next_observations, rewards, dones)
+							
+							#  update tensorboard
+							if self._agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
+								self._agent_dqn.tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss), epoch)
+								self._agent_dqn.tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
+								self._agent_dqn.tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+					
+					else:
+						for a_idx in range(self._n_agents):
+							self._agent_dqn.update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
+																dones[a_idx], epoch, start_time, tensorboard_frequency)
+			
+			if epoch % target_freq == 0:
+				self._agent_dqn.update_target_model(tau)
+	
 	def update_model(self, batch_size, epoch, start_time, tensorboard_frequency, logger: logging.Logger):
+		data = self._replay_buffer.sample(batch_size)
+		observations = data.observations
+		next_observations = data.next_observations
+		actions = data.actions
+		rewards = data.rewards
+		dones = data.dones
 		train_info = ('epoch: %d \t' % epoch)
-		losses = []
-		for a_idx in range(self._num_agents):
-			loss = self._agent_dqn.update_online_model(batch_size, epoch, start_time, tensorboard_frequency)
-			losses += [loss]
-			train_info += ('agent %d: loss: %.7f\t' % (a_idx, loss))
+		
+		if self._use_vdn:
+			if self._use_ddqn:
+				loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_ddqn_loss(self._agent_dqn.online_state, self._agent_dqn.target_params,
+																						observations, actions, next_observations, rewards, dones)
+			else:
+				loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_dqn_loss(self._agent_dqn.online_state, self._agent_dqn.target_params,
+																					   observations, actions, next_observations, rewards, dones)
+			
+			if self._agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
+				self._agent_dqn.tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss), epoch)
+				self._agent_dqn.tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
+				self._agent_dqn.tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+		else:
+			loss = self._agent_dqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+		
+		train_info += ('loss: %.7f\t' % loss)
 		logger.debug('Train Info: ' + train_info)
-		return sum(losses) / self._num_agents
+		return loss
 	
 	def save_model(self, filename: str, model_dir: Path, logger: logging.Logger) -> None:
-		model_path = model_dir / (filename + '_single_model.model')
-		if logger.level == logging.DEBUG:
-			params_shapes = ''
-			for key in self._agent_dqn.online_state.params.keys():
-				if isinstance(self._agent_dqn.online_state.params[key], flax.core.FrozenDict):
-					for key2 in self._agent_dqn.online_state.params[key].keys():
-						if isinstance(self._agent_dqn.online_state.params[key][key2], flax.core.FrozenDict):
-							for key3 in self._agent_dqn.online_state.params[key][key2].keys():
-								params_shapes += ('%s: %s ' % (key3, ', '.join([str(x) for x in self._agent_dqn.online_state.params[key][key2][key3].shape])))
-						else:
-							params_shapes += ('%s: %s ' % (key2, ', '.join([str(x) for x in self._agent_dqn.online_state.params[key][key2].shape])))
-				else:
-					params_shapes += ('%s: %s ' % (key, ', '.join([str(x) for x in self._agent_dqn.online_state.params[key].shape])))
-			logger.debug('Model params: %s' % params_shapes)
-		with open(model_path, "wb") as mf:
-			mf.write(flax.serialization.to_bytes(self._agent_dqn.online_state))
-		logger.info("Model state saved to file: " + str(model_path))
+		self._agent_dqn.save_model(filename + '_single_model.model', model_dir, logger)
 	
-	def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: Tuple, verbose: bool = True) -> None:
-		file_path = model_dir / (filename + '_single_model.model')
-		template = TrainState.create(apply_fn=self._agent_dqn.q_network.apply,
-									 params=self._agent_dqn.q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
-									 tx=optax.adam(learning_rate=0.0001))
-		with open(file_path, "rb") as f:
-			self._agent_dqn.online_state = flax.serialization.from_bytes(template, f.read())
-		if verbose:
-			logger.info("Loaded model state from file: " + str(file_path))
+	def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: Tuple) -> None:
+		self._agent_dqn.load_model(filename + '_single_model.model', model_dir, logger, obs_shape)
 	
 	def get_history_entry(self, obs: np.ndarray, actions: List):
 		
 		entry = []
-		for idx in range(self._num_agents):
+		for idx in range(self._n_agents):
 			entry += [' '.join([str(x) for x in obs[idx]]), str(actions[idx])]
 		
 		return entry
 
 
 # noinspection PyTypeChecker,DuplicatedCode
-class LegibleSingleMADQN(SingleModelMADQN):
-	_optimal_models: Dict[str, TrainState]
-	_goal_ids: List[str]
-	_goal: str
-	_beta: float
+class CentralizedMADQN(object):
 	
-	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, beta: float,
-				 observation_space: Space, use_gpu: bool, handle_timeout: bool, models_dir: Path, optimal_filenames: List[str], goal_ids: List[str], goal: str,
-				 dueling_dqn: bool = False, use_ddqn: bool = False, use_cnn: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None):
-		
-		super().__init__(num_agents, action_dim, num_layers, act_function, layer_sizes, buffer_size, gamma, observation_space, use_gpu,dueling_dqn, use_ddqn,
-						 use_cnn, handle_timeout, use_tensorboard, tensorboard_data)
-		
-		self._goal_ids = goal_ids.copy()
-		self._goal = goal
-		self._beta = beta
-		self._optimal_models = {}
-		for goal_id in goal_ids:
-			idx = goal_ids.index(goal_id)
-			file_path = models_dir / optimal_filenames[idx]
-			obs_shape = (1, *observation_space.shape) if use_cnn else observation_space.shape
-			template = TrainState.create(apply_fn=self._agent_dqn.q_network.apply,
-										 params=self._agent_dqn.q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
-										 tx=optax.adam(learning_rate=0.0001))
-			with open(file_path, "rb") as f:
-				self._optimal_models[goal_id] = flax.serialization.from_bytes(template, f.read())
+	_num_agents: int
+	_madqn: DQNetwork
+	_replay_buffer: ReplayBuffer
+	_write_tensorboard: bool
+	_use_ddqn: bool
+	_use_v2: bool
+	_joint_action_converter: Callable
 	
+	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_converter: Callable, act_function: Callable, layer_sizes: List[int],
+				 buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False,
+				 use_ddqn: bool = False, use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tensorboard: bool = False,
+				 tensorboard_data: List = None, cnn_properties: List[int] = None):
+		
+		self._num_agents = num_agents
+		self._use_v2 = use_v2
+		self._write_tensorboard = use_tensorboard
+		self._joint_action_converter = act_converter
+		now = datetime.now()
+		if tensorboard_data is not None:
+			board_data = [tensorboard_data[0] + '/centralized_madqn_' + now.strftime("%Y%m%d-%H%M%S"), tensorboard_data[1], tensorboard_data[2],
+						  tensorboard_data[3], 'centralized_madqn']
+		else:
+			board_data = tensorboard_data
+		has_dict_space = (isinstance(observation_space, gymnasium.spaces.Dict) or
+						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
+		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
+		self._madqn = DQNetwork(action_dim ** num_agents, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
+								board_data, cnn_properties, use_v2=use_v2, n_obs=num_agents)
+		if has_dict_space:
+			obs_space = observation_space[0] if isinstance(observation_space, gymnasium.spaces.Tuple) else observation_space
+			self._replay_buffer = buffer_type(buffer_size, obs_space, action_space, "cuda" if use_gpu else "cpu",
+											  handle_timeout_termination=handle_timeout, n_agents=num_agents)
+		else:
+			self._replay_buffer = buffer_type(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
+											  handle_timeout_termination=handle_timeout, n_agents=num_agents)
+		
 	########################
 	### Class Properties ###
 	########################
 	@property
-	def optimal_models(self):
-		return self._optimal_models
-	
-	def optimal_model(self, goal: str):
-		return self._optimal_models[goal]
+	def num_agents(self) -> int:
+		return self._num_agents
 	
 	@property
-	def goal_ids(self):
-		return self._goal_ids
+	def madqn(self) -> DQNetwork:
+		return self._madqn
 	
 	@property
-	def beta(self) -> float:
-		return self._beta
+	def write_tensorboard(self) -> bool:
+		return self._write_tensorboard
 	
 	@property
-	def goal(self) -> str:
-		return self._goal
+	def get_joint_action(self) -> Callable:
+		return self._joint_action_converter
 	
+	@property
+	def replay_buffer(self) -> ReplayBuffer:
+		return self._replay_buffer
+		
 	#####################
 	### Class Methods ###
 	#####################
-	def train_dqn(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
-				  final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, train_freq: int = 1,
-				  target_freq: int = 100, tensorboard_frequency: int = 1, use_render: bool = False, cycle: int = 0, greedy_action: bool = True):
+	def train_dqn(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float,
+				  initial_eps: float, final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger, num_actions: int, exploration_decay: float = 0.99,
+				  warmup: int = 0, train_freq: int = 1, target_freq: int = 100, tensorboard_frequency: int = 1, use_render: bool = False, cycle: int = 0):
 		
-		np.random.seed(rng_seed)
 		rng_gen = np.random.default_rng(rng_seed)
 		
 		# Setup DQNs for training
-		obs, _ = env.reset()
-		if not self._agent_dqn.dqn_initialized:
-			if self._agent_dqn.cnn_layer:
-				self._agent_dqn.init_network_states(rng_seed, obs[0].reshape((1, *obs[0].shape)), optim_learn_rate)
-			else:
-				self._agent_dqn.init_network_states(rng_seed, obs[0], optim_learn_rate)
+		obs, *_ = env.reset()
+		self._madqn.init_network_states(rng_seed, obs.reshape((1, *obs.shape)), optim_learn_rate)
 		
 		start_time = time.time()
 		epoch = 0
@@ -361,188 +509,13 @@ class LegibleSingleMADQN(SingleModelMADQN):
 				else:
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
 				if rng_gen.random() < eps:
-					actions = np.array(env.action_space.sample())
-				else:
-					actions = []
-					for a_idx in range(self._num_agents):
-						if self._agent_dqn.cnn_layer:
-							q_values = self._agent_dqn.q_network.apply(self._agent_dqn.online_state.params, obs[a_idx].reshape((1, *obs[a_idx].shape)))[0]
-						else:
-							q_values = self._agent_dqn.q_network.apply(self._agent_dqn.online_state.params, obs[a_idx])
-						if greedy_action:
-							action = q_values.argmax(axis=-1)
-						else:
-							pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
-							pol = pol / pol.sum()
-							action = rng_gen.choice(range(env.action_space[0].n), p=pol)
-						action = jax.device_get(action)
-						episode_q_vals += (float(q_values[int(action)]) / self._num_agents)
-						actions += [action]
-					actions = np.array(actions)
-				next_obs, rewards, terminated, timeout, infos = env.step(actions)
-				episode_history += [self.get_history_entry(obs, actions)]
-				if use_render:
-					env.render()
-				
-				# Obtain the legible rewards
-				legible_rewards = np.zeros(self._num_agents)
-				n_goals = len(self._optimal_models)
-				for a_idx in range(self._num_agents):
-					act_q_vals = np.zeros(n_goals)
-					action = actions[a_idx]
-					for g_idx in range(n_goals):
-						if self._agent_dqn.cnn_layer:
-							obs_reshape = obs[a_idx].reshape((1, *obs[a_idx].shape))
-							q_vals = self._agent_dqn.q_network.apply(self._optimal_models[self._goal_ids[g_idx]].params, obs_reshape)[0]
-						else:
-							q_vals = self._agent_dqn.q_network.apply(self._optimal_models[self._goal_ids[g_idx]].params, obs[a_idx])
-						act_q_vals[g_idx] = np.exp(self._beta * (q_vals[action] - q_vals.max()))
-					legible_rewards[a_idx] = act_q_vals[self._goal_ids.index(self._goal)] / act_q_vals.sum()
-					episode_rewards += (legible_rewards[a_idx] / self._num_agents)
-				if self._agent_dqn.use_summary:
-					self._agent_dqn.summary_writer.add_scalar("charts/legible_reward", sum(legible_rewards) / self._num_agents, epoch + start_record_epoch)
-					self._agent_dqn.summary_writer.add_scalar("charts/reward", sum(rewards) / self._num_agents, epoch + start_record_epoch)
-				if terminated:
-					finished = np.ones(self._num_agents)
-				else:
-					finished = np.zeros(self._num_agents)
-				
-				# store new samples
-				for a_idx in range(self._num_agents):
-					self._agent_dqn.replay_buffer.add(obs[a_idx], next_obs[a_idx], actions[a_idx], legible_rewards[a_idx], finished[a_idx], infos)
-				obs = next_obs
-				
-				# update Q-network and target network
-				if epoch >= warmup:
-					if epoch % train_freq == 0:
-						self.update_model(batch_size, epoch, start_time, tensorboard_frequency, logger)
-					
-					if epoch % target_freq == 0:
-						self._agent_dqn.update_target_model(tau)
-				
-				epoch += 1
-				sys.stdout.flush()
-				
-				# Check if iteration is over
-				if terminated or timeout:
-					if self._write_tensorboard:
-						episode_len = epoch - episode_start
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_q_vals", episode_q_vals / episode_len, epoch + start_record_epoch)
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_return", episode_rewards, it + start_record_it)
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
-						self._agent_dqn.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
-					logger.debug("Episode over:\tLength: %d\tEpsilon: %.5f\tReward: %f" % (epoch - episode_start, eps, episode_rewards))
-					obs, *_ = env.reset()
-					done = True
-					history += [episode_history]
-					episode_rewards = 0
-					episode_start = epoch
-		
-		return history
-
-
-# noinspection PyTypeChecker,DuplicatedCode,PyUnresolvedReferences
-class CentralizedMADQN(object):
-	
-	_num_agents: int
-	_madqn: DQNetwork
-	_write_tensorboard: bool
-	_joint_action_converter: Callable
-	
-	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_converter: Callable, act_function: Callable, layer_sizes: List[int],
-				 buffer_size: int, gamma: float, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False,
-				 use_cnn: bool = False, handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None):
-		
-		self._num_agents = num_agents
-		self._write_tensorboard = use_tensorboard
-		self._joint_action_converter = act_converter
-		now = datetime.now()
-		if tensorboard_data is not None:
-			board_data = [tensorboard_data[0] + '/centralized_madqn_' + now.strftime("%Y%m%d-%H%M%S"), tensorboard_data[1], tensorboard_data[2],
-						  tensorboard_data[3], 'centralized_madqn']
-		else:
-			board_data = tensorboard_data
-		dqn_action_dim = action_dim ** num_agents
-		self._madqn = DQNetwork(dqn_action_dim, num_layers, act_function, layer_sizes, buffer_size, gamma, observation_space, use_gpu,
-								dueling_dqn, use_ddqn, use_cnn, handle_timeout, use_tensorboard, board_data)
-		
-	########################
-	### Class Properties ###
-	########################
-	@property
-	def num_agents(self) -> int:
-		return self._num_agents
-	
-	@property
-	def madqn(self) -> DQNetwork:
-		return self._madqn
-	
-	@property
-	def write_tensorboard(self) -> bool:
-		return self._write_tensorboard
-	
-	@property
-	def get_joint_action(self) -> Callable:
-		return self._joint_action_converter
-	
-	@num_agents.setter
-	def num_agents(self, num_agents: int):
-		self._num_agents = num_agents
-	
-	@madqn.setter
-	def madqn(self, agent_dqn: DQNetwork):
-		self._madqn = agent_dqn
-	
-	@write_tensorboard.setter
-	def write_tensorboard(self, write_tensorboard: bool):
-		self._write_tensorboard = write_tensorboard
-		
-	#####################
-	### Class Methods ###
-	#####################
-	def train_dqn(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float,
-				  initial_eps: float, final_eps: float, eps_type: str, rng_seed: int, log_filename: str, exploration_decay: float = 0.99, warmup: int = 0,
-				  train_freq: int = 1, target_freq: int = 100, tensorboard_frequency: int = 1, use_render: bool = False, cycle: int = 0):
-		
-		rng_gen = np.random.default_rng(rng_seed)
-		
-		# Setup DQNs for training
-		obs, *_ = env.reset()
-		joint_obs = np.array([obs[i, 0, :] for i in range(len(obs))]).ravel()
-		joint_obs = joint_obs.reshape((1, *joint_obs.shape))
-		self._madqn.init_network_states(rng_seed, joint_obs, optim_learn_rate)
-		
-		start_time = time.time()
-		epoch = 0
-		sys.stdout.flush()
-		start_record_it = cycle * num_iterations
-		start_record_epoch = cycle * max_timesteps
-		history = []
-		
-		for it in range(num_iterations):
-			if use_render:
-				env.render()
-			done = False
-			episode_rewards = 0
-			episode_start = epoch
-			episode_history = []
-			print("Iteration %d out of %d" % (it + 1, num_iterations))
-			while not done:
-				
-				# interact with environment
-				if eps_type == 'epoch':
-					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
-				else:
-					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
-				if rng_gen.random() < eps:
 					joint_action = np.array(rng_gen.choice(range(self._madqn.q_network.action_dim)))
 				else:
-					q_values = self._madqn.q_network.apply(self._madqn.online_state.params, joint_obs)
+					q_values = self._madqn.q_network.apply(self._madqn.online_state.params, obs.reshape((1, *obs.shape)))[0]
 					joint_action = q_values.argmax(axis=-1)
 					joint_action = jax.device_get(joint_action)
-					if self._write_tensorboard:
-						self._madqn.summary_writer.add_scalar("charts/episodic_q_vals", float(q_values[int(joint_action)]), epoch + start_record_epoch)
-				actions = self._joint_action_converter(joint_action, self._num_agents)
+					episode_q_vals += float(q_values[int(joint_action)])
+				actions = self._joint_action_converter(joint_action, self._num_agents, num_actions)
 				next_obs, rewards, terminated, timeout, infos = env.step(actions)
 				episode_history += [self.get_history_entry(obs, actions)]
 				if use_render:
@@ -557,22 +530,15 @@ class CentralizedMADQN(object):
 					finished = np.zeros(self._num_agents)
 				
 				# store new samples
-				joint_next_obs = np.vstack([*next_obs])
-				joint_next_obs = joint_next_obs.reshape((1, *joint_next_obs.shape))
-				self._madqn.replay_buffer.add(joint_obs, joint_next_obs, joint_action, sum(rewards) / self._num_agents, finished[0], infos)
-				for a_idx in range(self._num_agents):
-					episode_rewards += (rewards[a_idx] / self._num_agents)
-					if self._write_tensorboard:
-						self._madqn.summary_writer.add_scalar("charts/reward", rewards[a_idx], epoch + start_record_epoch)
-				joint_obs = next_obs
+				self._replay_buffer.add(obs, next_obs, joint_action, rewards, finished[0], infos)
+				step_reward = sum(rewards) / self._num_agents
+				episode_rewards += step_reward
+				if self._write_tensorboard:
+					self._madqn.summary_writer.add_scalar("charts/reward", step_reward, epoch + start_record_epoch)
+				obs = next_obs
 				
 				# update Q-network and target network
-				if epoch >= warmup:
-					if epoch % train_freq == 0:
-						loss = self.update_model(batch_size, epoch, start_time, tensorboard_frequency)
-					
-					if epoch % target_freq == 0:
-						self._madqn.update_target_model(tau)
+				self.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, tensorboard_frequency, train_freq, warmup)
 				
 				epoch += 1
 				sys.stdout.flush()
@@ -581,7 +547,7 @@ class CentralizedMADQN(object):
 				if terminated or timeout:
 					if self._write_tensorboard:
 						episode_len = epoch - episode_start
-						self._agent_dqn.summary_writer.add_scalar("charts/episodic_q_vals", episode_q_vals / episode_len, epoch + start_record_epoch)
+						self._madqn.summary_writer.add_scalar("charts/episodic_q_vals", episode_q_vals / episode_len, epoch + start_record_epoch)
 						self._madqn.summary_writer.add_scalar("charts/episodic_return", episode_rewards, it + start_record_it)
 						self._madqn.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
 						self._madqn.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
@@ -593,30 +559,46 @@ class CentralizedMADQN(object):
 		
 		return history
 	
-	def update_model(self, batch_size, epoch, start_time, tensorboard_frequency):
-		train_info = ('epoch: %d \t' % epoch)
-		losses = []
-		for a_idx in range(self._num_agents):
-			loss = self._madqn.update_online_model(batch_size, epoch, start_time, tensorboard_frequency)
-			losses += [loss]
-			train_info += ('agent %d: loss: %.7f\t' % (a_idx, loss))
-		# print('Train Info: ' + train_info)
-		return sum(losses) / self._num_agents
+	def update_dqn_models(self, batch_size: int, epoch: int, start_time: float, target_freq: int, tau: float, tensorboard_frequency: int,
+						  train_freq: int, warmup: int, n_actions: int):
+		
+		if epoch >= warmup:
+			if epoch % train_freq == 0:
+				data = self._replay_buffer.sample(batch_size)
+				
+				if self._use_v2:
+					if isinstance(data.observations, dict):
+						obs_conv = data.observations['conv']
+						obs_array = data.observations['array']
+						next_obs_conv = data.next_observations['conv']
+						next_obs_array = data.next_observations['array']
+					else:
+						obs_conv = data.observations[0]
+						obs_array = data.observations[1]
+						next_obs_conv = data.next_observations[0]
+						next_obs_array = data.next_observations[1]
+					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
+					rewards = data.rewards
+					dones = data.dones
+					self.madqn.update_online_model((obs_conv, obs_array[:, 0]), actions, (next_obs_conv, next_obs_array[:, 0]),
+												   rewards, dones, epoch, start_time, tensorboard_frequency)
+				
+				else:
+					observations = data.observations
+					next_observations = data.next_observations
+					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
+					rewards = data.rewards
+					dones = data.dones
+					self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+			
+			if epoch % target_freq == 0:
+				self.madqn.update_target_model(tau)
 	
 	def save_model(self, filename: str, model_dir: Path, logger: logging.Logger) -> None:
-		model_path = model_dir / (filename + '_ctce.model')
-		with open(model_path, "wb") as mf:
-			mf.write(flax.serialization.to_bytes(self._madqn.online_state))
-		logger.info("Model state saved to file: " + str(model_path))
+		self._madqn.save_model(filename + '_ctce.model', model_dir, logger)
 	
 	def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: Tuple) -> None:
-		file_path = model_dir / (filename + '_ctce.model')
-		template = TrainState.create(apply_fn=self._madqn.q_network.apply,
-									 params=self._madqn.q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
-									 tx=optax.adam(learning_rate=0.0001))
-		with open(file_path, "rb") as f:
-			self._madqn.online_state = flax.serialization.from_bytes(template, f.read())
-		logger.info("Loaded model state from file: " + str(file_path))
+		self._madqn.load_model(filename + '_ctce.model', model_dir, logger, obs_shape)
 	
 	def get_history_entry(self, obs: np.ndarray, actions: List):
 		

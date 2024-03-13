@@ -8,9 +8,9 @@ from src.env.toxic_waste_env_base import BaseToxicEnv, WasteState, PlayerState, 
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.utils import seeding
-from gymnasium.spaces import Discrete, Box
+from gymnasium.spaces import Discrete, Box, MultiDiscrete
 from gymnasium import Env
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
 from copy import deepcopy
 from termcolor import colored
 from collections import namedtuple
@@ -33,10 +33,10 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
-				 render_mode: List[str] = None, slip: bool = False):
+				 render_mode: List[str] = None, use_render: bool = False, slip: bool = False):
 		
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v1', require_facing, layer_obs, agent_centered,
-						 use_encoding, render_mode)
+						 use_encoding, use_render, render_mode)
 		self._slip = slip
 		self._slip_prob = 0.0
 	
@@ -110,6 +110,9 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 				max_obs = [self._rows - 1, self._cols - 1, 1, 1, 1] * self._n_players + [self._rows - 1, self._cols - 1, 2, self._n_players - 1] * self._n_objects
 		
 		return Box(np.array(min_obs), np.array(max_obs), dtype=np.int32)
+	
+	def _get_action_space(self) -> MultiDiscrete:
+		return MultiDiscrete([self._n_actions] * self._n_players)
 	
 	def setup_env(self) -> None:
 		

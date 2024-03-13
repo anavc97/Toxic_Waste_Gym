@@ -1,11 +1,8 @@
 #! /usr/bin/env python
 import math
 import pathlib
-import random
 import time
-import sys
 import flax
-import gymnasium
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -13,15 +10,11 @@ import numpy as np
 import optax
 import logging
 
-from src.algos.q_networks import DuelingQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2
-from src.utilities.buffers import ReplayBuffer, DictReplayBuffer
-# from algos.q_networks import DuelingQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2
-# from utilities.buffers import ReplayBuffer
+from src.algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
 from torch.utils.tensorboard import SummaryWriter
-from gymnasium.spaces import Discrete, Space, MultiDiscrete
-from typing import Callable, List, Union, Dict, Tuple
+from typing import Callable, List, Union, Tuple
 from pathlib import Path
 from termcolor import colored
 from functools import partial
@@ -34,45 +27,31 @@ class DQNetwork(object):
     _q_network: nn.Module
     _online_state: TrainState
     _target_state_params: flax.core.FrozenDict
-    _replay_buffer: Union[ReplayBuffer, DictReplayBuffer]
     _tensorboard_writer: SummaryWriter
     _gamma: float
     _use_ddqn: bool
-    _use_vdn: bool
     _cnn_layer: bool
+    _use_v2: bool
     
-    def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float,
-                 observation_space: Space, use_gpu: bool, use_ddqn: bool = False, use_vdn: bool = False, cnn_layer: bool = False,
-                 handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None, cnn_properties: List[int] = None,
-                 n_agents: int = 1, use_v2: bool = True):
+    def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], gamma: float, dueling_dqn: bool = False,
+                 use_ddqn: bool = False, cnn_layer: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None,
+                 cnn_properties: List[int] = None, use_v2: bool = True, n_obs: int = 1):
     
         """
         Initializes a DQN
         
-        :param action_dim: number of actions of the agent, the DQN is agnostic to the semantic of each action
-        :param num_layers: number of layers for the q_network
-        :param act_function: activation function for the q_network
-        :param layer_sizes: number of neurons in each layer (list must have equal number of entries as the number of layers)
-        :param buffer_size: buffer size for the replay buffer
-        :param gamma: reward discount factor
-        :param observation_space: gym space for the agent observations
-        :param use_gpu: flag that controls use of cpu or gpu
-        :param handle_timeout: flag that controls handle timeout termination (due to timelimit) separately and treat the task as infinite horizon task.
-        :param use_tensorboard: flag that notes usage of a tensorboard summary writer (default: False)
-        :param tensorboard_data: list of the form [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str] with summary data for
+        :param action_dim:          number of actions of the agent, the DQN is agnostic to the semantic of each action
+        :param num_layers:          number of layers for the q_network
+        :param act_function:        activation function for the q_network
+        :param layer_sizes:         number of neurons in each layer (list must have equal number of entries as the number of layers)
+        :param gamma:               reward discount factor
+        :param dueling_dqn:         flag denoting the use of a dueling architecture
+        :param use_ddqn:            flag denoting the use of a double dqn variant
+        :param cnn_layer:           flag denoting the use of a convolutional layer as the entry layer
+        :param use_tensorboard:     flag that notes usage of a tensorboard summary writer (default: False)
+        :param tensorboard_data:    list of the form [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str] with summary data for
         the summary writer (default is None)
-        
-        :type action_dim: int
-        :type num_layers: int
-        :type buffer_size: int
-        :type layer_sizes: list[int]
-        :type use_gpu: bool
-        :type handle_timeout: bool
-        :type use_tensorboard: bool
-        :type gamma: float
-        :type act_function: callable
-        :type observation_space: gymnasium.spaces.Space
-        :type tensorboard_data: list
+        :param cnn_properties:      list of the properties for the convolutional layer (layer size, kernel size, pooling window size)
         
         """
         
@@ -87,30 +66,31 @@ class DQNetwork(object):
                 pool_window = tuple(cnn_properties[3:5])
             
             if use_v2:
-                self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
-                                                     layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
-            
-            else:
+                if n_obs > 1:
+                    self._q_network = MultiObsDuelingQNetworkV2(action_dim=action_dim, num_obs = n_obs, num_layers=num_layers, activation_function=act_function,
+                                                                layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel,
+                                                                pool_window=pool_window)
+                else:
+                    self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
+                                                        layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
+            elif dueling_dqn:
                 self._q_network = CNNDuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
                                                      layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
-        
+            else:
+                self._q_network = CNNQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function, layer_sizes=layer_sizes.copy(),
+                                              cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
         else:
-            self._q_network = DuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function, layer_sizes=layer_sizes.copy())
-        
-        buffer_type = DictReplayBuffer if isinstance(observation_space, gymnasium.spaces.Dict) else ReplayBuffer
-        if use_vdn and n_agents > 1:
-            self._replay_buffer = buffer_type(buffer_size, observation_space, MultiDiscrete([action_dim] * n_agents), "cuda" if use_gpu else "cpu",
-                                               n_agents=n_agents, handle_timeout_termination=handle_timeout)
-        else:
-            self._replay_buffer = buffer_type(buffer_size, observation_space, Discrete(action_dim), "cuda" if use_gpu else "cpu",
-                                               n_agents=n_agents, handle_timeout_termination=handle_timeout)
-        
+            if dueling_dqn:
+                self._q_network = DuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
+                                                  layer_sizes=layer_sizes.copy())
+            else:
+                self._q_network = QNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function, layer_sizes=layer_sizes.copy())
+            
         self._gamma = gamma
         self._use_tensorboard = use_tensorboard
         self._target_state_params = None
         self._online_state = None
         self._use_ddqn = use_ddqn
-        self._use_vdn = use_vdn
         self._cnn_layer = cnn_layer
         self._use_v2 = use_v2
         self._q_network.apply = jax.jit(self._q_network.apply)
@@ -141,10 +121,6 @@ class DQNetwork(object):
         return self._target_state_params
     
     @property
-    def replay_buffer(self) -> ReplayBuffer:
-        return self._replay_buffer
-    
-    @property
     def summary_writer(self) -> SummaryWriter:
         return self._tensorboard_writer
     
@@ -163,10 +139,6 @@ class DQNetwork(object):
     @property
     def cnn_layer(self) -> bool:
         return self._cnn_layer
-    
-    @property
-    def use_vdn(self) -> bool:
-        return self._use_vdn
     
     @property
     def dqn_initialized(self) -> bool:
@@ -221,28 +193,18 @@ class DQNetwork(object):
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
         return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
     
-    def compute_v2_targets(self, dones, next_observations, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
-        q_next_target = self._q_network.apply(target_state_params, next_observations[0], next_observations[1][:, None])  # get target network q values
+    def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
+        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None])  # get target network q values
         # DDQN the target network is used to evaluate how good the online network's predictions are
-        q_next_online = self._q_network.apply(q_state.params, next_observations[0], next_observations[1][:, None])  # get online network's prescribed actions
+        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None])  # get online network's prescribed actions
         online_acts = jnp.argmax(q_next_online, axis=1)
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
-        return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
+        return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze()  # compute Bellman equation
     
     def mse_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
-                     next_q_value: Union[np.ndarray, jax.Array]):
+                 next_q_value: Union[np.ndarray, jax.Array]):
         q = self._q_network.apply(params, observations)  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
-        return ((q - next_q_value) ** 2).mean(), q  # compute loss
-    
-    def mse_vdn_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
-                     next_q_value: Union[np.ndarray, jax.Array], n_agents:int, n_obs: int):
-        q = jnp.zeros(n_obs)
-        for idx in range(n_agents):
-            qa = self._q_network.apply(params, observations[:, idx])  # get online model's q_values
-            q += qa[np.arange(qa.shape[0]), actions[:, idx].squeeze()]
-        q = q.reshape(-1, 1)
-        
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
     
     def mse_loss_v2(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
@@ -250,7 +212,7 @@ class DQNetwork(object):
         q = self._q_network.apply(params, observations[0], observations[1][:, None])  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
-
+    
     @partial(jit, static_argnums=(0,))
     def compute_dqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
                          actions: Union[np.ndarray, jax.Array], next_observations: Union[np.ndarray, jax.Array], rewards: Union[np.ndarray, jax.Array],
@@ -258,8 +220,8 @@ class DQNetwork(object):
         next_q_value = self.compute_dqn_targets(dones, next_observations, rewards, target_state_params)
         
         (loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value)
-        q_state = q_state.apply_gradients(grads=grads)
-        return loss_value, q_pred, q_state
+        new_q_state = q_state.apply_gradients(grads=grads)
+        return loss_value, q_pred, new_q_state
     
     @partial(jit, static_argnums=(0,))
     def compute_ddqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
@@ -268,40 +230,11 @@ class DQNetwork(object):
         next_q_value = self.compute_ddqn_targets(dones, next_observations, q_state, rewards, target_state_params)
         
         (loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value)
-        q_state = q_state.apply_gradients(grads=grads)
-        return loss_value, q_pred, q_state
-    
-    @partial(jit, static_argnums=(0,))
-    def compute_vdn_dqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
-                             actions: Union[np.ndarray, jax.Array], next_observations: Union[np.ndarray, jax.Array], rewards: Union[np.ndarray, jax.Array],
-                             dones: Union[np.ndarray, jax.Array]):
-        n_obs, n_agents, *_ = observations.shape
-        next_q_value = np.zeros(n_obs)
-        for idx in range(n_agents):
-            next_q_value += self.compute_dqn_targets(dones, next_observations[:, idx], rewards[:, idx], target_state_params)
-        # next_q_value = next_q_value / n_agents
-        
-        (loss_value, q_pred), grads = jax.value_and_grad(self.mse_vdn_loss, has_aux=True)(q_state.params, observations, actions, next_q_value, n_agents, n_obs)
-        q_state = q_state.apply_gradients(grads=grads)
-        return loss_value, q_pred, q_state
-    
-    @partial(jit, static_argnums=(0,))
-    def compute_vdn_ddqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
-                             actions: Union[np.ndarray, jax.Array], next_observations: Union[np.ndarray, jax.Array], rewards: Union[np.ndarray, jax.Array],
-                             dones: Union[np.ndarray, jax.Array]):
-        n_obs, n_agents, *_ = observations.shape
-        next_q_value = np.zeros((n_obs, 1))
-        for idx in range(n_agents):
-            next_q_value += self.compute_ddqn_targets(dones, next_observations[:, idx], q_state, rewards[:, idx].reshape(-1, 1), target_state_params)
-        # next_q_value = next_q_value / n_agents
-        
-        (loss_value, q_pred), grads = jax.value_and_grad(self.mse_vdn_loss, has_aux=True)(q_state.params, observations, actions, next_q_value, n_agents, n_obs)
-        q_state = q_state.apply_gradients(grads=grads)
-        return loss_value, q_pred, q_state
+        new_q_state = q_state.apply_gradients(grads=grads)
+        return loss_value, q_pred, new_q_state
     
     @staticmethod
     def eps_update(update_type: int, init_eps: float, end_eps: float, decay_rate: float, step: int, max_steps: int):
-        
         if update_type == 1:
             return max(((end_eps - init_eps) / max_steps) * step / decay_rate + init_eps, end_eps)
         elif update_type == 2:
@@ -314,196 +247,30 @@ class DQNetwork(object):
             print(colored('Unrecognized exploration decay type, defaulting to logarithmic decay', 'red'))
             return max((1 / (1 + decay_rate * step)) * init_eps, end_eps)
 
-    def train(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
-              final_eps: float, eps_type: str, rng_seed: int, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000, train_freq: int = 10,
-              summary_frequency: int = 1):
-
-        obs, _ = env.reset()
-        rng_gen = np.random.default_rng(rng_seed)
-        self.init_network_states(rng_seed, obs, optim_learn_rate)
-
-        start_time = time.time()
-        epoch = 0
-        history = []
+    def update_online_model(self, observations: jnp.ndarray, actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray,
+                            epoch: int, start_time: float, summary_frequency: int) -> float:
         
-        for it in range(num_iterations):
-            done = False
-            episode_rewards = 0
-            episode_start = epoch
-            episode_history = []
-            print("Iteration %d out of %d" % (it + 1, num_iterations))
-            while not done:
-                print("Epoch %d" % (epoch + 1))
-                
-                # interact with environment
-                if eps_type == 'epoch':
-                    eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
-                else:
-                    eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
-                if rng_gen.random() < eps:
-                    action = np.array([env.action_space.sample()])
-                else:
-                    q_values = self._q_network.apply(self._online_state.params, obs)
-                    action = q_values.argmax(axis=-1)
-                    action = jax.device_get(action)
-                next_obs, reward, finished, timeout, info = env.step(action)
-                episode_rewards += reward
-                episode_history += [obs, action]
-                
-                # store new samples
-                real_next_obs = next_obs.copy()
-                self._replay_buffer.add(obs, real_next_obs, action, reward, np.array(finished), info)
-                obs = next_obs
-        
-                # update Q-network and target network
-                if epoch > warmup:
-                    if epoch % train_freq == 0:
-                        self.update_online_model(batch_size, epoch, start_time, summary_frequency)
-                    
-                    if epoch % target_freq == 0:
-                        self.update_target_model(tau)
-    
-                epoch += 1
-                sys.stdout.flush()
-                if finished:
-                    obs, _ = env.reset()
-                    done = True
-                    history += [episode_history]
-                    if self._use_tensorboard:
-                        self._tensorboard_writer.add_scalar("charts/episodic_return", episode_rewards, epoch)
-                        self._tensorboard_writer.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-                        self._tensorboard_writer.add_scalar("charts/epsilon", eps, epoch)
-                        print("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
-        
-        return history
-    
-    def train_cnn(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
-                  final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0,
-                  target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1):
-
-        env.reset()
-        obs = env.render()
-        self.init_network_states(rng_seed, obs, optim_learn_rate)
-
-        start_time = time.time()
-        epoch = 0
-        history = []
-        
-        for it in range(num_iterations):
-            done = False
-            episode_rewards = 0
-            episode_start = epoch
-            episode_history = []
-            logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
-            while not done:
-                logger.debug("Epoch %d" % (epoch + 1))
-                
-                # interact with environment
-                if eps_type == 'epoch':
-                    eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
-                else:
-                    eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
-                if random.random() < eps:
-                    action = np.array(env.action_space.sample())
-                else:
-                    q_values = self._q_network.apply(self._online_state.params, obs)
-                    action = q_values.argmax(axis=-1)
-                    action = jax.device_get(action)
-                _, reward, finished, timeout, info, *_ = env.step(action)
-                next_obs = env.render()
-                episode_rewards += reward
-                episode_history += [obs, action]
-                
-                # store new samples
-                self._replay_buffer.add(obs, next_obs, action, reward, finished, info)
-                obs = next_obs
-        
-                # update Q-network and target network
-                if epoch > warmup:
-                    if epoch % train_freq == 0:
-                        self.update_online_model(batch_size, epoch, start_time, summary_frequency)
-                    
-                    if epoch % target_freq == 0:
-                        self.update_target_model(tau)
-    
-                epoch += 1
-                sys.stdout.flush()
-                if finished:
-                    env.reset()
-                    obs = env.render()
-                    done = True
-                    history += [episode_history]
-                    if self._use_tensorboard:
-                        self._tensorboard_writer.add_scalar("charts/episodic_return", episode_rewards, epoch)
-                        self._tensorboard_writer.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-                        self._tensorboard_writer.add_scalar("charts/epsilon", eps, epoch)
-                        logger.debug("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
-        
-        return history
-    
-    def compute_gradients(self, observations: jnp.ndarray, actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray):
-        if self._use_ddqn:
+        # perform a gradient-descent step
+        if self._use_v2:
+            q_state = self._online_state
+            target_params = self._target_state_params
+            next_q_value = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params)
+            
+            (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
+            self._online_state = q_state.apply_gradients(grads=grads)
+       
+        elif self._use_ddqn:
             td_loss, q_val, self._online_state = self.compute_ddqn_loss(self._online_state, self._target_state_params, observations, actions,
                                                                         next_observations, rewards, finished)
-        
         else:
             td_loss, q_val, self._online_state = self.compute_dqn_loss(self._online_state, self._target_state_params, observations, actions,
                                                                        next_observations, rewards, finished)
-        
-        return td_loss, q_val
-    
-    def compute_vdn_gradients(self, observations: jnp.ndarray, actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray):
-        
-        if self._use_ddqn:
-            td_loss, q_val, self._online_state = self.compute_vdn_ddqn_loss(self._online_state, self._target_state_params, observations, actions,
-                                                                            next_observations, rewards, finished)
-        else:
-            td_loss, q_val, self._online_state = self.compute_vdn_dqn_loss(self._online_state, self._target_state_params, observations, actions,
-                                                                           next_observations, rewards, finished)
-    
-        return td_loss, q_val
-    
-    def compute_v2_gradients(self, observations: jnp.ndarray, actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray,
-                          epoch: int, summary_frequency: int, start_time: float):
-        
-        q_state = self._online_state
-        target_params = self._target_state_params
-        next_q_value = self.compute_v2_targets(finished, next_observations, q_state, rewards, target_params)
-        
-        (loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
-        self._online_state = q_state.apply_gradients(grads=grads)
-        
-        if self._use_tensorboard and epoch % summary_frequency == 0:
-            self._tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss_value), epoch)
-            self._tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
-            self._tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
-        
-        return loss_value
-    
-    def update_online_model(self, batch_size: int, epoch: int, start_time: float, summary_frequency: int) -> float:
-        data = self._replay_buffer.sample(batch_size)
-        
-        observations = data.observations
-        actions = data.actions
-        next_observations = data.next_observations
-        rewards = data.rewards
-        finished = data.dones
-        
-        if self._use_v2:
-            return self.compute_v2_gradients(observations, actions, next_observations, rewards, finished, epoch, summary_frequency, start_time)
-        
-        elif self._use_vdn:
-            td_loss, q_val = self.compute_vdn_gradients(observations, actions, next_observations, rewards, finished)
-        
-        else:
-            td_loss, q_val = self.compute_gradients(observations, actions, next_observations, rewards, finished)
         
         #  update tensorboard
         if self._use_tensorboard and epoch % summary_frequency == 0:
             self._tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(td_loss), epoch)
             self._tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_val).mean(), epoch)
             self._tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
-        
         return td_loss
     
     def update_target_model(self, tau: float):
