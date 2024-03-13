@@ -1,11 +1,6 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using Newtonsoft.Json;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using System.Threading;
 
 
 public class InputHandler : MonoBehaviour
@@ -25,7 +20,6 @@ public class InputHandler : MonoBehaviour
     private bool actionExecuted = false;
     public bool sendAction = true;
     private bool waiting = false;
-    public Socket outbound_socket;
     private bool gameOver;
     void Start()
     {

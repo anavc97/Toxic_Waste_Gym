@@ -21,6 +21,7 @@ DELIVER_WASTE = 1
 ROOM_CLEAN = 2
 PICK_REWARD = 0.1
 ADJ_REWARD = 0.1
+IDENTIFY_REWARD = 0.1
 
 
 class Actions(IntEnum):
@@ -493,7 +494,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							place_obj = acting_player.held_objects[0]
 							acting_player.drop_object(place_obj.id)
 							place_obj.hold_state = HoldState.DISPOSED
-							place_obj.holding_player = adjacent_agent
+							place_obj.holding_player = agent_facing
 							place_obj.position = (-1, -1)
 							adjacent_agent.hold_object(place_obj)
 							agents_disposed_waste.append(acting_player)
@@ -530,6 +531,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
 				object_facing = self.get_object_facing(acting_player)
 				if object_facing is not None and not object_facing.identified:
+					acting_player.reward = IDENTIFY_REWARD
 					object_facing.identified = True
 		
 		# Handle movement and collisions
@@ -557,6 +559,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			ball_pos = [obj.position for obj in self.objects]
 			if idx == AgentType.HUMAN and moving_player.is_holding_object():
 				self._time_penalties += sum([obj.time_penalty for obj in moving_player.held_objects])	# When the agent moves holding waste apply time penalty
+				self._players[AgentType.ROBOT].reward = HOLD_REWARD
 			if old_pos != next_pos and next_pos not in ball_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
@@ -567,10 +570,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		for player in self._players:
 			if self.is_game_finished():
 				# Game finished reward
-				player.reward = ROOM_CLEAN * self._score
+				player.reward += ROOM_CLEAN * self._score
 			elif player in agents_disposed_waste:
 				# Disposal reward
-				player.reward = waste_disposed[player.id]
+				player.reward += waste_disposed[player.id]
 			else:
 				# Adjacency reward
 				facing_agent = self.get_agent_facing(player)
@@ -579,6 +582,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						 (player.agent_type == AgentType.ROBOT and facing_agent.agent_type == AgentType.HUMAN and facing_agent.is_holding_object()))):
 					# if players have to face each other, reward only given when they are facing
 					if (self.require_facing and self.are_facing(player, facing_agent)) or not self.require_facing:
-						player.reward = ADJ_REWARD
+						player.reward += ADJ_REWARD
 		
 		return slip_agents

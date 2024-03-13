@@ -1,52 +1,59 @@
 using System.Collections;
 using System.Collections.Generic;
+
 using UnityEngine;
+using TMPro;
 
 public class BallInteraction : MonoBehaviour
 {
-    public Transform movePoint;
-    //public Transform rayPoint;
-    //public float rayDistance;
+    public GameObject historyChat;
+    public GameObject currentChat;
+    private GameObject bubble;
+    private GameObject load;
+    private GameObject text;
 
-    private GameObject grabbedObject;
-    private int layerIndex;
-    // Start is called before the first frame update
+    public List<string> BallsIdentified = new List<string>();
+
+    private int currentChatNumber = 1;
+
     void Start()
     {
-        layerIndex = LayerMask.NameToLayer("Balls");
+        historyChat = GameObject.Find("HistoryChat");
     }
 
-    // Update is called once per frame
     void Update()
     {
        
     }
-        
-    //Incomplete and not necessary
-    public void changeBallStatus(string ballId, int newStatus)
+
+    public IEnumerator StartIdAnimation(GameObject ball)
     {
-        foreach (GameObject ball in GameObject.FindGameObjectsWithTag("Ball"))
-            {
-                if(ball.name == ballId)
-                {   
-                    if(grabbedObject == null)
-                    {
-                        grabbedObject = ball;
-                        grabbedObject.GetComponent<Rigidbody2D>().isKinematic = true;
-                        grabbedObject.transform.position = transform.position;
-                        grabbedObject.transform.SetParent(transform);
-                        Debug.Log("Grabbed object = new ball");
-                    }
-                    else
-                    {
-                        grabbedObject.GetComponent<Rigidbody2D>().isKinematic = false;
-                        grabbedObject.transform.position =  new Vector3(transform.position.x - 1, transform.position.y, 0);
-                        grabbedObject.transform.SetParent(null);
-                        grabbedObject = null;
-                        Debug.Log("Grabbed object = ");
-                    }
-                    break;
-                }
-            }
+        if(BallsIdentified.Contains(ball.name)) //Check if ball had already been identified before
+        {
+            yield return 0;
+        }
+        string type = ball.name.Split('_')[0];
+        //Debug.Log("Ball ID: " + type);
+      
+        string currentChatName = "Chat" + currentChatNumber;
+        currentChat = historyChat.transform.Find(currentChatName).gameObject;
+        currentChat.SetActive(true);
+        bubble = currentChat.transform.Find("Bubble").gameObject;
+        load = bubble.transform.Find("Load").gameObject;
+        text = bubble.transform.Find("Text").gameObject;
+
+        if (text.GetComponent<TextMeshPro>().enabled)
+        {
+            text.GetComponent<TextMeshPro>().enabled = false;
+        }
+        load.GetComponent<TextMeshPro>().enabled = true;
+        ball.tag = "IDdBall";
+        BallsIdentified.Add(ball.name);
+        yield return new WaitForSeconds(2.5f);
+        load.GetComponent<TextMeshPro>().enabled = false;
+        text.GetComponent<TextMeshPro>().enabled = true;
+        text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
+        currentChatNumber += 1;
     }
+        
 }

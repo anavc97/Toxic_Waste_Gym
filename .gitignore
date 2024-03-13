@@ -75,3 +75,10 @@ Unity_Toxic Waste Gym/Assets/Scenes/SampleScene.unity.meta
 
 # Other extensions to ignore
 *.pyc
+testenv/pyvenv.cfg
+testenv/lib64
+testenv/bin/python3.10
+*.pyc
+src/env/__pycache__/__init__.cpython-310.pyc
+src/env/__pycache__/__init__.cpython-310.pyc
+src/env/__pycache__/astro_waste_game.cpython-310.pyc

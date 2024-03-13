@@ -11,6 +11,7 @@ import optax
 import logging
 
 from src.algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
+from utilities.buffers import ReplayBuffer, DictReplayBuffer
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
 from torch.utils.tensorboard import SummaryWriter
@@ -54,7 +55,7 @@ class DQNetwork(object):
         :param cnn_properties:      list of the properties for the convolutional layer (layer size, kernel size, pooling window size)
         
         """
-        
+                 
         if cnn_layer:
             if cnn_properties is None:
                 cnn_size = 128
@@ -306,11 +307,20 @@ class DQNetwork(object):
             f.write(flax.serialization.to_bytes(self._online_state))
         logger.info("Model state saved to file: " + str(file_path))
     
-    def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
+    def load_model(self, filename: str, model_dir: Path, obs_shape: tuple) -> None: #logger: logging.Logger, 
         file_path = model_dir / filename
         template = TrainState.create(apply_fn=self._q_network.apply,
                                      params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
-        logger.info("Loaded model state from file: " + str(file_path))
+        #logger.info("Loaded model state from file: " + str(file_path))
+
+    def load_model_v2(self, filename: str, model_dir: Path, obs_shape: tuple) -> None: #logger: logging.Logger,
+        file_path = model_dir / filename
+        template = TrainState.create(apply_fn=self._q_network.apply,
+                                     params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape[0]), jnp.empty(obs_shape[1])),
+                                     tx=optax.adam(learning_rate=0.0001))
+        with open(file_path, "rb") as f:
+            self._online_state = flax.serialization.from_bytes(template, f.read())
+        #logger.info("Loaded model state from file: " + str(file_path))

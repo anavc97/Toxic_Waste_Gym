@@ -5711,7 +5711,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.000015259, y: 39.387}
+  m_AnchoredPosition: {x: -90, y: 0.0000076294}
   m_SizeDelta: {x: 477.1351, y: 78.7736}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &753510901
@@ -5736,8 +5736,7 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Level Finished!
 
-
-    Ready for next level?'
+    Loading next level...'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5800,7 +5799,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 0, y: 0, z: -180.1264, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -6890,7 +6889,7 @@ Transform:
   m_GameObject: {fileID: 935431279}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 12.051, y: 0.973, z: 0}
+  m_LocalPosition: {x: 6.98, y: 14, z: 0}
   m_LocalScale: {x: 0.5, y: 0.42813224, z: 0.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -7189,7 +7188,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: +10 points
+  m_text: 
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
   m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
@@ -10829,7 +10828,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1480879290
 Transform:
   m_ObjectHideFlags: 0
@@ -10893,6 +10892,7 @@ MonoBehaviour:
   timeHoldingYellowBall: 0
   canvas: {fileID: 0}
   popUp: {fileID: 0}
+  ballInteraction: {fileID: 0}
 --- !u!4 &1531758260
 Transform:
   m_ObjectHideFlags: 0
@@ -12682,6 +12682,7 @@ GameObject:
   - component: {fileID: 1694360932}
   - component: {fileID: 1694360931}
   - component: {fileID: 1694360930}
+  - component: {fileID: 1694360934}
   m_Layer: 8
   m_Name: red_1
   m_TagString: Ball
@@ -12830,6 +12831,21 @@ Transform:
   - {fileID: 1666985767}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1694360934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1694360929}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b45f4f6612bc9af38a1339a05a1598a1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  historyChat: {fileID: 0}
+  currentChat: {fileID: 0}
+  BallsIdentified: []
 --- !u!1 &1703479789
 GameObject:
   m_ObjectHideFlags: 0
@@ -14607,6 +14623,7 @@ GameObject:
   - component: {fileID: 2026953304}
   - component: {fileID: 2026953306}
   - component: {fileID: 2026953307}
+  - component: {fileID: 2026953308}
   m_Layer: 0
   m_Name: astro
   m_TagString: Untagged
@@ -14695,9 +14712,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   movementSpeed: 700
-  gameHandler: {fileID: 0}
+  action:
+    command: 
+  gameHandler: {fileID: 1531758259}
+  ballInteraction: {fileID: 0}
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
+  humanPlayer: {fileID: 0}
+  pos_around: []
+  pos_x: 0
+  pos_y: 0
+  jsonString: 
+  previousStepAction: 0
+  astroStation: {x: 0, y: 0, z: 0}
 --- !u!50 &2026953307
 Rigidbody2D:
   serializedVersion: 4
@@ -14725,6 +14752,27 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
+--- !u!95 &2026953308
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2026953303}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 6f0cfb79d7f525f10b272955b8accac0, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &2042814945
 GameObject:
   m_ObjectHideFlags: 0
@@ -15045,7 +15093,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b45f4f6612bc9af38a1339a05a1598a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movePoint: {fileID: 2042814946}
+  historyChat: {fileID: 0}
+  currentChat: {fileID: 0}
+  BallsIdentified: []
 --- !u!95 &2108296918
 Animator:
   serializedVersion: 5
