@@ -13,7 +13,7 @@ import time
 import yaml
 import logging
 
-from algos.dqn import DQNetwork, EPS_TYPE
+from algos.dqn import EPS_TYPE
 from algos.single_agent_dqn import SingleAgentDQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
 from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
@@ -490,13 +490,9 @@ def main():
 		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
 		tensorboard_details += ['astro_' + game_level]
 		
-		if use_vdn:
-			astro_dqn = DQNetwork(env.action_space.n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.observation_space, use_gpu,
-								  use_ddqn, use_vdn, cnn_layer=use_cnn, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details,
-								  use_v2=(env_version == 2))
-		else:
-			astro_dqn = DQNetwork(env.action_space.n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.observation_space[0], use_gpu, use_ddqn, use_vdn,
-								  cnn_layer=use_cnn, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2))
+		astro_dqn = SingleAgentDQN(env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space, env.observation_space, use_gpu,
+								   dueling_dqn, use_ddqn, use_cnn, False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details,
+								   use_v2=(env_version == 2))
 		if env_version == 1:
 			history = train_astro_model(agents_id, env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 										learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,

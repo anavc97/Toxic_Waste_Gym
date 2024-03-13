@@ -23,7 +23,7 @@ class SingleAgentDQN(object):
 	_use_v2: bool
 
 	def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, action_space: Space,
-				 observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_vdn: bool = False, use_cnn: bool = False,
+				 observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_cnn: bool = False,
 				 handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None, cnn_properties: List[int] = None,
 				 use_v2: bool = False):
 		
@@ -31,7 +31,7 @@ class SingleAgentDQN(object):
 		self._use_v2 = use_v2
 		now = datetime.now()
 		if use_tensorboard and tensorboard_data is not None:
-			log_name = (tensorboard_data[0] + '/single_model_' + ('vdn_' if use_vdn else '') + now.strftime("%Y%m%d-%H%M%S"))
+			log_name = (tensorboard_data[0] + '/single_agent_' + now.strftime("%Y%m%d-%H%M%S"))
 			if len(tensorboard_data) == 4:
 				board_data = [log_name, tensorboard_data[1], tensorboard_data[2], tensorboard_data[3], 'central_train']
 			else:
