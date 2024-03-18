@@ -5522,8 +5522,6 @@ MonoBehaviour:
   timeRemaining: 0
   timeIsRunning: 1
   timeText: {fileID: 746641824}
-  gHandler: {fileID: 0}
-  gameTime: 0
 --- !u!114 &746641824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5689,7 +5687,7 @@ GameObject:
   - component: {fileID: 753510902}
   - component: {fileID: 753510901}
   m_Layer: 5
-  m_Name: Game Over
+  m_Name: GameOver
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6821,7 +6819,7 @@ GameObject:
   m_Component:
   - component: {fileID: 935431281}
   - component: {fileID: 935431280}
-  m_Layer: 0
+  m_Layer: 6
   m_Name: Capsule
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -6869,8 +6867,8 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -9095717837082945937, guid: 207ee8102dd4143d288186ef0be518ee, type: 3}
-  m_Color: {r: 0.3581848, g: 0.3581848, b: 0.3581848, a: 1}
+  m_Sprite: {fileID: 21300000, guid: 73ee3da89ba6487bc8e30a3a77510a95, type: 3}
+  m_Color: {r: 0.7766505, g: 0.52611476, b: 0.26550323, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -6890,7 +6888,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 6.98, y: 14, z: 0}
-  m_LocalScale: {x: 0.5, y: 0.42813224, z: 0.5}
+  m_LocalScale: {x: 1.5, y: 1.2843966, z: 1.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -10359,6 +10357,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9ba0179eafda822189e0dfe119b6a96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  scoreValue: 0
   score: {fileID: 1421056271}
 --- !u!114 &1421056271
 MonoBehaviour:
@@ -10875,14 +10874,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99f6f1a7736ab6201a00638e40408314, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  time: {fileID: 746641823}
-  global_health: 0
-  SOCKETS_IP: 127.0.0.1
-  INBOUND_PORT: 20501
-  OUTBOUND_PORT: 20500
-  SOCK_TIMEOUT: 5
-  BUFFER_SIZE: 1024
-  input_handler: {fileID: 0}
+  humanPosition: {x: 0, y: 0, z: 0}
+  humanOrientation: {x: 0, y: 0}
+  astroPosition: {x: 0, y: 0, z: 0}
+  doorPosition: {x: 0, y: 0, z: 0}
   gameRunning: 0
   gameOver: 0
   holdingBall: 0
@@ -10893,6 +10888,13 @@ MonoBehaviour:
   canvas: {fileID: 0}
   popUp: {fileID: 0}
   ballInteraction: {fileID: 0}
+  scoreScript: {fileID: 0}
+  timerScript: {fileID: 0}
+  humanPlayer: {fileID: 0}
+  astroPlayer: {fileID: 0}
+  heldBall: {fileID: 0}
+  currentScene: 
+  layout: 
 --- !u!4 &1531758260
 Transform:
   m_ObjectHideFlags: 0
@@ -11469,6 +11471,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1599116557}
   - component: {fileID: 1599116556}
+  - component: {fileID: 1599116558}
   m_Layer: 0
   m_Name: Grid
   m_TagString: Untagged
@@ -11505,6 +11508,19 @@ Transform:
   - {fileID: 308907715}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1599116558
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1599116555}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9062906b83e2f3e89da1557a913c7fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gridPositions: []
 --- !u!1 &1603379994
 GameObject:
   m_ObjectHideFlags: 0
@@ -12845,6 +12861,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
+  allBalls: []
   BallsIdentified: []
 --- !u!1 &1703479789
 GameObject:
@@ -14712,17 +14729,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   movementSpeed: 700
-  action:
-    command: 
-  gameHandler: {fileID: 1531758259}
+  astroOrientation: {x: 0, y: 0}
   ballInteraction: {fileID: 0}
-  historyChat: {fileID: 0}
-  currentChat: {fileID: 0}
   humanPlayer: {fileID: 0}
   pos_around: []
   pos_x: 0
   pos_y: 0
-  jsonString: 
+  gameOverRobot: 0
   previousStepAction: 0
   astroStation: {x: 0, y: 0, z: 0}
 --- !u!50 &2026953307
@@ -15095,6 +15108,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   historyChat: {fileID: 0}
   currentChat: {fileID: 0}
+  allBalls: []
   BallsIdentified: []
 --- !u!95 &2108296918
 Animator:
@@ -15129,11 +15143,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e240166cdddf7fbdc88d62e2b807c489, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movementSpeed: 6
+  movementSpeed: 700
   movePoint: {fileID: 2042814946}
-  walls:
-    serializedVersion: 2
-    m_Bits: 128
 --- !u!50 &2108296920
 Rigidbody2D:
   serializedVersion: 4
@@ -15247,7 +15258,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be01ea0b6ae8082c5bf02d35a4b70522, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sendAction: 1
 --- !u!1 &2116328831
 GameObject:
   m_ObjectHideFlags: 0

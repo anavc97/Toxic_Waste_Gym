@@ -5,41 +5,31 @@ using Newtonsoft.Json;
 
 public class InputHandler : MonoBehaviour
 {
-    [System.Serializable]
-    public class Action
-    {
-        public string command;
-        public ActionData data; 
-    }
-    public class ActionData
-    {
-        public int id; // human = 0 astro = 1
-        public int action; //0=up, 1=down, 2=left, 3=right, 4=interact
-    }
-    private string filePath =  Application.dataPath + "/human_action.json";
+    
     private bool actionExecuted = false;
-    public bool sendAction = true;
     private bool waiting = false;
     private bool gameOver;
+    private float mov_x = 0;
+    private float mov_y = 0;
+    private int handleBall = 0;
+    private GameHandler gameHandler;
+
+
     void Start()
     {
-
+        gameHandler =  GameObject.Find("GameHandler").GetComponent<GameHandler>();
     }
 
     // Update is called once per frame
     void Update()
     {   
-        gameOver = GameObject.Find("GameHandler").GetComponent<GameHandler>().gameOver;
-        Action action = new Action();
-        action.command = "p_act";
-        action.data = new ActionData();
+        gameOver = gameHandler.gameOver;
         
-        if (sendAction && !gameOver)
+        if (!waiting && !gameOver)
         {
             if(Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
             {   
-                action.data.id = 0;
-                action.data.action = (int)(2.5 + (Input.GetAxisRaw("Horizontal") / 2)); //2=left 3=right
+                mov_x = Input.GetAxisRaw("Horizontal");
                 actionExecuted = true;
                 if (!waiting)
                 {
@@ -48,8 +38,7 @@ public class InputHandler : MonoBehaviour
             }
             else if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {   
-                action.data.id = 0;
-                action.data.action = (int)(0.5 - (Input.GetAxisRaw("Vertical") / 2));//0=up 1=down
+                mov_y = Input.GetAxisRaw("Vertical");
                 actionExecuted = true;
                 if (!waiting)
                 {
@@ -58,8 +47,7 @@ public class InputHandler : MonoBehaviour
             }
             else if(Input.GetKeyDown(KeyCode.Space))
             {   
-                action.data.id = 0;
-                action.data.action = 4;
+                handleBall = 1;
                 actionExecuted = true;
                 if (!waiting)
                 {
@@ -70,14 +58,12 @@ public class InputHandler : MonoBehaviour
             if(actionExecuted)
             {   
                 actionExecuted = false;
-                string jsonString = JsonConvert.SerializeObject(action);
-                sendAction = false;
-                GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);
+                gameHandler.performHumanAction(mov_x, mov_y, handleBall);
+                mov_x = 0;
+                mov_y = 0;
+                handleBall = 0;
             }
         }
- 
-        //string json = JsonConvert.SerializeObject(action.ToArray(), Formatting.Indented);
-        //File.WriteAllText(@"/home/anavc/Toxic_Waste_Gym/Unity_Toxic Waste Gym/Assets/state.json", json);
     }
 
     private IEnumerator Wait()

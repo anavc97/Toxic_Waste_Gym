@@ -1,44 +1,34 @@
 using UnityEngine;
 using TMPro;
+using System.Diagnostics;
 
 public class Timer : MonoBehaviour
 {   
     public float timeRemaining;
     public bool timeIsRunning = true;
+    public bool gameOverTimer = false;
     public TMP_Text timeText;
-    public GameHandler.GameData gameData;
-    public GameObject gHandler;
-    public float gameTime; 
+    public Stopwatch stopWatch;
 
     void Start()
     {
         timeIsRunning = true;
         timeRemaining = 120.0f;
-        gHandler = GameObject.Find("GameHandler");
-        gameData = gHandler.GetComponent<GameHandler>().gameData;
+        stopWatch = new Stopwatch();
     }
 
     void Update()
     {   
-        gameData = gHandler.GetComponent<GameHandler>().gameData;
-        //Debug.Log(" -- " +gHandler + gameData);
-        if(gameData != null)
+        if(timeIsRunning && !gameOverTimer)
         {
-            gameTime = gameData.Data.TimeLeft;
-        }
-
-        if(timeIsRunning)
-        {   
-            
-            if (timeRemaining >= 0)
+            if(!stopWatch.IsRunning){stopWatch.Start();}
+            if(stopWatch.Elapsed.Seconds >= 1)
             {
-                timeRemaining = gameTime;
+                timeRemaining -= 1;
                 DisplayTime(timeRemaining);
+                stopWatch.Reset();
             }
-            else
-            {   
-                timeIsRunning = false;
-            }
+            if(timeRemaining < 0){timeIsRunning = false;}
         }
     }
 

@@ -6,45 +6,24 @@ using Newtonsoft.Json;
 
 public class ActionRenderingRobot : MonoBehaviour
 {
-    [System.Serializable]
-    public class ActionRobot
-    {
-        public string command;
-        public ActionDataRobot data; 
-    }
-    public class ActionDataRobot
-    {
-        public int id; // astro = 1
-        public int action; //0=up, 1=down, 2=left, 3=right, 4=interact
-    }
     
     public float movementSpeed;
-    public ActionRobot action = new ActionRobot();
-
     private Animator animator;
+    public Vector2 astroOrientation;
     public Dictionary<string, bool> BallsIdd;
 
-    public GameHandler gameHandler;
     public BallInteraction ballInteraction;
-    //public GameObject chatBot;
-    public GameObject historyChat;
-    public GameObject currentChat;
     public GameObject humanPlayer;
-    private GameObject bubble;
-    private GameObject load;
-    private GameObject text;
-    private List<Vector3> gridPositions; 
-
-    private bool identifying = false;
-    private int currentChatNumber = 1;
+    private List<Vector3> walls; 
 
     public List<Vector3> pos_around = new List<Vector3>();
     public Dictionary<int, int> oppositeStepActions = new Dictionary<int, int>(){{0,1},{1,0},{2,3},{3,2}};
     public float pos_x;
     public float pos_y;
-    public string jsonString;
+    public bool gameOverRobot;
     public int previousStepAction = 0;
     public Vector3 astroStation;
+    
     void Awake()
     {
       animator = GetComponent<Animator>();
@@ -58,116 +37,24 @@ public class ActionRenderingRobot : MonoBehaviour
       //load = bubble.transform.Find("Load").gameObject;
       //text = bubble.transform.Find("Text").gameObject;
       //Debug.Log("Start of action rendering robot evoked");
-      action.command = "p_act";
-      historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
+      //action.command = "p_act";
+      //historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
+      astroOrientation = new Vector2(0,-1);
       humanPlayer = GameObject.Find("human");
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
       Scene currentScene = SceneManager.GetActiveScene();
-		  if(currentScene.name == "level_one"){defineGridLevelOne(); astroStation = new Vector3(6, 6,0);}
-      else if(currentScene.name == "level_two"){defineGridLevelTwo(); astroStation = new Vector3(7, 7,0);}
+		  if(currentScene.name == "level_one"){astroStation = new Vector3(6, 6,0);}
+      else if(currentScene.name == "level_two"){astroStation = new Vector3(7, 7,0);}
+      walls = GameObject.Find("Grid").GetComponent<GridLayout>().gridPositions;
+      gameOverRobot = false;
       StartCoroutine(AstroAutomatic());
-      //Debug.Log("Start of action rendering robot executed");
-
     }
-
-    void defineGridLevelOne()
-    {
-     gridPositions = new List<Vector3>();
-
-      // Add positions to the list using nested loops
-      for (int x = 0; x <= 14; x++)
-      {
-          for (int y = 0; y <= 14; y++)
-          {
-              // Add positions according to the specified patterns
-              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14))) //Corners
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 0 && (y >= 1 && y < 14)) || (x == 14 && (y >= 1 && y < 14))) //Outside horizontal
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((y == 0 && (x >= 1 && x < 14)) || (y == 0 && (x >= 1 && x < 14)))//Outside vertical
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 1 && y == 2) || (x == 1 && y == 3) || (x == 2 && (y == 2 || y == 3)) ||
-                        ((x >= 5 && x <= 9) && y == 2) || ((x >= 12 && x <= 13) && y == 2) ||
-                        ((x >= 6 && x <= 8) && y == 3) || ((x >= 6 && x <= 8) && y == 4) || ((x >= 10 && x <= 11) && y == 4) ||
-                        (x == 7 && (y == 5 || y == 6 || y == 7)) || ((x >= 10 && x <= 11) && (y == 5 || y == 6 || y == 7)) ||
-                        (x == 4 && y == 5) || ((x >= 2 && x <= 4) && y == 6) || ((x == 9 || x == 12) && y == 6) || 
-                        (x == 5 && y == 8) || ((x >= 10 && x <= 11) && y == 8) || ((x >= 1 && x <= 5) && y == 9) ||
-                        (x == 7 && y == 9) || ((x >= 1 && x <= 5) && y == 10) || ((x >= 8 && x <= 11) && y == 11) ||
-                        ((x >= 2 && x <= 6) && y == 12) || ((x >= 10 && x <= 11) && y == 12))
-                  gridPositions.Add(new Vector3(x, y,0));
-          }
-      }
-    }
-    //Change to be accurate with level two positions
-    void defineGridLevelTwo()
-    {
-     gridPositions = new List<Vector3>();
-
-      // Add positions to the list using nested loops
-      for (int x = 0; x <= 14; x++)
-      {
-          for (int y = 0; y <= 14; y++)
-          {
-              // Add positions according to the specified patterns
-              if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14))) //Corners
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((x == 0 && (y >= 1 && y < 14)) || (x == 14 && (y >= 1 && y < 14))) //Outside horizontal
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((y == 0 && (x >= 1 && x < 14)) || (y == 0 && (x >= 1 && x < 14)))//Outside vertical
-                  gridPositions.Add(new Vector3(x, y,0));
-              else if ((y == 1 && (x == 1 || x == 2)) || (y == 1 && (x >= 7 && x <= 10)) || 
-                        (y == 1 && (x == 12 || x == 13)) || (y == 2 && (x == 9 || x == 10)) ||
-                        (y == 2 && (x == 12 || x == 13)) || (y == 3 && (x == 9 || x == 10)) ||
-                        (y == 3 && (x == 4 || x == 5)) || (y == 4 && (x >= 2 && x <= 7)) ||
-                        (y == 5 && (x >= 2 && x <= 5)) || (y == 5 && (x >= 9 && x <= 11)) ||
-                        (y == 6 && (x >= 2 && x <= 5)) || (y == 6 && (x >= 7 && x <= 11)) ||
-                        (y == 7 && (x == 2 || x == 3)) || (y == 8 && x == 2) || (y == 9 && x == 4) ||
-                        (y == 9 && (x >= 6 && x <= 11)) || (y == 10 && (x >= 6 && x <= 11)) ||
-                        (y == 10 && (x >= 1 && x <= 3)) || (x == 6 && (y >= 11 && y <= 13)) ||
-                        (y == 11 && (x == 10 || x == 11)) || (y == 12 && (x == 10 || x == 11)) ||
-                        (y == 12 && (x >= 2 && x <= 5)) || (x == 8 && (y == 12 && y == 13)))
-                  gridPositions.Add(new Vector3(x, y,0));
-          }
-      }
-    }
-
 
     void Update()
     {
-      
+      if(gameOverRobot){Destroy(this);}
     }
     
-    //Not used
-    public void AstroManual()
-    {
-      float pos_x = transform.position.x;
-      float pos_y = transform.position.y;
-
-      if (Input.GetKeyDown(KeyCode.A))//move left
-      {
-        moveOrRotateRobot(new Vector3(pos_x-1,pos_y,0), new Vector2(-1,0));
-      }
-      else if(Input.GetKeyDown(KeyCode.D))// move right
-      {   
-        moveOrRotateRobot(new Vector3(pos_x+1,pos_y,0), new Vector2(1,0));
-      }
-      else if(Input.GetKeyDown(KeyCode.W))// up
-      {   
-        moveOrRotateRobot(new Vector3(pos_x,pos_y+1,0), new Vector2(0,1));
-      }
-      else if(Input.GetKeyDown(KeyCode.S)) //down
-      {   
-        moveOrRotateRobot(new Vector3(pos_x,pos_y-1,0), new Vector2(0,-1));
-      }
-      else if(Input.GetKeyDown(KeyCode.E))
-      { 
-        GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");  
-        var results = FindClosestBall(balls);
-        GameObject ball = results.Item1;
-        //StartCoroutine(StartIdAnimation(ball));
-      }
-    }
-
 
     IEnumerator AstroAutomatic()
     { 
@@ -228,8 +115,7 @@ public class ActionRenderingRobot : MonoBehaviour
         //Identify ball (no need to send this action to backend since it doesn't affect game)
         balls = GameObject.FindGameObjectsWithTag("Ball");
         if(balls.Length == 0){break;}
-        var resultsClosestBall = FindClosestBall(balls);
-        GameObject closestBall = resultsClosestBall.Item1;
+        GameObject closestBall = ballInteraction.findClosestBall(balls, transform.position, astroOrientation,false);
         StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
         
         /*action.data = new ActionDataRobot();
@@ -238,7 +124,7 @@ public class ActionRenderingRobot : MonoBehaviour
         jsonString = JsonConvert.SerializeObject(action);
         Debug.Log("robot command sent: " + jsonString);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
-        yield return new WaitForSeconds(2.5f);
+        yield return new WaitForSeconds(9f);
       }
 
       //When all balls identified robot still follows human when he's holding a ball
@@ -259,53 +145,7 @@ public class ActionRenderingRobot : MonoBehaviour
         balls = GameObject.FindGameObjectsWithTag("IDdBall");
       }
     }
-
-
-    public void moveOrRotateRobot(Vector3 newPosition, Vector2 newOrientation)
-    { 
-      if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
-      {
-        animator.SetFloat("moveX", newOrientation.x);
-        animator.SetFloat("moveY", newOrientation.y);
-      }
-      else if(transform.position != newPosition)
-      {
-        Vector3 human_position = GameObject.Find("human").transform.position;
-        if(human_position.x != newPosition.x || human_position.y != newPosition.y)
-        {
-          transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);
-        }    
-      }
-    }
   
-    //Not used - Migrated to BallInteraction script
-    /*IEnumerator StartIdAnimation(GameObject ball)
-    {
-      
-      identifying = true;
-      string type = ball.name.Split('_')[0];
-      Debug.Log("Ball ID: " + type);
-      
-      string currentChatName = "Chat" + currentChatNumber;
-      currentChat = historyChat.transform.Find(currentChatName).gameObject;
-      currentChat.SetActive(true);
-      bubble = currentChat.transform.Find("Bubble").gameObject;
-      load = bubble.transform.Find("Load").gameObject;
-      text = bubble.transform.Find("Text").gameObject;
-
-      if (text.GetComponent<TextMeshPro>().enabled)
-      {
-        text.GetComponent<TextMeshPro>().enabled = false;
-      }
-      load.GetComponent<TextMeshPro>().enabled = true;
-      ball.tag = "IDdBall";
-      yield return new WaitForSeconds(3f);
-      load.GetComponent<TextMeshPro>().enabled = false;
-      text.GetComponent<TextMeshPro>().enabled = true;
-      text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
-      currentChatNumber += 1;
-      identifying = false;
-    }*/
 
     //Obtain next step action according to target destination (move towards human or ball)
     public void ObtainNextAction(Vector3 targetPosition)
@@ -318,46 +158,19 @@ public class ActionRenderingRobot : MonoBehaviour
       pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
       pos_around.Add(new Vector3(pos_x+1f, pos_y,0)); // square right
       int next_step = FindNextStep(pos_around, targetPosition);
-      SendNextAction(next_step);
+      Vector3 move = convertStepIntoMovement(next_step);
+      moveOrRotateRobot(move, astroOrientation);
     }
 
-    //Send next step action to perform to backend
-    public void SendNextAction(int action_number)
+    public Vector3 convertStepIntoMovement(int step)
     {
-      action.data = new ActionDataRobot(); 
-      action.data.id = 1;
-      action.data.action = action_number;
-      jsonString = JsonConvert.SerializeObject(action);
-      //Debug.Log("robot command sent: " + jsonString);
-      GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);
+      if(step == 0){astroOrientation = new Vector2(0,1); return new Vector3(pos_x,pos_y+1,0);} //Move Up
+      if(step == 1){astroOrientation = new Vector2(0,-1); return new Vector3(pos_x,pos_y-1,0);} //Move Down
+      if(step == 2){astroOrientation = new Vector2(-1,0); return new Vector3(pos_x-1,pos_y,0);} //Move Left
+      if(step == 3){astroOrientation = new Vector2(1,0); return new Vector3(pos_x+1,pos_y,0);} //Move Right
+      return new Vector3(0,0,0);
     }
-
-
-    public (GameObject,float) FindClosestBall(GameObject[] balls)
-    {
-
-      // Initialize variables to keep track of the closest ball and its distance
-      GameObject closestBall = null;
-      float closestDistance = Mathf.Infinity;
-
-      // Find the closest ball
-      foreach (GameObject ball in balls)
-      {   
-        if (ball != null && ball.GetComponent<SpriteRenderer>().enabled)
-        {
-          float distance = Vector3.Distance(transform.position, ball.transform.position);
-          if (distance < closestDistance)
-          {
-              closestDistance = distance;
-              closestBall = ball;
-          }
-        }
-      }
-      //Debug.Log("Ball: " + closestBall.name + " pos: " + closestBall.transform.position);
-      return (closestBall,closestDistance);
-    }
-
-    
+ 
     //public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
     public int FindNextStep(List<Vector3> stepList, Vector3 distantObjectPosition)
     {
@@ -373,7 +186,7 @@ public class ActionRenderingRobot : MonoBehaviour
       // Find the closest tile to distantObject
       foreach (Vector3 step in stepList)
       {   
-        if (!gridPositions.Contains(step))
+        if (!walls.Contains(step))
         {
           float distance = Vector3.Distance(step, distantObjectPosition);
           Steps.Add(stepList.IndexOf(step), distance);
@@ -445,9 +258,47 @@ public class ActionRenderingRobot : MonoBehaviour
       return false;
     }
 
+    public void moveOrRotateRobot(Vector3 newPosition, Vector2 newOrientation)
+    { 
+      if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
+      {
+        animator.SetFloat("moveX", newOrientation.x);
+        animator.SetFloat("moveY", newOrientation.y);
+      }
+      if(transform.position != newPosition && ballInteraction.checkPositionVacancy(newPosition) && humanPlayer.transform.position != newPosition)
+      {
+        transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);
+      }    
+      
+    }
+
     public bool arrayContains (GameObject[] array, GameObject objToCheck) 
     {
       foreach (GameObject obj in array) {if(obj == objToCheck) return true;}
       return false;
     }
+
+    /*public (GameObject,float) FindClosestBall(GameObject[] balls)
+    {
+
+      // Initialize variables to keep track of the closest ball and its distance
+      GameObject closestBall = null;
+      float closestDistance = Mathf.Infinity;
+
+      // Find the closest ball
+      foreach (GameObject ball in balls)
+      {   
+        if (ball != null && ball.GetComponent<SpriteRenderer>().enabled)
+        {
+          float distance = Vector3.Distance(transform.position, ball.transform.position);
+          if (distance < closestDistance)
+          {
+              closestDistance = distance;
+              closestBall = ball;
+          }
+        }
+      }
+      //Debug.Log("Ball: " + closestBall.name + " pos: " + closestBall.transform.position);
+      return (closestBall,closestDistance);
+    }*/
 }

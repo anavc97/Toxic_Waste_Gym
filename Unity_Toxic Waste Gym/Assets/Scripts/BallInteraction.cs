@@ -12,6 +12,7 @@ public class BallInteraction : MonoBehaviour
     private GameObject load;
     private GameObject text;
 
+    public GameObject[] allBalls;
     public List<string> BallsIdentified = new List<string>();
 
     private int currentChatNumber = 1;
@@ -19,6 +20,7 @@ public class BallInteraction : MonoBehaviour
     void Start()
     {
         historyChat = GameObject.Find("HistoryChat");
+        allBalls = GameObject.FindGameObjectsWithTag("Ball");
     }
 
     void Update()
@@ -49,11 +51,52 @@ public class BallInteraction : MonoBehaviour
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
         BallsIdentified.Add(ball.name);
-        yield return new WaitForSeconds(2.5f);
+        yield return new WaitForSeconds(9f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
         currentChatNumber += 1;
+    }
+
+    public bool checkPositionVacancy(Vector3 positionToCheck)
+    {
+        foreach(GameObject ball in allBalls)
+        {
+            if(ball != null && ball.GetComponent<SpriteRenderer>().enabled && ball.transform.position == positionToCheck)
+            {
+                return false; //Position occupied with a ball
+            }
+        }
+        return true; //Position vacant
+    }
+
+    public GameObject findClosestBall(GameObject[] balls, Vector3 playerPosition, Vector2 playerOrientation, bool isHuman)
+    {
+
+        GameObject closestBall = null; //TODO: Instead of one object add a list and use as tie breaker for adjacent balls human orientation
+        //Problem is if human is not facing any ball (no tie-break) so may actually have to force to be facing towards ball in order to pick it up
+        float closestDistance = Mathf.Infinity;
+
+        //Find the closest ball
+        foreach (GameObject ball in balls)
+        {   
+            if (ball != null && ball.GetComponent<SpriteRenderer>().enabled)
+            {
+                float distance = Vector3.Distance(playerPosition, ball.transform.position);
+                Vector3 facingTile = new Vector3(playerPosition.x + playerOrientation.x, playerPosition.y + playerOrientation.y, 0);
+                if(isHuman && facingTile == ball.transform.position) //Force human to be facing ball
+                {
+                    return ball;
+                }
+                if (!isHuman && distance < closestDistance) //Might have to add tie break of facing ball if robot trying to identify a ball that is at same distance of another
+                {
+                    closestDistance = distance;
+                    closestBall = ball;
+                }
+            }
+        }
+        //Debug.Log("Ball: " + closestBall.name + " pos: " + closestBall.transform.position);
+        return closestBall;
     }
         
 }

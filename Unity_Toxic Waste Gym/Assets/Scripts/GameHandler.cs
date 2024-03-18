@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System;
@@ -13,99 +14,13 @@ using UnityEngine.SceneManagement;
 
 public class GameHandler : MonoBehaviour
 {   
-    public class GameData
-    {   
-        [JsonProperty("command")]
-        public string Command { get; set; }
-        
-        [JsonProperty("data")]
-        public Data Data { get; set; }
-    }
-
-    public class Data
-    {
-        public string Layout { get; set; }
-        
-        [JsonProperty("players")]
-        public List<Player> Players { get; set; }
-
-        [JsonProperty("objects")]
-        public List<Ball> Objects { get; set; }
-
-        [JsonProperty("finished")]
-        public bool Finished { get; set; }
-
-        [JsonProperty("timeout")]
-        public bool Timeout { get; set; }
-
-        [JsonProperty("game_id")]
-        public int GameId { get; set; }
-
-        [JsonProperty("score")]
-        public float Score { get; set; }
-
-        [JsonProperty("time_left")]
-        public float TimeLeft { get; set; }
-
-        [JsonProperty("game_time")]
-        public float GameTime { get; set; }
-
-        [JsonProperty("ticks")]
-        public int Ticks { get; set; }
-    }
-
-    public class Player
-    {   
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
-        [JsonProperty("position")]
-        public List<int> Position { get; set; } = new List<int>();
-        
-        [JsonProperty("orientation")]
-        public List<int> Orientation { get; set; } = new List<int>();
-        
-        [JsonProperty("held_object")]
-        public List<Ball> HeldObject { get; set; }
-        public float Health { get; set; }
-    }
-
-    public class Ball
-    {   
-        [JsonProperty("name")]
-        public string Name { get; set; }
-
-        [JsonProperty("position")]
-        public List<int> Position { get; set; } = new List<int>();
-
-        [JsonProperty("hold_state")]
-        public int HoldState { get; set; }
-
-        [JsonProperty("identified")]
-        public bool Identified { get; set; }
-
-        [JsonProperty("type")]
-        public int Type { get; set; } //
-
-        [JsonProperty("holding_player")]
-        public object HoldingPlayer { get; set; }
-
-        //Add ball type property
-    }
     
-    //[SerializeField] private HealthBar healthBar;
-    [SerializeField] private Timer time;
-    public string SOCKETS_IP = "127.0.0.1";
-    public int INBOUND_PORT = 20501;
-    public int OUTBOUND_PORT = 20500;
-    public int SOCK_TIMEOUT = 5;
-    public int BUFFER_SIZE = 1024;
-    public Socket handler;
-    public Socket outbound_socket;
-    public Socket inbound_socket;
-    Thread SocketThreadIn;
-    public GameData gameData;
-    public InputHandler input_handler;
+    //[SerializeField] private Timer time;
+    
+    public Vector3 humanPosition;
+    public Vector2 humanOrientation;
+    public Vector3 astroPosition;
+    public Vector3 doorPosition;
     public bool gameRunning;
     public bool gameOver = false;
     public bool holdingBall = false;
@@ -116,228 +31,185 @@ public class GameHandler : MonoBehaviour
     public GameObject canvas;
     public TMP_Text popUp;
     public BallInteraction ballInteraction;
+    public ScoreScript scoreScript;
+    public Timer timerScript;
     public Stopwatch popUpStopWatch = new Stopwatch();
+    public Stopwatch gameOverStopWatch = new Stopwatch();
+    public GameObject humanPlayer;
+    public GameObject astroPlayer;
+    public GameObject heldBall;
     public string currentScene;
     public string layout;
     
     void Awake()
     {        
-        DontDestroyOnLoad(gameObject);
+        //DontDestroyOnLoad(gameObject);
         
     }
 
     void Start()
     {   
-        DontDestroyOnLoad(gameObject);
+        //DontDestroyOnLoad(gameObject);
         currentScene = SceneManager.GetActiveScene().name;
         layout = currentScene;
         canvas = GameObject.FindWithTag("Canvas");
         canvas.GetComponent<Canvas>().enabled = false;
-        StartServer();
         
-
-        ScoreScript.scoreValue = 0;
+        //ScoreScript.scoreValue = 0;
         popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
         ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
+        scoreScript = GameObject.Find("Score").GetComponent<ScoreScript>();
+        timerScript = GameObject.Find("Timer").GetComponent<Timer>();
+        humanPlayer = GameObject.Find("human");
+        astroPlayer = GameObject.Find("astro");
         gameRunning = true;
-        input_handler = GameObject.Find("human").GetComponent<InputHandler>();
+        
         
         // VARIABLES
-
-        gameData = null;
         gameOver = false;
         holdingBall = false;
         previousHoldingBall = false;
         previousHeldBallType = 0;
         popUp_time = 0;
         timeHoldingYellowBall = 0;
-        
-        
+        humanOrientation = new Vector2(0,-1); 
+        doorPosition = new Vector3(7,14,0);
     }
-
-    void StartServer()
-    {   
-        stopInboundServer();
-        SocketThreadIn = new Thread(socketInCode);
-        SocketThreadIn.IsBackground = true;
-        SocketThreadIn.Start();
-
-        outbound_socket = GameObject.Find("SceneManager").GetComponent<StartGame>().outbound_socket;
-        if (outbound_socket != null){UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());}
-        //socketOutCode();  
-    
-    }
-
-    void socketInCode()
-    {   
-        IPAddress ipAddress = IPAddress.Parse(SOCKETS_IP);
-        IPEndPoint Inbound_localEndPoint = new IPEndPoint(ipAddress, INBOUND_PORT);
-
-        // Create Outbound Sockets
-        Socket inbound_socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-        
-        // Set up Unity side connection: Listen to Backend Socket
-        inbound_socket.Bind(Inbound_localEndPoint);
-        inbound_socket.Listen(10);
-        UnityEngine.Debug.Log("Waiting for a connection...");
-        handler = inbound_socket.Accept();
-        UnityEngine.Debug.Log("Inbound socket started at " + SOCKETS_IP + " :" + INBOUND_PORT);
-        
-        while(gameRunning)
-        {
-            // Incoming data from the client.
-            string data = null;
-            byte[] bytes = null;
-
-            while (true)
-            {
-                bytes = new byte[BUFFER_SIZE];
-                int bytesRec = handler.Receive(bytes);
-                data += Encoding.ASCII.GetString(bytes, 0, bytesRec);
-                if (data.IndexOf("<EOF>") > -1)
-                {
-                    data = data.Substring(0, data.IndexOf("<EOF>")); // Extract data up to <EOF>
-                    break;
-                }
-
-                System.Threading.Thread.Sleep(1);
-            }
-            System.Threading.Thread.Sleep(1);
-
-            //Trim data to JSON format
-            string jsonData = data.TrimEnd('<', 'E', 'O', 'F', '>');
-            // Read new state
-            readState(jsonData);
-        }
-    }
-
-    void socketOutCode()
-    {
-        IPAddress ipAddress = IPAddress.Parse(SOCKETS_IP);
-        IPEndPoint Outbound_localEndPoint = new IPEndPoint(ipAddress, OUTBOUND_PORT);
-
-        try 
-        {
-            // Create Outbound Sockets
-            outbound_socket = new Socket(ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            
-            // Connect to Remote EndPoint
-            outbound_socket.Connect(Outbound_localEndPoint);
-
-            UnityEngine.Debug.Log("UNITY: Outbound Socket connected to" + outbound_socket.RemoteEndPoint.ToString());
-        }
-        catch (Exception e)
-        {
-            UnityEngine.Debug.Log(e.ToString());
-        }
-    } 
-
-    public void SendActionMessage(string jsonmsg)
-    {   
-        byte[] msg = Encoding.ASCII.GetBytes(jsonmsg);
-        int bytesSent = outbound_socket.Send(msg);
-        //UnityEngine.Debug.Log("Sending action: " + jsonmsg);
-    } 
 
     void Update()
     {   
-        if (gameData != null)
-        {   
+        if(heldBall != null && heldBall.name.Split('_')[0] == "yellow" ) //Check if held ball is yellow
+        {
+            updatePopUp(heldBall,2);
+        }
 
-            if (layout != currentScene)
+        popUp_time += 1;
+        if(popUp_time >= 200) //200 frames later
+        {
+            popUp.text = "";
+            popUp_time = 0;
+        }
+
+        if((timerScript.timeRemaining < 0 || humanPlayer.transform.position == doorPosition) && !gameOver)
+        {
+            canvas.GetComponent<Canvas>().enabled = true;
+            gameOver = true;
+            astroPlayer.GetComponent<ActionRenderingRobot>().gameOverRobot = true;
+            timerScript.gameOverTimer = true;
+            
+            GameObject panel = canvas.transform.Find("Panel").gameObject;
+            GameObject gameOverText = panel.transform.Find("GameOver").gameObject;
+            if(SceneManager.GetActiveScene().name == "level_one")
             {
-                SceneManager.LoadScene(layout);
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time is Up!\n Get ready for the next level.";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n Get ready for the next level.";}
+                gameOverStopWatch.Start();
             }
-
-            // Access the data as needed
-            if (gameData.Command == "new_state")
-            {   
-                
-                foreach (var player in gameData.Data.Players)
-                {
-                    if (player.Name == "human")
-                    {   
-                        GameObject player_obj = GameObject.Find(player.Name);
-                        ActionRendering action = player_obj.GetComponent<ActionRendering>();
-
-                        action.moveOrRotate(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-                        if(player.HeldObject != null && player.HeldObject.Count() > 0)
-                        {  
-                            holdingBall = true;
-                            previousHeldBallType = player.HeldObject[0].Type;
-                        }
-                        update_popUp();
-                        
-                        action.humanInteractWithBall(holdingBall);
-
-                        previousHoldingBall = holdingBall;
-                        holdingBall = false;
-
-                        update_Score(gameData.Data.Score);
-                    }
-                    if (player.Name == "astro")
-                    {
-                        GameObject player_obj = GameObject.Find(player.Name);
-                        ActionRenderingRobot action = player_obj.GetComponent<ActionRenderingRobot>();
-
-                        action.moveOrRotateRobot(new Vector3(player.Position[1],14-player.Position[0],0), new Vector2(player.Orientation[1],-player.Orientation[0]));
-
-                    }
-
-                }
-                foreach (var obj in gameData.Data.Objects)
-                {
-                    updateBallState(obj.Name, obj.HoldState, obj.Position, obj.Identified);    
-                }  
-                
-                popUp_time += 1;
-                if(popUp_time == 200) //200 frames later
-                {
-                    popUp.text = "";
-                    popUp_time = 0;
-                }
-
-                layout = gameData.Data.Layout;
+            else
+            {
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time is Up!\n Game concluded.";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n Game concluded.";}
             }
-            else if (gameData.Command == "new_level" && !gameOver)
-            {   
-                canvas.GetComponent<Canvas>().enabled = true;
-                UnityEngine.Debug.Log("Game Over!");
+        }
+
+        if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
+        {
+            SceneManager.LoadScene("level_two");
+        }        
+
+            //else if (gameData.Command == "new_level" && !gameOver) //If time over or human enters door enable canvas, wait for 5 secs and start next level
+            //{   
+                
                 /*Transform panel = canvas.transform.Find("Panel");
                 if (time.timeRemaining <1f)
                 {
                     panel.GetComponent<TextMeshPro>().text = "Time is Up!\n Ready for the next level?";
                 }*/
                 
-                gameOver = true;
+                /*gameOver = true;
                 //new System.Threading.ManualResetEvent(false).WaitOne(3000);
     
                 UnityEngine.Debug.Log("SCENE: " + layout);
         
             } 
-            
+            layout = gameData.Data.Layout;
 
-        }
+        }*/
     
     }
 
-    void updateBallState(string objName, int status, List<int> position, bool id)
+    public void performHumanAction(float mov_x, float mov_y, int handleBall)
     {
-        GameObject ball = GameObject.Find(objName);
+        getPlayerPositions();
+        if(handleBall != 0)
+        {
+            bool holdingBall = humanPlayer.GetComponent<ActionRendering>().getHasBall();
+            if(holdingBall)
+            {
+                Vector3 newBallPosition = new Vector3(humanPosition.x + humanOrientation.x, humanPosition.y + humanOrientation.y, 0);
+                if(Vector3.Distance(humanPosition, astroPosition) <= Mathf.Sqrt(2)){ //Ball handed to robot. May add check to see if human facing astro
+                    updateBallState(heldBall, 2, newBallPosition);
+                    updatePopUp (heldBall, 0); //0=Point update
+                    humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
+                    heldBall = null;
+                }
+                else if(ballInteraction.checkPositionVacancy(newBallPosition)) //Make sure ball not dropped on top of other ball
+                {  
+                    updateBallState(heldBall, 0, newBallPosition);
+                    updatePopUp(heldBall, 1); //1=might have stopped holding yellow ball
+                    humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
+                    heldBall = null;
+                }
+            }
+            else
+            {
+                GameObject closestBall = ballInteraction.findClosestBall(ballInteraction.allBalls, humanPosition, humanOrientation, true);
+                if(closestBall != null)
+                {
+                    heldBall = closestBall;
+                    updateBallState(heldBall, 1, new Vector3(0,0,0));
+                    humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
+                    updatePopUp(heldBall, 2); //2=might have started holding yellow ball
+                }
+                
+            }
+
+        }
+        else
+        {
+            Vector3 move = humanPosition;
+            Vector2 orientation = new Vector2(0,0);
+            if(mov_x != 0)
+            {
+                move.x = move.x + mov_x;
+                orientation.x = mov_x;
+            }
+            else if(mov_y != 0)
+            {
+                move.y = move.y + mov_y;
+                orientation.y = mov_y;
+            }
+            humanPlayer.GetComponent<ActionRendering>().moveOrRotate(move,orientation);
+            humanOrientation = orientation;
+        }
+    }
+
+    void updateBallState(GameObject ball, int status, Vector3 newPosition)
+    {
+        //GameObject ball = GameObject.Find(objName);
         if (ball != null)
         {   
-            ball.transform.position = new Vector3(position[1], 14-position[0], 0);
-
-            if(status == 2)
+            ball.transform.position = newPosition;
+            if(status == 2) //Ball disposed of
             {
                 ball.tag = "CollectedBall";
                 Destroy(ball);
             }
-            else if(status == 1)
+            else if(status == 1) //Ball grabbed
             {
                 ball.GetComponent<SpriteRenderer>().enabled = false;
             }
-            else if(status == 0)
+            else if(status == 0) //Ball dropped of
             {   
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
@@ -353,115 +225,76 @@ public class GameHandler : MonoBehaviour
             }*/
 
         }
+        else{UnityEngine.Debug.Log("Ball to update state is null (not recognized as held)");}
         
     }
     
-    void update_Score(float score)
-    {      
-        //healthBar.SetSize(health);
-        ScoreScript.scoreValue = score;
-
-    }
-
-    void update_popUp()
+    void updatePopUp(GameObject ball, int status)
     {
-        if(previousHoldingBall != holdingBall){ //Need to add checks everytime !holdingBall to see if it was received by astro
-            if(previousHeldBallType == 1 && !holdingBall) //1=Green ball
+        if(ball != null) //Need to add checks everytime !holdingBall to see if it was received by astro
+        {   
+            string ballType = ball.name.Split('_')[0];
+            if(ballType == "green" && status == 0)
             {
-                popUp.text = "+2 points!";
+                popUp.text = "+3 points!";
                 popUp.color = new Color32(92,255,51,255); //Light green 
+                update_Score(3);
                 popUp_time = 0;
             }
-            else if(previousHeldBallType == 2 && !holdingBall) //2=Yellow ball
+            else if(ballType == "red" && status == 0)
             {
-                popUp.text = "+10 points!";
-                popUp.color = new Color32(40,191,0,255); //Green
+                popUp.text = "-8 points!";
+                popUp.color = new Color32(184,0,0,255); //Red
+                update_Score(-8);
                 popUp_time = 0;
+            }
+            else if(ballType == "yellow" && status <= 1) //Dropped yellow ball
+            {
+                if(status == 0) //Handed ball to robot
+                {
+                    popUp.text = "+10 points!";
+                    popUp.color = new Color32(40,191,0,255); //Green
+                    update_Score(10);
+                    popUp_time = 0;
+                }
+                else{popUp_time = 150;}
                 timeHoldingYellowBall = 0;
                 popUpStopWatch.Reset();
             }
-            else if(previousHeldBallType == 3 && holdingBall) //3=Red ball
+            else if(ballType == "yellow" && status == 2) //Grabbed yellow ball
             {
-                popUp.text = "-5 points!";
-                popUp.color = new Color32(184,0,0,255);   //Red
+                if(!popUpStopWatch.IsRunning)
+                {
+                    popUpStopWatch.Start();
+                }
+                if(popUpStopWatch.Elapsed.Seconds >= 1 || timeHoldingYellowBall == 0)
+                {
+                    timeHoldingYellowBall += 1;
+                    //popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
+                    popUp.text = -(timeHoldingYellowBall) + " seconds!";
+                    popUp.color = new Color32(168,147,0,255);  //Yellow
+                    update_Timer(-1);
+                    popUpStopWatch.Reset();
+                }
                 popUp_time = 0;
             }
         }
-        
-        if(previousHeldBallType == 2 && holdingBall)
-        {
-            if(!popUpStopWatch.IsRunning)
-            {
-                popUpStopWatch.Start();
-            }
-            if(popUpStopWatch.Elapsed.Seconds == 1 || timeHoldingYellowBall == 0)
-            {
-                timeHoldingYellowBall += 1;
-                popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
-                popUp.color = new Color32(168,147,0,255);  //Yellow
-                popUpStopWatch.Reset();
-            }
-            popUp_time = 0;
-        }
     }
-    
-    void readState(string data)
-    {   
-        // Deserialize the JSON content into a Game object
-        
-        if (data.StartsWith(@"{""command"":"))
-        {
-            UnityEngine.Debug.Log("JSON RECEIVED");
-            gameData = JsonConvert.DeserializeObject<GameData>(data);
-            input_handler.sendAction = true;
-        }
-        else{UnityEngine.Debug.Log("Invalid data ignored: " + data);}
-        
-        //UnityEngine.Debug.Log("Command: " + gameData.Command);
 
+    void update_Score(float score)
+    {      
+        scoreScript.scoreValue += score;
     }
-    
-    void stopInboundServer()
-    {
 
-        //stop thread
-        if (SocketThreadIn != null)
-        {
-            SocketThreadIn.Abort();
-            UnityEngine.Debug.Log("Socket aborted.");
-        }
-        else
-        {
-            UnityEngine.Debug.Log("Socket is null.");
-        }
-        if (handler != null)
-        {
-            handler.Shutdown(SocketShutdown.Both);
-            handler.Close();
-            handler.Disconnect(false);
-            UnityEngine.Debug.Log("Inbound disconnected!");
-        }
-        else 
-        {
-            UnityEngine.Debug.Log("Handler is null.");
-        }
-        
+    void update_Timer(float time)
+    {      
+        timerScript.timeRemaining += time;
     }
     
-    void stopOutboundServer()
+    void getPlayerPositions()
     {
-        outbound_socket.Shutdown(SocketShutdown.Both);
-        outbound_socket.Close();
-        outbound_socket.Disconnect(false);
-        UnityEngine.Debug.Log("Outbound disconnected!");            
-    }
-    
-    void OnDisable()
-    {   
-        UnityEngine.Debug.Log("Disabled.");
-        gameRunning = false;
-        stopInboundServer();
-        //stopOutboundServer();
+        humanPosition = humanPlayer.transform.position;
+        astroPosition = astroPlayer.transform.position;
     }
 
 }

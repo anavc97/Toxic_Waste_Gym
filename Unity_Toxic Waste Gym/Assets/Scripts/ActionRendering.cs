@@ -1,15 +1,19 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ActionRendering : MonoBehaviour
 {
     public float movementSpeed;
     public Transform movePoint;
-    public LayerMask walls;
+    //public LayerMask walls;
 
     private bool waiting = false;
     private bool hasBall = false;
     private Animator animator;
+    private List<Vector3> walls;
+    private BallInteraction ballInteraction;
+    private GameObject astroPlayer;
 
     void Awake()
     {
@@ -21,6 +25,9 @@ public class ActionRendering : MonoBehaviour
     {
       movePoint.parent = null;
       movePoint.position = transform.position;
+      walls = GameObject.Find("Grid").GetComponent<GridLayout>().gridPositions;
+      ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
+      astroPlayer = GameObject.Find("astro");
     }
 
     // Update is called once per frame
@@ -73,7 +80,7 @@ public class ActionRendering : MonoBehaviour
         myRigidbody2D.velocity = new Vector2(horizontal * movementSpeed, vertical * movementSpeed);*/
     }
 
-    private bool Rotate(string direction, string animationParameter, string oppositeAnimationParameter)
+    /*private bool Rotate(string direction, string animationParameter, string oppositeAnimationParameter)
     {
       if(animator.GetFloat(animationParameter) >= 0f && Input.GetAxisRaw(direction) == -1f)
       {
@@ -96,7 +103,7 @@ public class ActionRendering : MonoBehaviour
         return true;
       }
       return false;
-    }
+    }*/
     
     private IEnumerator Wait()
     {
@@ -113,21 +120,25 @@ public class ActionRendering : MonoBehaviour
         animator.SetFloat("moveX", newOrientation.x);
         animator.SetFloat("moveY", newOrientation.y);
       }
-      else if(transform.position != newPosition)
-      {
-        //Debug.Log("Transform: " + transform.position);
-        //Debug.Log("New position: " + newPosition); 
-        movePoint.position = newPosition;
-        transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
-        //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
+      if(transform.position != newPosition && !walls.Contains(newPosition)) //TODO: Fix human not moving with constant values (shorter steps)
+      { //Also check if not moving into any ball or astro's position
+        if(ballInteraction.checkPositionVacancy(newPosition) && astroPlayer.transform.position != newPosition)
+        {
+          //Debug.Log("Transform: " + transform.position);
+          //Debug.Log("New position: " + newPosition); 
+          movePoint.position = newPosition;
+          transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
+          //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
+        }
       }
     }
 
-    public void humanInteractWithBall(bool newBallState)
+    public void humanInteractWithBall()
     {
-      if(hasBall != newBallState){ //if human starts holding or drops a given ball
-        hasBall = newBallState;
-        animator.SetBool("hasBall", hasBall);
-      }
+      //Human starts holding or drops a given ball
+      hasBall = !hasBall;
+      animator.SetBool("hasBall", hasBall);
     }
+
+    public bool getHasBall(){return hasBall;}
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 using TMPro;
 public class ScoreScript: MonoBehaviour
 {
-    public static float scoreValue = 0;
+    public float scoreValue = 0;
     public TMP_Text score;
 
     void Start()
