@@ -5,7 +5,7 @@ class MyHandler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         super().end_headers()
 
-def run(server_class=HTTPServer, handler_class=MyHandler, port=3000):
+def run(server_class=HTTPServer, handler_class=MyHandler, port=8000):
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
     print(f'Starting server on port {port}...')

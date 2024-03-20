@@ -51,9 +51,12 @@ public class BallInteraction : MonoBehaviour
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
         BallsIdentified.Add(ball.name);
-        yield return new WaitForSeconds(9f);
+        yield return new WaitForSeconds(8f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
+        if(type == "green"){text.GetComponent<TextMeshPro>().color = new Color32(18,154,14,255);}
+        else if(type == "red"){text.GetComponent<TextMeshPro>().color = new Color32(184,28,3,255);}
+        else {text.GetComponent<TextMeshPro>().color = new Color32(240,154,4,255);}
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
         currentChatNumber += 1;
     }

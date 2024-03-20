@@ -3646,7 +3646,7 @@ Transform:
   m_GameObject: {fileID: 396932081}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 9, y: 2, z: 0}
+  m_LocalPosition: {x: 7, y: 2, z: 0}
   m_LocalScale: {x: 1.4, y: 1.4, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4186,7 +4186,7 @@ Transform:
   m_GameObject: {fileID: 480282137}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4, y: 6, z: 0}
+  m_LocalPosition: {x: 4, y: 5, z: 0}
   m_LocalScale: {x: 1.4, y: 1.4, z: 0}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -5521,6 +5521,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   timeRemaining: 0
   timeIsRunning: 1
+  gameOverTimer: 0
   timeText: {fileID: 746641824}
 --- !u!114 &746641824
 MonoBehaviour:
@@ -14709,7 +14710,7 @@ Transform:
   m_GameObject: {fileID: 2026953303}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 11, y: 1, z: 0}
+  m_LocalPosition: {x: 10, y: 1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -14728,7 +14729,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40e6f3afd8b7797f183a6a2b016b9107, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  movementSpeed: 700
+  movementSpeed: 400
   astroOrientation: {x: 0, y: 0}
   ballInteraction: {fileID: 0}
   humanPlayer: {fileID: 0}

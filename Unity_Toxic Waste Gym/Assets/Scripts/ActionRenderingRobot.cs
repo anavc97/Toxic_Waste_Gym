@@ -17,7 +17,7 @@ public class ActionRenderingRobot : MonoBehaviour
     private List<Vector3> walls; 
 
     public List<Vector3> pos_around = new List<Vector3>();
-    public Dictionary<int, int> oppositeStepActions = new Dictionary<int, int>(){{0,1},{1,0},{2,3},{3,2}};
+    public Dictionary<int, int> oppositeStepActions = new Dictionary<int, int>(){{-1,-1},{0,1},{1,0},{2,3},{3,2}};
     public float pos_x;
     public float pos_y;
     public bool gameOverRobot;
@@ -76,7 +76,7 @@ public class ActionRenderingRobot : MonoBehaviour
         balls.CopyTo(allBalls, 0);
         identifiedBalls.CopyTo(allBalls, balls.Length);
 
-        while (closestDistance >  Mathf.Sqrt(2))
+        while (closestDistance > 1) //Mathf.Sqrt(2))
         { 
           //Move towards human if human is holding a ball
           while(humanHoldingBall(allBalls))
@@ -101,22 +101,21 @@ public class ActionRenderingRobot : MonoBehaviour
           var results = FindClosestBall(balls);
           GameObject ball = results.Item1;
           closestDistance = results.Item2;*/
+          
           //Go to random ball
-          closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
-
-
-          //ObtainNextAction(ball.transform.position);
           ObtainNextAction(randomBall.transform.position);
+          closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
           //moveOrRotateRobot(next_step, new Vector2(0,-1));
           yield return new WaitForSeconds(0.4f);
         }
         
 
-        //Identify ball (no need to send this action to backend since it doesn't affect game)
+        //Identify ball
         balls = GameObject.FindGameObjectsWithTag("Ball");
         if(balls.Length == 0){break;}
         GameObject closestBall = ballInteraction.findClosestBall(balls, transform.position, astroOrientation,false);
         StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
+        previousStepAction = -1;
         
         /*action.data = new ActionDataRobot();
         action.data.id = 1;
@@ -124,7 +123,7 @@ public class ActionRenderingRobot : MonoBehaviour
         jsonString = JsonConvert.SerializeObject(action);
         Debug.Log("robot command sent: " + jsonString);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
-        yield return new WaitForSeconds(9f);
+        yield return new WaitForSeconds(8f);
       }
 
       //When all balls identified robot still follows human when he's holding a ball
@@ -186,7 +185,7 @@ public class ActionRenderingRobot : MonoBehaviour
       // Find the closest tile to distantObject
       foreach (Vector3 step in stepList)
       {   
-        if (!walls.Contains(step))
+        if (!walls.Contains(step) && step != new Vector3(7,14,0)) //No moving into walls or door
         {
           float distance = Vector3.Distance(step, distantObjectPosition);
           Steps.Add(stepList.IndexOf(step), distance);
@@ -221,7 +220,7 @@ public class ActionRenderingRobot : MonoBehaviour
       if(Steps.Count > 1 && closestStepsAction.Contains(previousStepActionOpposite))
       {
         //Debug.Log("Previous step action opposite: " + previousStepActionOpposite);
-        //Debug.Log("All possible next steps: " + closestStepsAction.Count);
+        //Debug.Log("N of closest next steps: " + closestStepsAction.Count);
         closestStepsAction.Remove(previousStepActionOpposite);
         if(closestStepsAction.Count == 0)
         {
@@ -229,16 +228,19 @@ public class ActionRenderingRobot : MonoBehaviour
           closestStepsAction = new List<int>();
           foreach (var step in Steps)
           {
-            if(step.Value <= closestDistance && step.Key != previousStepActionOpposite)
-            {
-              closestStepsAction.Add(step.Key);
-              closestDistance = step.Value;
-            }
+            if(step.Value < closestDistance && step.Key != previousStepActionOpposite)
+            {closestDistance = step.Value;}
           }
-          //Debug.Log("Next necessary steps: " + closestStepsAction.Count);
+          foreach (var step in Steps)
+          {
+            if(step.Value <= closestDistance && step.Key != previousStepActionOpposite) 
+            {closestStepsAction.Add(step.Key);}
+          }
+          //Debug.Log("N of closest steps after loop removal: " + closestStepsAction.Count);
         }
       }
       previousStepAction = closestStepsAction[Random.Range(0, closestStepsAction.Count)];
+      //Debug.Log("------------------");
       return previousStepAction;
 
       //return closestSteps[Random.Range(0, closestSteps.Count)];
