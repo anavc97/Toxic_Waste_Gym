@@ -45,7 +45,7 @@ public class ActionRenderingRobot : MonoBehaviour
       Scene currentScene = SceneManager.GetActiveScene();
 		  if(currentScene.name == "level_one"){astroStation = new Vector3(6, 6,0);}
       else if(currentScene.name == "level_two"){astroStation = new Vector3(7, 7,0);}
-      walls = GameObject.Find("Grid").GetComponent<GridLayout>().gridPositions;
+      walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       gameOverRobot = false;
       StartCoroutine(AstroAutomatic());
     }

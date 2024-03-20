@@ -25,7 +25,7 @@ public class ActionRendering : MonoBehaviour
     {
       movePoint.parent = null;
       movePoint.position = transform.position;
-      walls = GameObject.Find("Grid").GetComponent<GridLayout>().gridPositions;
+      walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
       astroPlayer = GameObject.Find("astro");
     }

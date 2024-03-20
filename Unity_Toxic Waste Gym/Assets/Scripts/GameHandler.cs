@@ -116,27 +116,9 @@ public class GameHandler : MonoBehaviour
         {
             SceneManager.LoadScene("level_two");
         }        
-
-            //else if (gameData.Command == "new_level" && !gameOver) //If time over or human enters door enable canvas, wait for 5 secs and start next level
-            //{   
-                
-                /*Transform panel = canvas.transform.Find("Panel");
-                if (time.timeRemaining <1f)
-                {
-                    panel.GetComponent<TextMeshPro>().text = "Time is Up!\n Ready for the next level?";
-                }*/
-                
-                /*gameOver = true;
-                //new System.Threading.ManualResetEvent(false).WaitOne(3000);
-    
-                UnityEngine.Debug.Log("SCENE: " + layout);
-        
-            } 
-            layout = gameData.Data.Layout;
-
-        }*/
-    
     }
+
+
 
     public void performHumanAction(float mov_x, float mov_y, int handleBall)
     {
@@ -144,10 +126,12 @@ public class GameHandler : MonoBehaviour
         if(handleBall != 0)
         {
             bool holdingBall = humanPlayer.GetComponent<ActionRendering>().getHasBall();
-            if(holdingBall)
+            if(holdingBall) //Might stop holding a ball
             {
                 Vector3 newBallPosition = new Vector3(humanPosition.x + humanOrientation.x, humanPosition.y + humanOrientation.y, 0);
-                if(Vector3.Distance(humanPosition, astroPosition) <= Mathf.Sqrt(2)){ //Ball handed to robot. May add check to see if human facing astro
+                //if(Vector3.Distance(humanPosition, astroPosition) <= Mathf.Sqrt(2)){ 
+                if(newBallPosition == astroPosition) //Ball handed to astro (human must be facing it)
+                {
                     updateBallState(heldBall, 2, newBallPosition);
                     updatePopUp (heldBall, 0); //0=Point update
                     humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
@@ -161,7 +145,7 @@ public class GameHandler : MonoBehaviour
                     heldBall = null;
                 }
             }
-            else
+            else //Migjt start holding a ball
             {
                 GameObject closestBall = ballInteraction.findClosestBall(ballInteraction.allBalls, humanPosition, humanOrientation, true);
                 if(closestBall != null)
@@ -196,7 +180,6 @@ public class GameHandler : MonoBehaviour
 
     void updateBallState(GameObject ball, int status, Vector3 newPosition)
     {
-        //GameObject ball = GameObject.Find(objName);
         if (ball != null)
         {   
             ball.transform.position = newPosition;
@@ -213,17 +196,6 @@ public class GameHandler : MonoBehaviour
             {   
                 ball.GetComponent<SpriteRenderer>().enabled = true;
             }
-
-            //if (id)
-            //{
-            //    ballInteraction.StartCoroutine(ballInteraction.StartIdAnimation(ball));
-               
-            //}
-            /*else
-            {
-                ball.tag = "Ball";
-            }*/
-
         }
         else{UnityEngine.Debug.Log("Ball to update state is null (not recognized as held)");}
         
@@ -231,7 +203,7 @@ public class GameHandler : MonoBehaviour
     
     void updatePopUp(GameObject ball, int status)
     {
-        if(ball != null) //Need to add checks everytime !holdingBall to see if it was received by astro
+        if(ball != null)
         {   
             string ballType = ball.name.Split('_')[0];
             if(ballType == "green" && status == 0)

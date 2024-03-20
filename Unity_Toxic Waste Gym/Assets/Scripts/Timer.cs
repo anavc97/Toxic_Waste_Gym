@@ -13,7 +13,7 @@ public class Timer : MonoBehaviour
     void Start()
     {
         timeIsRunning = true;
-        timeRemaining = 120.0f;
+        timeRemaining = 150.0f;
         stopWatch = new Stopwatch();
     }
 
