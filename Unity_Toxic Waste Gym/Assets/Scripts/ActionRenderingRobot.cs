@@ -286,7 +286,8 @@ public class ActionRenderingRobot : MonoBehaviour
       //int next_step = FindNextStep(pos_around, targetPosition);
       //Vector3 move = convertStepIntoMovement(next_step);
       List<Vector3>  moves = AStarPathfinding.FindPath(floor,transform.position,targetPosition);
-      Debug.Log("Pos: " + transform.position + " Move: " + moves[0]);
+      //Debug.Log("Pos: " + transform.position + " Move: " + moves[0]);
+      setNextOrientation(moves[1]);
       moveOrRotateRobot(moves[1], astroOrientation);
     }
 
@@ -298,7 +299,15 @@ public class ActionRenderingRobot : MonoBehaviour
       if(step == 3){astroOrientation = new Vector2(1,0); return new Vector3(pos_x+1,pos_y,0);} //Move Right
       return new Vector3(0,0,0);
     }
- 
+
+    public void setNextOrientation(Vector3 step)
+    {
+      if(step == new Vector3(pos_x, pos_y+1,0)){astroOrientation = new Vector2(0,1);} //Turn up
+      if(step == new Vector3(pos_x, pos_y-1,0)){astroOrientation = new Vector2(0,-1);} //Turn Down
+      if(step == new Vector3(pos_x-1,pos_y,0)){astroOrientation = new Vector2(-1,0);} //Turn Left
+      if(step == new Vector3(pos_x+1,pos_y,0)){astroOrientation = new Vector2(1,0);} //Turn Right
+    }
+
     //public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
     public int FindNextStep(List<Vector3> stepList, Vector3 distantObjectPosition)
     {
