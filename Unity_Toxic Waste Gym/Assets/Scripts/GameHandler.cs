@@ -40,11 +40,12 @@ public class GameHandler : MonoBehaviour
     public GameObject heldBall;
     public string currentScene;
     public string layout;
+    public GameObject logManager;
+    public LogManager logger;
     
     void Awake()
     {        
         //DontDestroyOnLoad(gameObject);
-        
     }
 
     void Start()
@@ -54,6 +55,9 @@ public class GameHandler : MonoBehaviour
         layout = currentScene;
         canvas = GameObject.FindWithTag("Canvas");
         canvas.GetComponent<Canvas>().enabled = false;
+        logManager = GameObject.FindWithTag("Logger");
+        logger = logManager.GetComponent<LogManager>();
+        
         
         //ScoreScript.scoreValue = 0;
         popUp = GameObject.Find("PopUp").GetComponent<TMP_Text>();
@@ -74,10 +78,26 @@ public class GameHandler : MonoBehaviour
         timeHoldingYellowBall = 0;
         humanOrientation = new Vector2(0,-1); 
         doorPosition = new Vector3(7,14,0);
+        StartCoroutine(Logging());
+    }
+    private IEnumerator Logging()
+    {
+        while(!gameOver)
+        {   
+            string b_held;
+            if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
+            string log = $@"""name"": ""human"", ""position"":{humanPlayer.transform.position}, ""orientation"": {humanOrientation}, ""held_object"": {b_held}";
+            log = log + "\n" + $@"""name"": ""robot"", ""position"":{astroPlayer.transform.position}, ""orientation"": {astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}";
+
+            logger.WriteLog(log);
+            yield return new WaitForSeconds(0.2f);
+        }
     }
 
     void Update()
     {   
+
+
         if(heldBall != null && heldBall.name.Split('_')[0] == "yellow" ) //Check if held ball is yellow
         {
             updatePopUp(heldBall,2);
@@ -115,11 +135,11 @@ public class GameHandler : MonoBehaviour
         if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
         {
             SceneManager.LoadScene("level_two");
-        }        
-    }
+            logger.WriteLog("############ LEVEL 2 ############");
+        }
 
 
-
+    }   
     public void performHumanAction(float mov_x, float mov_y, int handleBall)
     {
         getPlayerPositions();

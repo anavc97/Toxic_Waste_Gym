@@ -8,6 +8,7 @@ TagManager:
   - Canvas
   - IDdBall
   - CollectedBall
+  - Logger
   layers:
   - Default
   - TransparentFX
