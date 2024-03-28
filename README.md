@@ -9,8 +9,8 @@ doesn't have any arms to collect the trash items. So the human has to pick the t
 In order to fully use the toxic waste gym library, you need to install a virtual python environment. To that end you can follow the next commands:
 
 ```
-git clone https://github.com/anavc97/Toxic_Waste_Gym.git toxic_waste_env
-cd toxic_was_env
+git clone https://github.com/anavc97/Toxic_Waste_Gym.git toxic_waste
+cd toxic_was
 ```
 
 to download and enter the directory with the environment's code. Then you will have to execute the *instal_python_env.sh* script to create the virtual environment.
