@@ -13,7 +13,7 @@ import time
 import yaml
 import logging
 
-from algos.dqn import EPS_TYPE
+from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_agent_dqn import SingleAgentDQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
 from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
@@ -48,7 +48,6 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: bool
 				env.use_render = True
 			elif command == 'stop_render':
 				if env.use_render:
-					env.close_render()
 					env.use_render = False
 	
 	except KeyboardInterrupt as ki:
@@ -485,7 +484,7 @@ def main():
 		waste_seqs = list(permutations(waste_idx))
 		waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 		human_agent.waste_order = waste_order
-		
+		cat
 		logger.info('Creating DQN and starting train')
 		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
 		tensorboard_details += ['astro_' + game_level]

@@ -135,11 +135,8 @@ class MultiObsDuelingQNetworkV2(nn.Module):
 	
 	@nn.compact
 	def __call__(self, x_conv: jnp.ndarray, x_arr: jnp.ndarray):
-		x = jnp.array([])
-		for idx in range(self.num_obs):
-			x_temp = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_conv[:, idx]))
-			x_temp = nn.avg_pool(x_temp, window_shape=self.pool_window)
-			x = jnp.append(x, x_temp).reshape((x_conv[:, idx].shape[0], -1))
+		x = self.activation_function(nn.Conv(self.cnn_size, kernel_size=self.cnn_kernel)(x_conv))
+		x = nn.avg_pool(x, window_shape=self.pool_window)
 		x = jnp.hstack([x.reshape((x.shape[0], -1)), x_arr])
 		for i in range(self.num_layers):
 			x = self.activation_function(nn.Dense(self.layer_sizes[i])(x))

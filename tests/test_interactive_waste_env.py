@@ -32,7 +32,7 @@ def main():
 	centered_obs = False
 	encoding = False
 	
-	env = ToxicWasteEnvV1(field_size, layout, n_players, has_slip, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding)
+	env = ToxicWasteEnvV1(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding, slip=has_slip)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())

@@ -2,16 +2,11 @@
 
 import numpy as np
 import yaml
-import gymnasium
 
-from env.toxic_waste_env_base import BaseToxicEnv, WasteState, PlayerState, Actions, ActionDirection, AgentType, CellEntity, HoldState
+from src.env.toxic_waste_env_base import BaseToxicEnv, PlayerState, Actions, ActionDirection, AgentType, CellEntity, HoldState
 from pathlib import Path
-from enum import IntEnum, Enum
-from gymnasium.utils import seeding
-from gymnasium.spaces import Discrete, Box, MultiDiscrete
-from gymnasium import Env
-from typing import List, Tuple, Any, Union
-from copy import deepcopy
+from gymnasium.spaces import Box, MultiDiscrete
+from typing import List, Tuple, Any
 from termcolor import colored
 from collections import namedtuple
 
