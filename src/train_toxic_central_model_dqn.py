@@ -28,6 +28,7 @@ from itertools import permutations
 
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
+INTERACTIVE_SESSION = False
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -46,10 +47,9 @@ def get_history_entry(obs: ToxicWasteEnvV2.Observation, actions: List[int], n_ag
 	return entry
 
 
-def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: bool):
-	
+def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: threading.Event):
 	try:
-		while not stop_flag:
+		while not stop_flag.is_set():
 			command = input('Interactive commands:\n\trender - display renderization of the interaction\n\tstop_render - stops the renderization\nCommand: ')
 			if command == 'render':
 				env.use_render = True
@@ -65,7 +65,7 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 					  num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 					  eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 					  train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-					  debug_mode: bool = False) -> List:
+					  debug_mode: bool = False, interactive: bool = False) -> List:
 	
 	history = []
 	random.seed(rng_seed)
@@ -73,8 +73,14 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 	rng_gen = np.random.default_rng(rng_seed)
 	n_agents = waste_env.n_players
 	n_joint_actions = waste_env.action_space[0].n * waste_env.n_players
+	if interactive:
+		stop_thread = threading.Event()
+		command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
+		command_thread.start()
 	
 	obs, *_ = waste_env.reset()
+	if waste_env.use_render:
+		waste_env.render()
 	dqn_model = astro_model.madqn
 	obs_shape = obs.shape
 	if dqn_model.cnn_layer:
@@ -125,6 +131,8 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
+			if waste_env.use_render:
+				waste_env.render()
 			if debug_mode:
 				logger.info('Player rewards: %s' % str(rewards))
 			
@@ -158,13 +166,17 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
 				obs, *_ = waste_env.reset()
+				if waste_env.use_render:
+					waste_env.render()
 				episode_rewards = 0
 				episode_q_vals = []
 				episode_start = epoch
 				done = True
 				history += [episode_history]
 				human_model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]))
-		
+	
+	if interactive:
+		stop_thread.set()
 	return history
 
 
@@ -172,7 +184,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 						 num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 						 eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 						 train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-						 debug_mode: bool = False) -> List:
+						 debug_mode: bool = False, interactive: bool = False) -> List:
 	
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> Tuple[np.ndarray, np.ndarray]:
 		conv_obs = []
@@ -189,9 +201,10 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		return conv_obs.reshape(1, *conv_obs.shape), np.array(arr_obs[0])
 
 	history = []
-	stop_thread = False
-	command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
-	command_thread.start()
+	if interactive:
+		stop_thread = threading.Event()
+		command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
+		command_thread.start()
 	rng_gen = np.random.default_rng(rng_seed)
 	n_agents = waste_env.n_players
 	n_joint_actions = waste_env.action_space[0].n * waste_env.n_players
@@ -298,7 +311,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				history += [episode_history]
 				human_model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]))
 	
-	stop_thread = True
+	if interactive:
+		stop_thread.set()
 	return history
 
 
@@ -472,11 +486,11 @@ def main():
 		if env_version == 1:
 			history = train_astro_model(env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 										learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-										train_freq, tensorboard_freq, debug_mode=debug)
+										train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 		else:
 			history = train_astro_model_v2(env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 										   learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-										   train_freq, tensorboard_freq, debug_mode=debug)
+										   train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 
 		logger.info('Saving model and history list')
 		Path.mkdir(model_path, parents=True, exist_ok=True)

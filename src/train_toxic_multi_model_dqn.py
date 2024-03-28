@@ -27,6 +27,7 @@ from itertools import permutations
 
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
+INTERACTIVE_SESSION = False
 
 
 def get_history_entry(obs: ToxicWasteEnvV2.Observation, actions: List[int], n_agents: int) -> List:
@@ -171,7 +172,7 @@ def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astr
 						 num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 						 eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 						 train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-						 debug_mode: bool = False, render: bool = False) -> List:
+						 debug_mode: bool = False, interactive: bool = False) -> List:
 	
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> np.ndarray:
 		if isinstance(raw_obs, dict):
@@ -183,9 +184,10 @@ def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astr
 		return model_obs
 
 	history = []
-	stop_thread = False
-	command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
-	command_thread.start()
+	if interactive:
+		stop_thread = threading.Event()
+		command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
+		command_thread.start()
 	rng_gen = np.random.default_rng(rng_seed)
 	n_agents = len(agents_ids)
 	
@@ -287,7 +289,8 @@ def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astr
 				history += [episode_history]
 				human_model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]))
 	
-	stop_thread = True
+	if interactive:
+		stop_thread.set()
 	return history
 
 
@@ -480,7 +483,7 @@ def main():
 		else:
 			history = train_astro_model_v2(agents_id, env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 										learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-										train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
+										train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 
 		logger.info('Saving model and history list')
 		Path.mkdir(model_path, parents=True, exist_ok=True)
