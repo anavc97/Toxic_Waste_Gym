@@ -10,7 +10,7 @@ In order to fully use the toxic waste gym library, you need to install a virtual
 
 ```
 git clone https://github.com/anavc97/Toxic_Waste_Gym.git toxic_waste
-cd toxic_was
+cd toxic_waste
 ```
 
 to download and enter the directory with the environment's code. Then you will have to execute the *instal_python_env.sh* script to create the virtual environment.
