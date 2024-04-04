@@ -240,8 +240,9 @@ public class ActionRenderingRobot : MonoBehaviour
         //Identify ball
         balls = GameObject.FindGameObjectsWithTag("Ball");
         if(balls.Length == 0){break;}
-        GameObject closestBall = ballInteraction.findClosestBall(balls, transform.position, astroOrientation,false);
-        StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
+        //GameObject closestBall = ballInteraction.findClosestBall(balls, transform.position, astroOrientation,false);
+        //StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
+        StartCoroutine(ballInteraction.StartIdAnimation(randomBall));
         previousStepAction = -1;
         
         /*action.data = new ActionDataRobot();
@@ -254,7 +255,6 @@ public class ActionRenderingRobot : MonoBehaviour
       }
 
       //When all balls identified robot still follows human when he's holding a ball
-      //TODO: Add check to see if human next to robot without ball and if yes move away to not block him
       balls = GameObject.FindGameObjectsWithTag("IDdBall");
       while(balls.Length != 0)
       {
@@ -269,6 +269,13 @@ public class ActionRenderingRobot : MonoBehaviour
         }
         yield return new WaitForSeconds(0.4f);
         balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      }
+
+      //Return to base at the end
+      while(transform.position != astroStation)
+      {
+        ObtainNextAction(astroStation);
+        yield return new WaitForSeconds(0.4f);
       }
     } 
   

@@ -52,7 +52,7 @@ public class GridLimits : MonoBehaviour
             for (int y = 0; y <= 14; y++)
             {
                 Vector3 position = new Vector3(x, y, 0);
-                if (!gridPositions.Contains(position))
+                if (!gridPositions.Contains(position) && position != new Vector3(7,14,0))
                 {
                     gridPosAvailable.Add(position);
                 }
@@ -84,11 +84,11 @@ public class GridLimits : MonoBehaviour
                             (y == 3 && (x == 4 || x == 5)) || (y == 4 && (x >= 2 && x <= 7)) ||
                             (y == 5 && (x >= 2 && x <= 5)) || (y == 5 && (x >= 9 && x <= 11)) ||
                             (y == 6 && (x >= 2 && x <= 5)) || (y == 6 && (x >= 7 && x <= 11)) ||
-                            (y == 7 && (x == 2 || x == 3)) || (y == 8 && x == 2) || (y == 11 && x == 5) ||
+                            (y == 7 && (x == 2 || x == 3)) || (y == 8 && x == 2) ||
                             (y == 9 && (x >= 5 && x <= 11)) || (y == 10 && (x >= 5 && x <= 11)) ||
-                            (y == 10 && (x >= 1 && x <= 3)) || (x == 6 && (y >= 11 && y <= 13)) ||
-                            (y == 11 && x == 11) || (y == 13 & x == 5) || (y == 12 && x == 11) ||
-                            (y == 12 && (x >= 2 && x <= 5)) || (x == 8 && (y == 12 || y == 13)))  
+                            (y == 10 && (x >= 1 && x <= 3)) || (x == 6 && (y == 11 || y == 13)) ||
+                            (y == 11 && x == 11) || (y == 12 && x == 11) ||
+                            (y == 12 && (x >= 2 && x <= 4)) || (x == 8 && (y == 12 || y == 13)))  
                     gridPositions.Add(new Vector3(x, y,0));
             }
         }
@@ -100,7 +100,7 @@ public class GridLimits : MonoBehaviour
             for (int y = 0; y <= 14; y++)
             {
                 Vector3 position = new Vector3(x, y, 0);
-                if (!gridPositions.Contains(position))
+                if (!gridPositions.Contains(position) && position != new Vector3(7,14,0))
                 {
                     gridPosAvailable.Add(position);
                 }

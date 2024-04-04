@@ -22,7 +22,7 @@ public class LogManager : MonoBehaviour
     {
         // Create a new log entry with current date and time, log ID, and additional data
         string logEntry = $"[{DateTime.Now}] {logID}: {additionalData}";
-        Debug.Log(logFilePath);
+        //Debug.Log(logFilePath);
         // Append the log entry to the log file
         File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
     }
@@ -30,10 +30,10 @@ public class LogManager : MonoBehaviour
     public void defineLogID(string id)
     {
         logID = id;
-        logFileName = $"/Logs/log_{logID}.txt";
-        Debug.Log("data path: " + Application.dataPath);
-        logFilePath = Application.dataPath + logFileName;
-         
+        logFileName = $"DataLogs/log_{logID}.txt";
+        //Debug.Log("data path: " + Application.dataPath);
+        //logFilePath = Application.dataPath + logFileName;
+        logFilePath = logFileName;
         Button.SetActive(true);
         box_input.SetActive(false);
         txt.SetActive(false);
