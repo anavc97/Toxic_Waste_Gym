@@ -5513,6 +5513,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timeRemaining: 0
+  effectiveTimeRemaining: 0
+  timeChangedCounter: 3
   timeIsRunning: 1
   gameOverTimer: 0
   timeText: {fileID: 746641824}
@@ -5536,7 +5538,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Time Left: \n00:54"
+  m_text: "Time Left: \n02:30"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
   m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
@@ -6995,8 +6997,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 7
-  m_fontSizeBase: 7
+  m_fontSize: 6.5
+  m_fontSizeBase: 6.5
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -9917,6 +9919,8 @@ MonoBehaviour:
   heldBall: {fileID: 0}
   currentScene: 
   layout: 
+  logManager: {fileID: 0}
+  logger: {fileID: 0}
 --- !u!4 &1531758260
 Transform:
   m_ObjectHideFlags: 0

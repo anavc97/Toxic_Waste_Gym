@@ -40,6 +40,7 @@ public class GameHandler : MonoBehaviour
     public GameObject heldBall;
     public string currentScene;
     public string layout;
+    public Dictionary<string, float> yellowBallMap = new Dictionary<string, float>(); //(Ball name, time held)
     public GameObject logManager;
     public LogManager logger;
     
@@ -78,6 +79,7 @@ public class GameHandler : MonoBehaviour
         timeHoldingYellowBall = 0;
         humanOrientation = new Vector2(0,-1); 
         doorPosition = new Vector3(7,14,0);
+        initializeYellowBallMap();
         StartCoroutine(Logging());
     }
     private IEnumerator Logging()
@@ -96,8 +98,6 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-
-
         if(heldBall != null && heldBall.name.Split('_')[0] == "yellow" ) //Check if held ball is yellow
         {
             updatePopUp(heldBall,2);
@@ -110,7 +110,7 @@ public class GameHandler : MonoBehaviour
             popUp_time = 0;
         }
 
-        if((timerScript.timeRemaining < 0 || humanPlayer.transform.position == doorPosition) && !gameOver)
+        if((!timerScript.timeIsRunning || humanPlayer.transform.position == doorPosition) && !gameOver)
         {
             canvas.GetComponent<Canvas>().enabled = true;
             gameOver = true;
@@ -121,14 +121,14 @@ public class GameHandler : MonoBehaviour
             GameObject gameOverText = panel.transform.Find("GameOver").gameObject;
             if(SceneManager.GetActiveScene().name == "level_one")
             {
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time is Up!\n Get ready for the next level.";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n Get ready for the next level.";}
+                if(!timerScript.timeIsRunning){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 36 points acquired.\n Loading next level...";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 36 points acquired.\n Loading next level...";}
                 gameOverStopWatch.Start();
             }
             else
             {
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time is Up!\n Game concluded.";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n Game concluded.";}
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 33 points acquired.\n Game concluded.";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 33 points acquired.\n  Game concluded.";}
             }
         }
 
@@ -137,9 +137,21 @@ public class GameHandler : MonoBehaviour
             SceneManager.LoadScene("level_two");
             logger.WriteLog("############ LEVEL 2 ############");
         }
+    }
 
-
+    
+    public void initializeYellowBallMap()
+    {
+        GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
+        foreach (GameObject ball in balls){   
+            if(ball != null && ball.name.Split('_')[0] == "yellow")
+            {
+                yellowBallMap[ball.name] = 0;
+            }
+        }
     }   
+
+
     public void performHumanAction(float mov_x, float mov_y, int handleBall)
     {
         getPlayerPositions();
@@ -244,9 +256,12 @@ public class GameHandler : MonoBehaviour
             {
                 if(status == 0) //Handed ball to robot
                 {
-                    popUp.text = "+10 points!";
-                    popUp.color = new Color32(40,191,0,255); //Green
+                    popUp.text = ("+10 points!\n") + (-yellowBallMap[ball.name]) + (" seconds!");
+                    popUp.color = new Color32(168,147,0,255);  //Yellow;
+
+                    //popUp.color = new Color32(40,191,0,255); //Green
                     update_Score(10);
+                    update_Timer(-yellowBallMap[ball.name]);
                     popUp_time = 0;
                 }
                 else{popUp_time = 150;}
@@ -263,9 +278,11 @@ public class GameHandler : MonoBehaviour
                 {
                     timeHoldingYellowBall += 1;
                     //popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
-                    popUp.text = -(timeHoldingYellowBall) + " seconds!";
-                    popUp.color = new Color32(168,147,0,255);  //Yellow
-                    update_Timer(-1);
+                    //popUp.text = -(timeHoldingYellowBall) + " seconds!";
+                    //popUp.color = new Color32(168,147,0,255);  //Yellow
+                    update_effectiveTimer(-3);
+                    yellowBallMap[ball.name] += 3;
+                    //UnityEngine.Debug.Log("Yellow ball named: " + ball.name + "held for " + yellowBallMap[ball.name] + "secs");
                     popUpStopWatch.Reset();
                 }
                 popUp_time = 0;
@@ -280,7 +297,14 @@ public class GameHandler : MonoBehaviour
 
     void update_Timer(float time)
     {      
+        //timerScript.timeChangedCounter = 0;
         timerScript.timeRemaining += time;
+        timerScript.DisplayTime(timerScript.timeRemaining);
+    }
+
+    void update_effectiveTimer(float time)
+    {
+        timerScript.effectiveTimeRemaining += time;
     }
     
     void getPlayerPositions()
