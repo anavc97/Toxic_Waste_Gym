@@ -27,17 +27,17 @@ if [ "$1" = "conda" ]; then
   conda deactivate
 
   {
-    echo "alias activateWaste='conda activate toxic_waste_env'"
-    echo "alias astro_toxic='conda activate toxic_waste_env; cd project/toxic_waste'"
+    echo "alias activateWaste=\"conda activate toxic_waste_env\""
+    echo "alias astro_toxic=\"conda activate toxic_waste_env; cd project/toxic_waste\""
   } >> ~/.bash_aliases
 
-  env_home="$HOME"/miniconda/envs/toxic_waste_env
+  env_home="$HOME"/miniconda3/envs/toxic_waste_env
   touch "$env_home"/etc/conda/activate.d/env_vars.sh
   touch "$env_home"/etc/conda/deactivate.d/env_vars.sh
   {
     echo "#!/bin/sh"
-    echo "EXTRA_PATH=\"$HOME/project/toxic_waste/src:\""
-    echo "OLD_PYTHONPATH=$PYTHONPATH"
+    echo "EXTRA_PATH=\"\$HOME/project/toxic_waste/src:\""
+    echo "OLD_PYTHONPATH=\"$PYTHONPATH\""
     echo "PYTHONPATH=$EXTRA_PATH:$PYTHONPATH"
     echo "export PYTHONPATH"
     echo "export OLD_PYTHONPATH"
@@ -45,8 +45,8 @@ if [ "$1" = "conda" ]; then
 
   {
     echo "#!/bin/sh"
+    echo "PYTHONPATH=\"$OLD_PYTHONPATH\""
     echo "unset OLD_PYTHONPATH"
-    echo "PYTHONPATH=$OLD_PYTHONPATH"
   } >> "$env_home"/etc/conda/deactivate.d/env_vars.sh
 
 else
@@ -65,12 +65,12 @@ else
   deactivate
 
   {
-    echo "alias activateWaste='source $HOME/python_envs/toxic_waste_env/bin/activate'"
-    echo "alias astro_toxic='source $HOME/python_envs/toxic_waste_env/bin/activate; cd project/toxic_waste'"
+    echo "alias activateWaste=\"source \$HOME/python_envs/toxic_waste_env/bin/activate\""
+    echo "alias astro_toxic=\"source \$HOME/python_envs/toxic_waste_env/bin/activate; cd project/toxic_waste\""
   } >> ~/.bash_aliases
 
   {
-    echo "EXTRA_PATH=\"$HOME/project/toxic_waste/src:\""
+    echo "EXTRA_PATH=\"\$HOME/project/toxic_waste/src:\""
     echo "PYTHONPATH=$EXTRA_PATH:$PYTHONPATH"
     echo "export PYTHONPATH"
   } >> "$HOME"/python_envs/toxic_waste_env/bin/activate

@@ -3,7 +3,7 @@
 import sys
 import argparse
 
-import gymnasium
+import wandb
 import numpy as np
 import threading
 import jax
@@ -360,6 +360,7 @@ def main():
 						help='List with the info required to recover previously saved model and restart from same point: '
 							 '<model_dirname: str> <model_filename: str> <last_cycle: int> Use only in combination with --restart option')
 	parser.add_argument('--debug', dest='debug', action='store_true', help='Flag signalling debug mode for model training')
+	parser.add_argument('--fraction', dest='fraction', type=str, default='0.5', help='Fraction of JAX memory pre-compilation')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -420,7 +421,7 @@ def main():
 	use_render = args.use_render
 	
 
-	os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+	os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = args.fraction
 	if not use_gpu:
 		jax.default_device(jax.devices("cpu")[0])
 	
@@ -431,6 +432,20 @@ def main():
 	configs_dir = Path(__file__).parent.absolute() / 'env' / 'data' / 'configs'
 	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(RNG_SEED)
+	
+	wandb.init(project='astro-toxic-waste', entity='miguel-faria',
+			   config={
+				   "agent_type": "joint_policy",
+				   "env_version": "v1" if env_version == 1 else "v2",
+				   "agents": n_agents,
+				   "online_learing_rate": learn_rate,
+				   "target_learning_rate": target_update_rate,
+				   "discount": gamma,
+				   "eps_decay": eps_type,
+				   "iterations": n_iterations
+			   },
+			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
+			   sync_tensorboard=True)
 
 	for game_level in game_levels:
 		log_filename = ('train_astro_disposal_multi_dqn_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))

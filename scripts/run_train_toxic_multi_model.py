@@ -40,6 +40,7 @@ RESTART = False
 DEBUG = False
 RESTART_INFO = ["20230724-171745", "food_5x4_cycle_2", 2]
 USE_RENDER = False
+PRECOMP_FRAC = 0.33
 
 # Environment params
 # GAME_LEVEL = ['level_one', 'level_two']
@@ -65,7 +66,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
 		 (" --restart --restart-info %s %s %s" % (RESTART_INFO[0], RESTART_INFO[1], str(RESTART_INFO[2])) if RESTART else "") +
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") + (" --vdn" if USE_VDN else "") +
-		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else ""))
+		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC))
 commamd = "python " + str(src_dir / 'train_toxic_multi_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
