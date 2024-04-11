@@ -44,7 +44,7 @@ public class Timer : MonoBehaviour
         float seconds = Mathf.FloorToInt(timeToDisplay % 60);
         if(timeChangedCounter <= 3) {timeText.color = new Color32(184,0,0,255);} //Red
         else{timeText.color = new Color32(255,255,255,255);} //white
-        timeText.text = string.Format("Time Left: \n{0:00}:{1:00}", minutes, seconds);
+        timeText.text = string.Format("Time Left \n{0:00}:{1:00}", minutes, seconds);
     }
 }
 

@@ -148,10 +148,12 @@ public class ActionRenderingRobot : MonoBehaviour
     public bool gameOverRobot;
     public int previousStepAction = 0;
     public Vector3 astroStation;
+    public bool error = false;
     
     void Awake()
     {
       animator = GetComponent<Animator>();
+
     }
 
     // Start is called before the first frame update
@@ -173,12 +175,27 @@ public class ActionRenderingRobot : MonoBehaviour
       walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
-      StartCoroutine(AstroAutomatic());
+      //StartCoroutine(AstroAutomatic());
+      StartCoroutine(AstroBad());
+    }
+
+    private IEnumerator ActivateError()
+    {
+      while(!gameOverRobot){
+
+        if (Random.Range(0, 10) > 7){
+        error = true;
+        yield return new WaitForSeconds(4f);
+        error = false;
+        }
+
+        yield return new WaitForSeconds(2f);
+      }
     }
 
     void Update()
     {
-      if(gameOverRobot){Destroy(this);}
+      if(gameOverRobot){this.enabled = false;}
     }
     
 
@@ -188,7 +205,7 @@ public class ActionRenderingRobot : MonoBehaviour
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
       GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
       float distanceToHuman = Mathf.Infinity;
-      //Debug.Log("Started astro automatic");
+      Debug.Log("Started astro automatic");
 
       while (balls.Length != 0)
       { 
@@ -280,18 +297,105 @@ public class ActionRenderingRobot : MonoBehaviour
     } 
   
 
+    IEnumerator AstroBad()
+    { 
+      StartCoroutine(ActivateError());
+      yield return new WaitForSeconds(1f);
+      GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
+      GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
+
+      float distanceToHuman = Mathf.Infinity;
+      Debug.Log("Started astro bad");
+      bool HHoldBall = humanHoldingBall(allBalls);
+      if(error){HHoldBall = !humanHoldingBall(allBalls);}
+
+      while (balls.Length != 0)
+      { 
+        float closestDistance = Mathf.Infinity;
+        balls = GameObject.FindGameObjectsWithTag("Ball");
+        if(balls.Length == 0){break;}
+        HHoldBall = humanHoldingBall(allBalls);
+        if(error){HHoldBall = !humanHoldingBall(allBalls);}
+
+        GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
+        allBalls = new GameObject[balls.Length + identifiedBalls.Length];
+        balls.CopyTo(allBalls, 0);
+        identifiedBalls.CopyTo(allBalls, balls.Length);
+        GameObject randomBall = allBalls[Random.Range(0, allBalls.Length)];
+        
+        while (closestDistance > Mathf.Sqrt(2)) //Mathf.Sqrt(2))
+        { 
+          HHoldBall = humanHoldingBall(allBalls);
+          if(error){HHoldBall = !humanHoldingBall(allBalls);}
+          randomBall = allBalls[Random.Range(0, allBalls.Length)];
+          //Move towards human if human is holding a ball - with probability of failing for 5 seconds
+          while(HHoldBall)
+          {
+            if(distanceToHuman <= Mathf.Sqrt(2))
+            {
+              yield return new WaitForSeconds(0.4f);
+              distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+              continue;
+            }
+            distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+            ObtainNextAction(humanPlayer.transform.position);
+            yield return new WaitForSeconds(0.4f);
+          }
+          
+          //Move towards closest ball if human isn't holding a ball
+          balls = GameObject.FindGameObjectsWithTag("Ball");
+          if(balls.Length ==0){break;}
+
+          //Go to random ball
+          Vector3 newTarget = randomBall.transform.position + new Vector3(1.0f,0,0);
+          if(error){newTarget = newTarget + new Vector3(-3.0f,+2.0f,0);}
+          ObtainNextAction(newTarget);
+          closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
+          //moveOrRotateRobot(next_step, new Vector2(0,-1));
+          yield return new WaitForSeconds(0.4f);
+        }
+        
+
+        //Identify random ball
+        balls = GameObject.FindGameObjectsWithTag("Ball");
+        if(error){randomBall = allBalls[Random.Range(0, allBalls.Length)];}
+        if(balls.Length == 0){break;}
+
+        StartCoroutine(ballInteraction.StartIdAnimation(randomBall));
+        previousStepAction = -1;
+        yield return new WaitForSeconds(8f);
+      }
+
+      //When all balls identified robot still follows human when he's holding a ball
+      balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      while(balls.Length != 0)
+      {
+        distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+        if(HHoldBall && distanceToHuman > Mathf.Sqrt(2)) //Move towards human
+        {
+          ObtainNextAction(humanPlayer.transform.position);
+        }
+        else if(!HHoldBall && transform.position != astroStation) //Move towards station
+        {
+          ObtainNextAction(astroStation);
+        }
+        yield return new WaitForSeconds(0.4f);
+        balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      }
+
+      //Return to base at the end
+      while(transform.position != astroStation)
+      {
+        ObtainNextAction(astroStation);
+        yield return new WaitForSeconds(0.4f);
+      }
+    }  
+
     //Obtain next step action according to target destination (move towards human or ball)
     public void ObtainNextAction(Vector3 targetPosition)
     {
       pos_x = transform.position.x;
       pos_y = transform.position.y;
-      pos_around = new List<Vector3>();
-      pos_around.Add(new Vector3(pos_x, pos_y+1f,0)); // square up
-      pos_around.Add(new Vector3(pos_x, pos_y-1f,0)); // square down
-      pos_around.Add(new Vector3(pos_x-1f, pos_y,0)); // square left
-      pos_around.Add(new Vector3(pos_x+1f, pos_y,0)); // square right
-      //int next_step = FindNextStep(pos_around, targetPosition);
-      //Vector3 move = convertStepIntoMovement(next_step);
       List<Vector3>  moves = AStarPathfinding.FindPath(floor,transform.position,targetPosition);
       //Debug.Log("Pos: " + transform.position + " Move: " + moves[0]);
       setNextOrientation(moves[1]);

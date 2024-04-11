@@ -37,12 +37,14 @@ public class GameHandler : MonoBehaviour
     public Stopwatch gameOverStopWatch = new Stopwatch();
     public GameObject humanPlayer;
     public GameObject astroPlayer;
+    public GameObject[] balls;
     public GameObject heldBall;
     public string currentScene;
     public string layout;
     public Dictionary<string, float> yellowBallMap = new Dictionary<string, float>(); //(Ball name, time held)
     public GameObject logManager;
     public LogManager logger;
+    private Dictionary<string, object> additionalData = new Dictionary<string, object>();
     
     void Awake()
     {        
@@ -68,7 +70,7 @@ public class GameHandler : MonoBehaviour
         humanPlayer = GameObject.Find("human");
         astroPlayer = GameObject.Find("astro");
         gameRunning = true;
-        
+        balls = GameObject.FindGameObjectsWithTag("Ball");
         
         // VARIABLES
         gameOver = false;
@@ -86,12 +88,9 @@ public class GameHandler : MonoBehaviour
     {
         while(!gameOver)
         {   
-            string b_held;
-            if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
-            string log = $@"""name"": ""human"", ""position"":{humanPlayer.transform.position}, ""orientation"": {humanOrientation}, ""held_object"": {b_held}";
-            log = log + "\n" + $@"""name"": ""robot"", ""position"":{astroPlayer.transform.position}, ""orientation"": {astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}";
-
-            logger.WriteLog(log);
+            additionalData = ConstructData();
+            UnityEngine.Debug.Log("Sending: " + additionalData["layout"]);
+            logger.WriteLog(additionalData);
             yield return new WaitForSeconds(0.2f);
         }
     }
@@ -135,10 +134,53 @@ public class GameHandler : MonoBehaviour
         if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
         {
             SceneManager.LoadScene("level_two");
-            logger.WriteLog("############ LEVEL 2 ############");
         }
     }
 
+    public Dictionary<string, object> ConstructData()
+    {
+
+        Dictionary<string, object> data = new Dictionary<string, object>();
+        string b_held;
+        if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
+        Vector2 RobotOR = astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation;
+                // Construct players list
+        List<Dictionary<string, object>> players = new List<Dictionary<string, object>>();
+        Dictionary<string, object> player1 = new Dictionary<string, object>();
+        player1["name"] = "human";
+        player1["position"] = new float[] { humanPlayer.transform.position.x, humanPlayer.transform.position.y };
+        player1["orientation"] = new float[] { humanOrientation.x, humanOrientation.y };
+        player1["held_object"] = b_held;
+        players.Add(player1);
+        
+        Dictionary<string, object> player2 = new Dictionary<string, object>();
+        player2["name"] = "astro";
+        player2["position"] = new float[] { astroPlayer.transform.position.x, astroPlayer.transform.position.y };
+        player2["orientation"] = new float[] { RobotOR.x, RobotOR.y };
+        players.Add(player2);
+
+        data["players"] = players;
+
+        // Construct objects list
+        List<Dictionary<string, object>> objects = new List<Dictionary<string, object>>();
+        foreach (GameObject ball in balls)
+        {
+            Dictionary<string, object> ballData = new Dictionary<string, object>();
+            ballData["name"] = ball.name;
+            ballData["position"] = new float[] { ball.transform.position.x, ball.transform.position.y };
+            ballData["hold_state"] = GetHoldStatus(ball);
+            ballData["identified"] = (ball.tag=="IDdBall");
+            objects.Add(ballData);
+        }
+
+        data["objects"] = objects;
+        data["score"] = scoreScript.scoreValue;
+        data["timeleft"] = timerScript.timeRemaining;
+        data["layout"] = SceneManager.GetActiveScene().name;
+
+        return data;
+
+    }
     
     public void initializeYellowBallMap()
     {
@@ -164,7 +206,7 @@ public class GameHandler : MonoBehaviour
                 //if(Vector3.Distance(humanPosition, astroPosition) <= Mathf.Sqrt(2)){ 
                 if(newBallPosition == astroPosition) //Ball handed to astro (human must be facing it)
                 {
-                    updateBallState(heldBall, 2, newBallPosition);
+                    updateBallState(heldBall, 2, new Vector3(7,20,0));
                     updatePopUp (heldBall, 0); //0=Point update
                     humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
                     heldBall = null;
@@ -217,8 +259,7 @@ public class GameHandler : MonoBehaviour
             ball.transform.position = newPosition;
             if(status == 2) //Ball disposed of
             {
-                ball.tag = "CollectedBall";
-                Destroy(ball);
+                UnityEngine.Debug.Log("Ball disposed.");
             }
             else if(status == 1) //Ball grabbed
             {
@@ -311,6 +352,13 @@ public class GameHandler : MonoBehaviour
     {
         humanPosition = humanPlayer.transform.position;
         astroPosition = astroPlayer.transform.position;
+    }
+
+    int GetHoldStatus(GameObject ball)
+    {
+        if (ball.transform.position.x == 7f && ball.transform.position.y == 20f) {return 2;} // Disposed
+        else if(!ball.GetComponent<SpriteRenderer>().enabled){return 1;} // Holding
+        else{return 0;} // free
     }
 
 }

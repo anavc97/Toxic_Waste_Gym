@@ -3,6 +3,7 @@ using System;
 using System.Net;  
 using System.Text;  
 using System.Threading;
+using UnityEngine.UI;
 
 public class StartGame : MonoBehaviour
 {   
@@ -10,5 +11,4 @@ public class StartGame : MonoBehaviour
     {   
         DontDestroyOnLoad(gameObject);
     }
-
 }

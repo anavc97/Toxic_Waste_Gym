@@ -5538,10 +5538,12 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "Time Left: \n02:30"
+  m_text: 'Time Left
+
+    02:30'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
-  m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
+  m_sharedMaterial: {fileID: 8121269372693308584, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -5565,19 +5567,19 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 4.5
-  m_fontSizeBase: 4.5
+  m_fontSize: 5
+  m_fontSizeBase: 5
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
-  m_HorizontalAlignment: 1
+  m_fontStyle: 17
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
-  m_lineSpacing: 0
+  m_lineSpacing: 50
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
@@ -5601,7 +5603,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: 0, y: 0, z: -0.034602165, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -5630,7 +5632,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  - {fileID: 8121269372693308584, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5668,8 +5670,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 1.5913, y: -1.41}
-  m_SizeDelta: {x: 3.573, y: 1.8456}
+  m_AnchoredPosition: {x: 2.0998, y: -1.3}
+  m_SizeDelta: {x: 5.0134, y: 1.8456}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &753510899
 GameObject:
@@ -6972,8 +6974,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
-  m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 48e1e22bf497ae30d902ccdec5f50e5a, type: 2}
+  m_sharedMaterial: {fileID: -1526265557671785144, guid: 48e1e22bf497ae30d902ccdec5f50e5a, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -6997,8 +6999,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 6.5
-  m_fontSizeBase: 6.5
+  m_fontSize: 9
+  m_fontSizeBase: 9
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -7009,7 +7011,7 @@ MonoBehaviour:
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
-  m_lineSpacing: 0
+  m_lineSpacing: -15.4
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
@@ -7062,7 +7064,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  - {fileID: -1526265557671785144, guid: 48e1e22bf497ae30d902ccdec5f50e5a, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7100,7 +7102,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 12, y: -1.3}
+  m_AnchoredPosition: {x: 13.56, y: -1.38}
   m_SizeDelta: {x: 9, y: 5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1104104749
@@ -9487,10 +9489,12 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Score: 100'
+  m_text: 'Score
+
+    100'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
-  m_sharedMaterial: {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
+  m_sharedMaterial: {fileID: 8121269372693308584, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -9520,13 +9524,13 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 17
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_wordSpacing: 0
-  m_lineSpacing: 0
+  m_lineSpacing: 50
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
@@ -9579,7 +9583,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 3759100750800539341, guid: 562ebb112e8b9484a8ed63f2a380a3b8, type: 2}
+  - {fileID: 8121269372693308584, guid: 655d43a3a3b6e73bdae2bb3c74fe3883, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -9617,7 +9621,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 5.1, y: -1.35}
+  m_AnchoredPosition: {x: 6.8, y: -1.3}
   m_SizeDelta: {x: 3.7004, y: 2.1714}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1424853439
@@ -9916,6 +9920,7 @@ MonoBehaviour:
   timerScript: {fileID: 0}
   humanPlayer: {fileID: 0}
   astroPlayer: {fileID: 0}
+  balls: []
   heldBall: {fileID: 0}
   currentScene: 
   layout: 
@@ -12671,6 +12676,7 @@ MonoBehaviour:
   gameOverRobot: 0
   previousStepAction: 0
   astroStation: {x: 0, y: 0, z: 0}
+  error: 0
 --- !u!50 &2026953307
 Rigidbody2D:
   serializedVersion: 4

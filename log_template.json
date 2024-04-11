@@ -1,0 +1,41 @@
+{
+    "command": "new_state", 
+    "data": {
+        "players": [
+            {
+                "name": "human", "position": [1, 7], "orientation": [0, 1], "held_object": null
+            }, 
+            {
+                "name": "astro", "position": [13, 10], "orientation": [0, -1], "held_object": null
+            }
+        ], 
+        "objects": [
+            {
+                "name": "red_1", "position": [2, 6], "hold_state": 0, "identified": false, "type": 3, "holding_player": null
+            },
+            {
+                "name": "yellow_1", "position": [2, 11], "hold_state": 0, "identified": false, "type": 2, "holding_player": null
+            }, 
+            {   
+                "name": "yellow_2", "position": [5, 7], "hold_state": 0, "identified": false, "type": 2, "holding_player": null
+            }, 
+            {
+                "name": "yellow_3", "position": [8, 4], "hold_state": 0, "identified": false, "type": 2, "holding_player": null
+            }, 
+            {
+                "name": "green_1", "position": [8, 9], "hold_state": 0, "identified": false, "type": 1, "holding_player": null
+            }, 
+            {   
+                "name": "green_2", "position": [12, 9], "hold_state": 0, "identified": false, "type": 1, "holding_player": null
+            }
+        ], 
+        "finished": false, 
+        "timeout": false, 
+        "score": 0.0, 
+        "time_left": 92.72587656974792, 
+        "game_id": 0, 
+        "game_time": 0.0, 
+        "ticks": 0, 
+        "layout": "level_one"
+    }
+}

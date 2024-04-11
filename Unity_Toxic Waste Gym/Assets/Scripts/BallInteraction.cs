@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 using UnityEngine;
 using TMPro;
+using Unity.Collections.LowLevel.Unsafe;
+using JetBrains.Annotations;
 
 public class BallInteraction : MonoBehaviour
 {
@@ -36,8 +38,8 @@ public class BallInteraction : MonoBehaviour
         }
         string type = ball.name.Split('_')[0];
         //Debug.Log("Ball ID: " + type);
-      
-        string currentChatName = "Chat" + currentChatNumber;
+        int nr= (currentChatNumber - 1) % 7 + 1;
+        string currentChatName = "Chat" + nr;
         currentChat = historyChat.transform.Find(currentChatName).gameObject;
         currentChat.SetActive(true);
         bubble = currentChat.transform.Find("Bubble").gameObject;

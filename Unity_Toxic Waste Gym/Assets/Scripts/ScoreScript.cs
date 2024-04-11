@@ -7,11 +7,11 @@ public class ScoreScript: MonoBehaviour
 
     void Start()
     {
-        score.text = "Score: 0";
+        score.text = "Score\n0";
     }
 
     void Update()
     {
-        score.text = "Score: " + scoreValue;
+        score.text = "Score\n" + scoreValue;
     }
 }
