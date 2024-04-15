@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Newtonsoft.Json;
+using System.Linq;
 
 public class ActionRenderingRobot : MonoBehaviour
 {
@@ -172,8 +173,8 @@ public class ActionRenderingRobot : MonoBehaviour
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
-      //StartCoroutine(AstroAutomatic());
-      StartCoroutine(AstroBad());
+      StartCoroutine(AstroAutomatic());
+      //StartCoroutine(AstroBad());
     }
 
     private IEnumerator ActivateError()
@@ -187,7 +188,7 @@ public class ActionRenderingRobot : MonoBehaviour
           error = false;
         }
         
-        yield return new WaitForSeconds(7f);
+        yield return new WaitForSeconds(13f);
       }
     }
 
@@ -205,7 +206,6 @@ public class ActionRenderingRobot : MonoBehaviour
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball"); 
       float distanceToHuman = Mathf.Infinity;
       Debug.Log("Started astro automatic");
-
       while (balls.Length != 0)
       { 
         float closestDistance = Mathf.Infinity;
@@ -299,19 +299,21 @@ public class ActionRenderingRobot : MonoBehaviour
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
       float distanceToHuman = Mathf.Infinity;
       Debug.Log("Started astro bad");
-
+      GameObject[] allGoodBalls = allBalls.Where(obj => obj.tag != "CollectedBall").ToArray();
       bool HHoldBall = humanHoldingBall(allBalls);
       if(error){HHoldBall = !humanHoldingBall(allBalls);}
 
       while (balls.Length != 0)
       { 
+        allGoodBalls = allBalls.Where(obj => obj.tag != "CollectedBall").ToArray();
         float closestDistance = Mathf.Infinity;
         balls = GameObject.FindGameObjectsWithTag("Ball");
         if(balls.Length == 0){break;}
         HHoldBall = humanHoldingBall(allBalls);
         if(error){HHoldBall = !humanHoldingBall(allBalls);}
-        GameObject randomBall = allBalls[Random.Range(0, balls.Length)];
-        while(Vector3.Distance(transform.position, randomBall.transform.position)<=2){randomBall = allBalls[Random.Range(0, balls.Length)];}
+        GameObject randomBall = allGoodBalls[Random.Range(0, balls.Length)];
+
+        if(Vector3.Distance(transform.position, randomBall.transform.position)<=2){randomBall = allGoodBalls[Random.Range(0, balls.Length)];}
         GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
         
         while (closestDistance > Mathf.Sqrt(2)) //Mathf.Sqrt(2))
@@ -357,6 +359,7 @@ public class ActionRenderingRobot : MonoBehaviour
 
       //When all balls identified robot still follows human when he's holding a ball
       balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      allGoodBalls = allBalls.Where(obj => obj.tag != "CollectedBall").ToArray();
       while(balls.Length != 0)
       {
         distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
