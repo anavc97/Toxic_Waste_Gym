@@ -123,9 +123,7 @@ public class ActionRendering : MonoBehaviour
       if(transform.position != newPosition && !walls.Contains(newPosition)) //TODO: Fix human not moving with constant values (shorter steps)
       { //Also check if not moving into any ball or astro's position
         if(ballInteraction.checkPositionVacancy(newPosition) && astroPlayer.transform.position != newPosition)
-        {
-          //Debug.Log("Transform: " + transform.position);
-          //Debug.Log("New position: " + newPosition); 
+        { 
           movePoint.position = newPosition;
           transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
           //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  

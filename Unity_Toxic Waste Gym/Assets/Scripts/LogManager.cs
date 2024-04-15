@@ -36,7 +36,6 @@ public class LogManager : MonoBehaviour
         if (OldData != additionalData)
         {
             string jsonData = JsonConvert.SerializeObject(additionalData);
-            Debug.Log("json: " + jsonData);
             StartCoroutine(SendPostRequest(jsonData));
         }
         else
@@ -50,7 +49,6 @@ public class LogManager : MonoBehaviour
     public void defineLogID(string id)
     {
         logID = id;
-        Debug.Log("ID: " + logID);
         StartCoroutine(SendPostRequest(id));
         Button.SetActive(true);
         box_input.SetActive(false);
@@ -61,7 +59,6 @@ public class LogManager : MonoBehaviour
     {
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString();
         
-        Debug.Log("Message to be sent: " + jsonString);
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
         UnityWebRequest request = new UnityWebRequest(url, "POST");
@@ -73,7 +70,6 @@ public class LogManager : MonoBehaviour
 
         if (request.result == UnityWebRequest.Result.Success)
         {
-            Debug.Log("HTTP POST request sent successfully");
             Debug.Log("Response: " + request.downloadHandler.text);
 
         }

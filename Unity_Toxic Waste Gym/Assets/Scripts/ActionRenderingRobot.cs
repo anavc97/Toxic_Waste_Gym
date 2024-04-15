@@ -149,6 +149,8 @@ public class ActionRenderingRobot : MonoBehaviour
     public int previousStepAction = 0;
     public Vector3 astroStation;
     public bool error = false;
+    public float Id_time;
+    GameObject[] allBalls;
     
     void Awake()
     {
@@ -159,22 +161,17 @@ public class ActionRenderingRobot : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-      //chatBot = GameObject.Find("ChatBot");
-      //bubble = chatBot.transform.Find("Bubble").gameObject;
-      //load = bubble.transform.Find("Load").gameObject;
-      //text = bubble.transform.Find("Text").gameObject;
-      //Debug.Log("Start of action rendering robot evoked");
-      //action.command = "p_act";
-      //historyChat = GameObject.Find("HistoryChat"); //Migrated to BallInteraction
+
       astroOrientation = new Vector2(0,-1);
       humanPlayer = GameObject.Find("human");
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
       Scene currentScene = SceneManager.GetActiveScene();
-		  if(currentScene.name == "level_one"){astroStation = new Vector3(6, 6,0);}
+		  if(currentScene.name == "level_one"){astroStation = new Vector3(7, 8,0);}
       else if(currentScene.name == "level_two"){astroStation = new Vector3(7, 7,0);}
       walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
+      allBalls = GameObject.FindGameObjectsWithTag("Ball");
       //StartCoroutine(AstroAutomatic());
       StartCoroutine(AstroBad());
     }
@@ -183,27 +180,29 @@ public class ActionRenderingRobot : MonoBehaviour
     {
       while(!gameOverRobot){
 
-        if (Random.Range(0, 10) > 7){
-        error = true;
-        yield return new WaitForSeconds(4f);
-        error = false;
+        int a = Random.Range(0, 10);
+        if (a > 5){  
+          error = true;
+          yield return new WaitForSeconds(7f);
+          error = false;
         }
-
-        yield return new WaitForSeconds(2f);
+        
+        yield return new WaitForSeconds(7f);
       }
     }
 
     void Update()
     {
-      if(gameOverRobot){this.enabled = false;}
+      if(gameOverRobot){this.enabled = false;Debug.Log("GAME OVER ROBOT");}
+      Debug.Log("ERROR: " + error);
     }
     
 
     IEnumerator AstroAutomatic()
     { 
+      Id_time = 6f;
       yield return new WaitForSeconds(1f);
-      GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
-      GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
+      GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball"); 
       float distanceToHuman = Mathf.Infinity;
       Debug.Log("Started astro automatic");
 
@@ -211,19 +210,17 @@ public class ActionRenderingRobot : MonoBehaviour
       { 
         float closestDistance = Mathf.Infinity;
         balls = GameObject.FindGameObjectsWithTag("Ball");
-        if(balls.Length == 0){break;}
+        if(balls.Length == 0){
+          break;}
         GameObject randomBall = balls[Random.Range(0, balls.Length)];
 
         GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
-        allBalls = new GameObject[balls.Length + identifiedBalls.Length];
-        balls.CopyTo(allBalls, 0);
-        identifiedBalls.CopyTo(allBalls, balls.Length);
 
         while (closestDistance > Mathf.Sqrt(2)) //Mathf.Sqrt(2))
         { 
           //Move towards human if human is holding a ball
           while(humanHoldingBall(allBalls))
-          {
+          { 
             if(distanceToHuman <= Mathf.Sqrt(2))
             {
               yield return new WaitForSeconds(0.4f);
@@ -239,11 +236,6 @@ public class ActionRenderingRobot : MonoBehaviour
           balls = GameObject.FindGameObjectsWithTag("Ball");
           if(balls.Length ==0){break;}
           if(!arrayContains(balls,randomBall)){randomBall = balls[Random.Range(0, balls.Length)];}
-          //Debug.Log("Entered while to move towards nearest ball");
-          /*//Go to closer ball
-          var results = FindClosestBall(balls);
-          GameObject ball = results.Item1;
-          closestDistance = results.Item2;*/
           
           //Go to random ball
           Vector3 newTarget = randomBall.transform.position + new Vector3(1.0f,0,0);
@@ -256,10 +248,11 @@ public class ActionRenderingRobot : MonoBehaviour
 
         //Identify ball
         balls = GameObject.FindGameObjectsWithTag("Ball");
-        if(balls.Length == 0){break;}
+        if(balls.Length == 0){
+          break;}
         //GameObject closestBall = ballInteraction.findClosestBall(balls, transform.position, astroOrientation,false);
         //StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
-        StartCoroutine(ballInteraction.StartIdAnimation(randomBall));
+        StartCoroutine(ballInteraction.StartIdAnimation(randomBall,System.Array.IndexOf(allBalls, randomBall)));
         previousStepAction = -1;
         
         /*action.data = new ActionDataRobot();
@@ -268,7 +261,7 @@ public class ActionRenderingRobot : MonoBehaviour
         jsonString = JsonConvert.SerializeObject(action);
         Debug.Log("robot command sent: " + jsonString);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
-        yield return new WaitForSeconds(8f);
+        yield return new WaitForSeconds(Id_time);
       }
 
       //When all balls identified robot still follows human when he's holding a ball
@@ -280,9 +273,11 @@ public class ActionRenderingRobot : MonoBehaviour
         {
           ObtainNextAction(humanPlayer.transform.position);
         }
-        else if(!humanHoldingBall(balls) && transform.position != astroStation) //Move towards station
+        else if(!humanHoldingBall(balls)) //Move towards ball closest to human
         {
-          ObtainNextAction(astroStation);
+          Vector3 closestBall2Human = GetClosestBallPositionToHuman();
+          ObtainNextAction(closestBall2Human);
+          //ObtainNextAction(astroStation);
         }
         yield return new WaitForSeconds(0.4f);
         balls = GameObject.FindGameObjectsWithTag("IDdBall");
@@ -295,17 +290,16 @@ public class ActionRenderingRobot : MonoBehaviour
         yield return new WaitForSeconds(0.4f);
       }
     } 
-  
-
+    
     IEnumerator AstroBad()
     { 
+      Id_time = 8f;
       StartCoroutine(ActivateError());
       yield return new WaitForSeconds(1f);
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
-      GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
-
       float distanceToHuman = Mathf.Infinity;
       Debug.Log("Started astro bad");
+
       bool HHoldBall = humanHoldingBall(allBalls);
       if(error){HHoldBall = !humanHoldingBall(allBalls);}
 
@@ -316,21 +310,17 @@ public class ActionRenderingRobot : MonoBehaviour
         if(balls.Length == 0){break;}
         HHoldBall = humanHoldingBall(allBalls);
         if(error){HHoldBall = !humanHoldingBall(allBalls);}
-
+        GameObject randomBall = allBalls[Random.Range(0, balls.Length)];
+        while(Vector3.Distance(transform.position, randomBall.transform.position)<=2){randomBall = allBalls[Random.Range(0, balls.Length)];}
         GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
-        allBalls = new GameObject[balls.Length + identifiedBalls.Length];
-        balls.CopyTo(allBalls, 0);
-        identifiedBalls.CopyTo(allBalls, balls.Length);
-        GameObject randomBall = allBalls[Random.Range(0, allBalls.Length)];
         
         while (closestDistance > Mathf.Sqrt(2)) //Mathf.Sqrt(2))
         { 
-          HHoldBall = humanHoldingBall(allBalls);
-          if(error){HHoldBall = !humanHoldingBall(allBalls);}
-          randomBall = allBalls[Random.Range(0, allBalls.Length)];
           //Move towards human if human is holding a ball - with probability of failing for 5 seconds
           while(HHoldBall)
-          {
+          {          
+            HHoldBall = humanHoldingBall(allBalls);
+            if(error){HHoldBall = !humanHoldingBall(allBalls);}
             if(distanceToHuman <= Mathf.Sqrt(2))
             {
               yield return new WaitForSeconds(0.4f);
@@ -355,13 +345,12 @@ public class ActionRenderingRobot : MonoBehaviour
           yield return new WaitForSeconds(0.4f);
         }
         
-
         //Identify random ball
         balls = GameObject.FindGameObjectsWithTag("Ball");
-        if(error){randomBall = allBalls[Random.Range(0, allBalls.Length)];}
+        int i = Random.Range(0, allBalls.Length);
+        GameObject wrongBall = allBalls[i];
         if(balls.Length == 0){break;}
-
-        StartCoroutine(ballInteraction.StartIdAnimation(randomBall));
+        StartCoroutine(ballInteraction.StartIdAnimation(wrongBall,System.Array.IndexOf(allBalls, randomBall)));
         previousStepAction = -1;
         yield return new WaitForSeconds(8f);
       }
@@ -397,9 +386,40 @@ public class ActionRenderingRobot : MonoBehaviour
       pos_x = transform.position.x;
       pos_y = transform.position.y;
       List<Vector3>  moves = AStarPathfinding.FindPath(floor,transform.position,targetPosition);
-      //Debug.Log("Pos: " + transform.position + " Move: " + moves[0]);
-      setNextOrientation(moves[1]);
-      moveOrRotateRobot(moves[1], astroOrientation);
+      if (moves.Count > 1){      
+        setNextOrientation(moves[1]);
+        moveOrRotateRobot(moves[1], astroOrientation);}
+    }
+
+    Vector3 GetClosestBallPositionToHuman()
+    {
+        // Initialize variables to track the closest ball and its distance
+        GameObject closestBall = null;
+        float closestDistance = Mathf.Infinity;
+
+        // Iterate through each ball in the array
+        foreach (GameObject ball in allBalls)
+        {
+            // Calculate the distance between the ball and the human object
+            float distanceToHuman = Vector3.Distance(ball.transform.position, humanPlayer.transform.position);
+
+            // Check if this ball is closer to the human object than the previously closest ball
+            if (distanceToHuman < closestDistance)
+            {
+                closestBall = ball;
+                closestDistance = distanceToHuman;
+            }
+        }
+        // Return the position of the closest ball
+        if (closestBall != null && closestDistance <=4)
+        {
+            return closestBall.transform.position;
+        }
+        else
+        {
+            // No closest ball found, return Vector3.zero or any other default position
+            return astroStation;
+        }
     }
 
     public Vector3 convertStepIntoMovement(int step)
@@ -417,83 +437,6 @@ public class ActionRenderingRobot : MonoBehaviour
       if(step == new Vector3(pos_x, pos_y-1,0)){astroOrientation = new Vector2(0,-1);} //Turn Down
       if(step == new Vector3(pos_x-1,pos_y,0)){astroOrientation = new Vector2(-1,0);} //Turn Left
       if(step == new Vector3(pos_x+1,pos_y,0)){astroOrientation = new Vector2(1,0);} //Turn Right
-    }
-
-    //public Vector3 FindNextStep(List<Vector3> stepList, GameObject ball)
-    public int FindNextStep(List<Vector3> stepList, Vector3 distantObjectPosition)
-    {
-      // Initialize variables to keep track of the closest ball and its distance
-      //Dictionary<Vector3, float> Steps = new Dictionary<Vector3, float>();
-      Dictionary<int, float> Steps = new Dictionary<int, float>();
-      //List<Vector3> closestSteps = new List<Vector3>();
-      List<int> closestStepsAction = new List<int>();
-      float closestDistance = Mathf.Infinity;
-      int previousStepActionOpposite = oppositeStepActions[previousStepAction];
-      //Debug.Log("Current Position X: " + transform.position.x + " Y: " + transform.position.y);
-
-      // Find the closest tile to distantObject
-      foreach (Vector3 step in stepList)
-      {   
-        if (!walls.Contains(step) && step != new Vector3(7,14,0)) //No moving into walls or door
-        {
-          float distance = Vector3.Distance(step, distantObjectPosition);
-          Steps.Add(stepList.IndexOf(step), distance);
-          //Debug.Log("New possible step action added: " + stepList.IndexOf(step) + " with distance: " + distance);
-          if (distance < closestDistance)
-          {
-              closestDistance = distance;
-          }
-        }
-      }
-      //List<Vector3> keyList = new List<Vector3>(Steps.Keys);
-      /*List<int> keyList = new List<int>(Steps.Keys);
-      if (Random.value <0.1f && !identifying)
-      { 
-        int i = Random.Range(0, keyList.Count);
-        previousStepAction = keyList[i];
-        Debug.Log("Random action selected: " + keyList[i]);
-        return keyList[i];
-      }*/
-          //return keyList[i];}
-
-      foreach (var c_step in Steps)
-      {
-        if(c_step.Value == closestDistance)
-        {
-          //closestSteps.Add(c_step.Key);
-          closestStepsAction.Add(c_step.Key);
-        }
-      }
-
-      //Prevent robot from getting stuck in a cycle moving back and forth to same positions
-      if(Steps.Count > 1 && closestStepsAction.Contains(previousStepActionOpposite))
-      {
-        //Debug.Log("Previous step action opposite: " + previousStepActionOpposite);
-        //Debug.Log("N of closest next steps: " + closestStepsAction.Count);
-        closestStepsAction.Remove(previousStepActionOpposite);
-        if(closestStepsAction.Count == 0)
-        {
-          closestDistance = Mathf.Infinity;
-          closestStepsAction = new List<int>();
-          foreach (var step in Steps)
-          {
-            if(step.Value < closestDistance && step.Key != previousStepActionOpposite)
-            {closestDistance = step.Value;}
-          }
-          foreach (var step in Steps)
-          {
-            if(step.Value <= closestDistance && step.Key != previousStepActionOpposite) 
-            {closestStepsAction.Add(step.Key);}
-          }
-          //Debug.Log("N of closest steps after loop removal: " + closestStepsAction.Count);
-        }
-      }
-      previousStepAction = closestStepsAction[Random.Range(0, closestStepsAction.Count)];
-      //Debug.Log("------------------");
-      return previousStepAction;
-
-      //return closestSteps[Random.Range(0, closestSteps.Count)];
-      //return closestStepsAction[Random.Range(0, closestStepsAction.Count)];
     }
 
     //Check if human is currently holding a ball

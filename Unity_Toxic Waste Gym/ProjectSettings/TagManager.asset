@@ -19,7 +19,7 @@ TagManager:
   - Layer 2
   - Walls Layer
   - Balls Layer
-  - 
+  - Ball Positions
   - 
   - 
   - 
@@ -51,4 +51,10 @@ TagManager:
     locked: 0
   - name: Layer 2
     uniqueID: 223594399
+    locked: 0
+  - name: Ball Positions
+    uniqueID: 3181908779
+    locked: 0
+  - name: Balls Layer
+    uniqueID: 1046779165
     locked: 0

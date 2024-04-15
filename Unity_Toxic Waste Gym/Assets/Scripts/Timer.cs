@@ -33,12 +33,14 @@ public class Timer : MonoBehaviour
                 DisplayTime(timeRemaining);
                 stopWatch.Reset();
             }
-            if(timeRemaining < 0 || effectiveTimeRemaining <= 0){timeIsRunning = false;}
+            //if(timeRemaining < 0 || effectiveTimeRemaining <= 0){timeIsRunning = false;}
+            if(timeRemaining < 0){timeIsRunning = false;}
         }
     }
 
     public void DisplayTime (float timeToDisplay)
     {
+        if (timeToDisplay < 0 ){ timeToDisplay = 0;}
         timeToDisplay +=1;
         float minutes = Mathf.FloorToInt(timeToDisplay/60);
         float seconds = Mathf.FloorToInt(timeToDisplay % 60);

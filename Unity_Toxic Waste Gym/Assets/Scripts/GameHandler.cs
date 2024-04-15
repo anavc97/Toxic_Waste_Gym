@@ -30,6 +30,8 @@ public class GameHandler : MonoBehaviour
     public int timeHoldingYellowBall = 0;
     public GameObject canvas;
     public TMP_Text popUp;
+    public TMP_Text popTxt2;
+    public GUIStyle guiStyle;
     public BallInteraction ballInteraction;
     public ScoreScript scoreScript;
     public Timer timerScript;
@@ -45,7 +47,11 @@ public class GameHandler : MonoBehaviour
     public GameObject logManager;
     public LogManager logger;
     private Dictionary<string, object> additionalData = new Dictionary<string, object>();
-    
+    public Dictionary<string, int> TypeConverter = new Dictionary<string, int>{
+        {"green", 1 },
+        {"yellow", 2},
+        {"red", 3}
+        };
     void Awake()
     {        
         //DontDestroyOnLoad(gameObject);
@@ -72,6 +78,27 @@ public class GameHandler : MonoBehaviour
         gameRunning = true;
         balls = GameObject.FindGameObjectsWithTag("Ball");
         
+        // Iterate through each ball in the list
+        for (int i = 0; i < balls.Length; i++)
+        {
+            // Find the child object with the "Text" tag
+            Transform textTransform = balls[i].transform.Find("Text");
+
+            // Ensure the "Text" child exists
+            if (textTransform != null)
+            {
+                // Get the TextMeshPro component
+                TextMeshPro textMesh = textTransform.GetComponent<TextMeshPro>();
+
+                // Update the text component with the index of the ball in the list
+                textMesh.text = i.ToString();
+            }
+            else
+            {
+                UnityEngine.Debug.Log("Text child not found for ball: " + balls[i].name);
+            }
+        }
+        
         // VARIABLES
         gameOver = false;
         holdingBall = false;
@@ -83,13 +110,14 @@ public class GameHandler : MonoBehaviour
         doorPosition = new Vector3(7,14,0);
         initializeYellowBallMap();
         StartCoroutine(Logging());
+        guiStyle = new GUIStyle ();
+        guiStyle.richText = true;
     }
     private IEnumerator Logging()
     {
         while(!gameOver)
         {   
             additionalData = ConstructData();
-            UnityEngine.Debug.Log("Sending: " + additionalData["layout"]);
             logger.WriteLog(additionalData);
             yield return new WaitForSeconds(0.2f);
         }
@@ -106,11 +134,14 @@ public class GameHandler : MonoBehaviour
         if(popUp_time >= 200) //200 frames later
         {
             popUp.text = "";
+            popTxt2.text = "";
             popUp_time = 0;
         }
 
         if((!timerScript.timeIsRunning || humanPlayer.transform.position == doorPosition) && !gameOver)
-        {
+        {   
+            performHumanAction(0, 0, 1); // if game is done, drop ball - to account for time lost with yellow ball
+
             canvas.GetComponent<Canvas>().enabled = true;
             gameOver = true;
             astroPlayer.GetComponent<ActionRenderingRobot>().gameOverRobot = true;
@@ -131,7 +162,7 @@ public class GameHandler : MonoBehaviour
             }
         }
 
-        if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
+        if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 8)
         {
             SceneManager.LoadScene("level_two");
         }
@@ -142,6 +173,8 @@ public class GameHandler : MonoBehaviour
 
         Dictionary<string, object> data = new Dictionary<string, object>();
         string b_held;
+        List<string> b_disposed = new List<string>();
+
         if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
         Vector2 RobotOR = astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation;
                 // Construct players list
@@ -151,28 +184,43 @@ public class GameHandler : MonoBehaviour
         player1["position"] = new float[] { humanPlayer.transform.position.x, humanPlayer.transform.position.y };
         player1["orientation"] = new float[] { humanOrientation.x, humanOrientation.y };
         player1["held_object"] = b_held;
-        players.Add(player1);
+        
         
         Dictionary<string, object> player2 = new Dictionary<string, object>();
         player2["name"] = "astro";
         player2["position"] = new float[] { astroPlayer.transform.position.x, astroPlayer.transform.position.y };
         player2["orientation"] = new float[] { RobotOR.x, RobotOR.y };
-        players.Add(player2);
-
-        data["players"] = players;
 
         // Construct objects list
         List<Dictionary<string, object>> objects = new List<Dictionary<string, object>>();
         foreach (GameObject ball in balls)
-        {
+        {   
             Dictionary<string, object> ballData = new Dictionary<string, object>();
             ballData["name"] = ball.name;
-            ballData["position"] = new float[] { ball.transform.position.x, ball.transform.position.y };
             ballData["hold_state"] = GetHoldStatus(ball);
-            ballData["identified"] = (ball.tag=="IDdBall");
-            objects.Add(ballData);
-        }
+            if(GetHoldStatus(ball) == 2) //ball was disposed, holding player is astro and position should be registered as -1 -1
+            {
+                ballData["position"] = new float[] {-1, -1};
+                ballData["holding_player"] = "astro";
+            }
+            else
+            {
+                ballData["position"] = new float[] { ball.transform.position.x, ball.transform.position.y };
+                ballData["holding_player"] = null;
+            }
+            if(GetHoldStatus(ball) == 1){ballData["position"] = new float[] { humanPlayer.transform.position.x, humanPlayer.transform.position.y };}
 
+            ballData["identified"] = (ball.tag=="IDdBall");
+            string type = ball.name.Split('_')[0];
+            ballData["type"] = TypeConverter[type.ToLower()];
+            if(ball.name == b_held){ballData["holding_player"] = "human";}
+            objects.Add(ballData);
+            if(ball.tag == "CollectedBall"){b_disposed.Add(ball.name);}
+        }
+        player2["held_object"] = b_disposed;
+        players.Add(player1);
+        players.Add(player2);
+        data["players"] = players;
         data["objects"] = objects;
         data["score"] = scoreScript.scoreValue;
         data["timeleft"] = timerScript.timeRemaining;
@@ -260,14 +308,19 @@ public class GameHandler : MonoBehaviour
             if(status == 2) //Ball disposed of
             {
                 UnityEngine.Debug.Log("Ball disposed.");
+                ball.GetComponent<SpriteRenderer>().enabled = true;
+                ball.transform.Find("Text").GetComponent<TextMeshPro>().enabled = true;
+                ball.tag = "CollectedBall";
             }
             else if(status == 1) //Ball grabbed
             {
                 ball.GetComponent<SpriteRenderer>().enabled = false;
+                ball.transform.Find("Text").GetComponent<TextMeshPro>().enabled = false;
             }
             else if(status == 0) //Ball dropped of
             {   
                 ball.GetComponent<SpriteRenderer>().enabled = true;
+                ball.transform.Find("Text").GetComponent<TextMeshPro>().enabled = true;
             }
         }
         else{UnityEngine.Debug.Log("Ball to update state is null (not recognized as held)");}
@@ -297,15 +350,21 @@ public class GameHandler : MonoBehaviour
             {
                 if(status == 0) //Handed ball to robot
                 {
-                    popUp.text = ("+10 points!\n") + (-yellowBallMap[ball.name]) + (" seconds!");
-                    popUp.color = new Color32(168,147,0,255);  //Yellow;
+                    //popUp.text = ("+10 points!\n") + (-yellowBallMap[ball.name]) + (" seconds!");
+                    //popUp.color = new Color32(168,147,0,255);  //Yellow;
+
+                    popUp.text = "+10 points!";
+                    popUp.color = new Color32(92,255,51,255); // green
+                    popTxt2.text = (-yellowBallMap[ball.name]) + " seconds!";
+                    popTxt2.color = new Color32(184,0,0,255); //Red
 
                     //popUp.color = new Color32(40,191,0,255); //Green
                     update_Score(10);
                     update_Timer(-yellowBallMap[ball.name]);
                     popUp_time = 0;
                 }
-                else{popUp_time = 150;}
+                else{
+                    if (gameOver){popUp_time = 1000;} else{popUp_time = 250;}}
                 timeHoldingYellowBall = 0;
                 popUpStopWatch.Reset();
             }
@@ -323,7 +382,6 @@ public class GameHandler : MonoBehaviour
                     //popUp.color = new Color32(168,147,0,255);  //Yellow
                     update_effectiveTimer(-3);
                     yellowBallMap[ball.name] += 3;
-                    //UnityEngine.Debug.Log("Yellow ball named: " + ball.name + "held for " + yellowBallMap[ball.name] + "secs");
                     popUpStopWatch.Reset();
                 }
                 popUp_time = 0;
