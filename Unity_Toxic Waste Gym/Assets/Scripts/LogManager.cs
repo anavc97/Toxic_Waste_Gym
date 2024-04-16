@@ -18,6 +18,7 @@ public class LogManager : MonoBehaviour
     public GameObject txt;
     public string SOCKETS_IP;
     public int SERVER_PORT;
+    public bool NGROK;
 
     public Dictionary<string, object> OldData = null;
 
@@ -28,6 +29,7 @@ public class LogManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SOCKETS_IP = "127.0.0.1";
         SERVER_PORT = 5000;
+        NGROK = true;
     }
 
     // Method to write a log entry with a given log ID and additional data
@@ -60,6 +62,7 @@ public class LogManager : MonoBehaviour
     public IEnumerator SendPostRequest(string jsonString)
     {
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
+        if(NGROK) {url = "https://78be-2001-690-2100-1041-9dd3-264d-56a0-1238.ngrok-free.app";}
         Debug.Log("URL: " + url);
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
