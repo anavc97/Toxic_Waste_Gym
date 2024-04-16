@@ -358,8 +358,8 @@ MonoBehaviour:
   Button: {fileID: 649330985}
   box_input: {fileID: 1958915791}
   txt: {fileID: 248855684}
-  SOCKETS_IP: 127.0.0.1
-  SERVER_PORT: 8000
+  SOCKETS_IP: 
+  SERVER_PORT: 0
 --- !u!4 &104904220
 Transform:
   m_ObjectHideFlags: 0

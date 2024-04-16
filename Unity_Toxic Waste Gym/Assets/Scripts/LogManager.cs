@@ -16,8 +16,8 @@ public class LogManager : MonoBehaviour
     public GameObject Button;
     public GameObject box_input;
     public GameObject txt;
-    public string SOCKETS_IP = "127.0.0.1";
-    public int SERVER_PORT = 8000;
+    public string SOCKETS_IP;
+    public int SERVER_PORT;
 
     public Dictionary<string, object> OldData = null;
 
@@ -26,6 +26,8 @@ public class LogManager : MonoBehaviour
     private void Start()
     {   
         DontDestroyOnLoad(gameObject);
+        SOCKETS_IP = "127.0.0.1";
+        SERVER_PORT = 5000;
     }
 
     // Method to write a log entry with a given log ID and additional data
@@ -57,8 +59,8 @@ public class LogManager : MonoBehaviour
 
     public IEnumerator SendPostRequest(string jsonString)
     {
-        string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString();
-        
+        string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
+        Debug.Log("URL: " + url);
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
         UnityWebRequest request = new UnityWebRequest(url, "POST");
