@@ -74,7 +74,7 @@ class MyServer(SimpleHTTPRequestHandler):
                 return b"No JSON file handle open. Data not saved."
 
 def run_server():
-    server_address = ('127.0.0.1', 8000)
+    server_address = ('127.0.0.1', 5100)
     httpd = HTTPServer(server_address, MyServer)
     print('Starting server...')
     httpd.serve_forever()
