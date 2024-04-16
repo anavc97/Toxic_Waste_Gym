@@ -3,7 +3,6 @@ import json
 import threading
 import time
 import queue
-import requests
 import os
 # Global variable for the current log ID
 log_id = None
