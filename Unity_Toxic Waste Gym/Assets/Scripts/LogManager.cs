@@ -27,9 +27,9 @@ public class LogManager : MonoBehaviour
     private void Start()
     {   
         DontDestroyOnLoad(gameObject);
-        SOCKETS_IP = "146.193.224.2";
+        SOCKETS_IP = "127.0.0.1";
         SERVER_PORT = 5000;
-        NGROK = false;
+        NGROK = true;
     }
 
     // Method to write a log entry with a given log ID and additional data

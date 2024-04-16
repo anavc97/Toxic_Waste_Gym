@@ -173,8 +173,8 @@ public class ActionRenderingRobot : MonoBehaviour
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
-      StartCoroutine(AstroAutomatic());
-      //StartCoroutine(AstroBad());
+      //StartCoroutine(AstroAutomatic());
+      StartCoroutine(AstroBad());
     }
 
     private IEnumerator ActivateError()
