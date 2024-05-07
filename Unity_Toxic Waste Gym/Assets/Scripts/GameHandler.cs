@@ -121,14 +121,20 @@ public class GameHandler : MonoBehaviour
             GameObject gameOverText = panel.transform.Find("GameOver").gameObject;
             if(SceneManager.GetActiveScene().name == "level_one")
             {
-                if(!timerScript.timeIsRunning){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 36 points acquired.\n Loading next level...";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 36 points acquired.\n Loading next level...";}
+                string gameOverReason = "Level exited!\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/36)\n</color>";
+                if(scoreScript.scoreValue < 36){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/36)\n</color>";}
+                gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
             }
             else
             {
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 33 points acquired.\n Game concluded.";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 33 points acquired.\n  Game concluded.";}
+                string gameOverReason = "Level exited!\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";
+                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";}
+                gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Game concluded.";
             }
         }
 
@@ -240,15 +246,15 @@ public class GameHandler : MonoBehaviour
             string ballType = ball.name.Split('_')[0];
             if(ballType == "green" && status == 0)
             {
-                popUp.text = "+3 points!";
-                popUp.color = new Color32(92,255,51,255); //Light green 
+                popUp.text = "<color=#5CFF33>+3 points!</color>";
+                //popUp.color = new Color32(92,255,51,255); //Light green 
                 update_Score(3);
                 popUp_time = 0;
             }
             else if(ballType == "red" && status == 0)
             {
-                popUp.text = "-8 points!";
-                popUp.color = new Color32(184,0,0,255); //Red
+                popUp.text = "<color=#B80000>-8 points!</color>";
+                //popUp.color = new Color32(184,0,0,255); //Red
                 update_Score(-8);
                 popUp_time = 0;
             }
@@ -256,8 +262,8 @@ public class GameHandler : MonoBehaviour
             {
                 if(status == 0) //Handed ball to robot
                 {
-                    popUp.text = ("+10 points!\n") + (-yellowBallMap[ball.name]) + (" seconds!");
-                    popUp.color = new Color32(168,147,0,255);  //Yellow;
+                    popUp.text = "<color=#5CFF33>+10 points!\n</color>" + "<color=#B80000>" + (-yellowBallMap[ball.name]) + (" seconds!") +"</color>";
+                    //popUp.color = new Color32(168,147,0,255);  //Yellow;
 
                     //popUp.color = new Color32(40,191,0,255); //Green
                     update_Score(10);
