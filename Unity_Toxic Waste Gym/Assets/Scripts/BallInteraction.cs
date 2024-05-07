@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Collections.Generic;
-
 using UnityEngine;
 using TMPro;
 
@@ -14,6 +13,7 @@ public class BallInteraction : MonoBehaviour
 
     public GameObject[] allBalls;
     public List<string> BallsIdentified = new List<string>();
+    private List<Vector3> ballPositions = new List<Vector3>();
 
     private int currentChatNumber = 1;
 
@@ -21,11 +21,29 @@ public class BallInteraction : MonoBehaviour
     {
         historyChat = GameObject.Find("HistoryChat");
         allBalls = GameObject.FindGameObjectsWithTag("Ball");
+        foreach(GameObject ball in allBalls)
+        {
+            ballPositions.Add(ball.transform.position);
+        }
+        randomizeBallPositions();
+        
     }
 
     void Update()
     {
        
+    }
+
+
+
+    public void randomizeBallPositions()
+    {
+        foreach(GameObject ball in allBalls)
+        {
+            int randomIndex = Random.Range(0,ballPositions.Count);
+            ball.transform.position = ballPositions[randomIndex];
+            ballPositions.RemoveAt(randomIndex);
+        }
     }
 
     public IEnumerator StartIdAnimation(GameObject ball)
