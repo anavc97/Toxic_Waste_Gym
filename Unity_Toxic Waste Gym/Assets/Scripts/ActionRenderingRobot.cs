@@ -251,7 +251,7 @@ public class ActionRenderingRobot : MonoBehaviour
         jsonString = JsonConvert.SerializeObject(action);
         Debug.Log("robot command sent: " + jsonString);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
-        yield return new WaitForSeconds(8f);
+        yield return new WaitForSeconds(5f);
       }
 
       //When all balls identified robot still follows human when he's holding a ball

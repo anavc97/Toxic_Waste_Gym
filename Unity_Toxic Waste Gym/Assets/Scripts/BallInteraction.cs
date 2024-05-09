@@ -10,6 +10,7 @@ public class BallInteraction : MonoBehaviour
     private GameObject bubble;
     private GameObject load;
     private GameObject text;
+    public AudioSource audioSource;
 
     public GameObject[] allBalls;
     public List<string> BallsIdentified = new List<string>();
@@ -21,6 +22,8 @@ public class BallInteraction : MonoBehaviour
     {
         historyChat = GameObject.Find("HistoryChat");
         allBalls = GameObject.FindGameObjectsWithTag("Ball");
+        audioSource = historyChat.GetComponent<AudioSource>();
+        //audioSource.enabled = false;
         foreach(GameObject ball in allBalls)
         {
             ballPositions.Add(ball.transform.position);
@@ -69,13 +72,14 @@ public class BallInteraction : MonoBehaviour
         load.GetComponent<TextMeshPro>().enabled = true;
         ball.tag = "IDdBall";
         BallsIdentified.Add(ball.name);
-        yield return new WaitForSeconds(8f);
+        yield return new WaitForSeconds(5f);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         if(type == "green"){text.GetComponent<TextMeshPro>().color = new Color32(18,154,14,255);}
         else if(type == "red"){text.GetComponent<TextMeshPro>().color = new Color32(184,28,3,255);}
         else {text.GetComponent<TextMeshPro>().color = new Color32(240,154,4,255);}
         text.GetComponent<TextMeshPro>().text = $"This is a {type} ball!";
+        audioSource.Play();
         currentChatNumber += 1;
     }
 
