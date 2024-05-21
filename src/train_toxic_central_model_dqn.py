@@ -18,10 +18,10 @@ from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_model_madqn import CentralizedMADQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
 from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
-from env.astro_greedy_human_model import GreedyHumanAgent
+from env.astro_greedy_agent import GreedyAgent
 from pathlib import Path
 from itertools import product
-from typing import List, Union, Dict, Tuple
+from typing import List, Union, Dict, Tuple, Callable
 from datetime import datetime
 from itertools import permutations
 
@@ -29,6 +29,7 @@ from itertools import permutations
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
+ANNEAL_TEMP = 0.9
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -60,12 +61,48 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: thre
 	except KeyboardInterrupt as ki:
 		return
 
+def model_execution(dqn_model: DQNetwork, epoch: int, eps_type: str, exploration_decay: float, final_eps: float, get_model_obs: Callable,
+					greedy_actions: bool, initial_eps: float, it: int, max_timesteps: int, n_agents: int, n_joint_actions: int, num_iterations: int,
+					obs: np.ndarray, rng_gen: np.random.Generator, waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List) -> List[int]:
+	if eps_type == 'epoch':
+		eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
+	else:
+		eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
+	
+	if rng_gen.random() < eps:
+		actions = waste_env.action_space.sample()
+	else:
+		v2_obs = get_model_obs(obs)
+		q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)))[0]
+		
+		if greedy_actions:
+			action = q_values.argmax(axis=-1)
+		else:
+			pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
+			pol = pol / pol.sum()
+			action = rng_gen.choice(range(n_joint_actions), p=pol)
+		joint_action = int(jax.device_get(action))
+		actions = convert_joint_act(joint_action, n_agents, waste_env.action_space[0].n)
+		episode_q_vals += [float(q_values[int(joint_action)])]
+	
+	return actions
 
-def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, human_model: GreedyHumanAgent, waste_order: List,
+
+def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_agents: int, agent_models: List[GreedyAgent]) -> List[int]:
+
+	actions = []
+	obs = waste_env.create_observation()
+	for agent_idx in range(n_agents):
+		model = agent_models[agent_idx]
+		actions.append(model.act(obs))
+	
+	return actions
+
+def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List,
 					  num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 					  eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 					  train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-					  debug_mode: bool = False, interactive: bool = False) -> List:
+					  debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9) -> List:
 	
 	history = []
 	random.seed(rng_seed)
@@ -127,7 +164,6 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 			if debug_mode:
 				logger.info('Environment current state')
 				logger.info(waste_env.get_env_log())
-				logger.info(str(human_model))
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
@@ -173,39 +209,51 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				human_model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]))
+				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in agent_models]
 	
 	if interactive:
 		stop_thread.set()
 	return history
 
 
-def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, human_model: GreedyHumanAgent, waste_order: List,
+def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List,
 						 num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 						 eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 						 train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-						 debug_mode: bool = False, interactive: bool = False) -> List:
+						 debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9) -> List:
 	
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> Tuple[np.ndarray, np.ndarray]:
 		conv_obs = []
 		arr_obs = []
-		n_agents = len(raw_obs)
-		for idx in range(n_agents):
-			if isinstance(raw_obs[idx], dict):
-				conv_obs += [raw_obs[idx]['conv']]
-				arr_obs += [np.array(raw_obs[idx]['array'])]
+		
+		if waste_env.use_joint_obs:
+			if isinstance(raw_obs[0], dict):
+				conv_obs = raw_obs[0]['conv']
+				arr_obs = np.array(raw_obs[0]['array'])
 			else:
-				conv_obs += [raw_obs[idx][0].reshape(1, *raw_obs[idx][0].shape)]
-				arr_obs += [raw_obs[idx][1:]]
-		conv_obs = np.array(conv_obs)
-		return conv_obs.reshape(1, *conv_obs.shape), np.array(arr_obs[0])
+				conv_obs = raw_obs[0][0].reshape(1, *raw_obs[0].shape)
+				arr_obs = raw_obs[0][1:]
+			return conv_obs.reshape(1, *conv_obs.shape), arr_obs
+		
+		else:
+			n_agents = len(raw_obs)
+			for idx in range(n_agents):
+				if isinstance(raw_obs[idx], dict):
+					conv_obs += [raw_obs[idx]['conv']]
+					arr_obs += [np.array(raw_obs[idx]['array'])]
+				else:
+					conv_obs += [raw_obs[idx][0].reshape(1, *raw_obs[idx][0].shape)]
+					arr_obs += [raw_obs[idx][1:]]
+			conv_obs = np.array(conv_obs)
+			return conv_obs.reshape(1, *conv_obs.shape), np.array(arr_obs[0])
 
 	history = []
 	if interactive:
 		stop_thread = threading.Event()
 		command_thread = threading.Thread(target=input_callback, args=(waste_env, stop_thread))
 		command_thread.start()
-	rng_gen = np.random.default_rng(rng_seed)
+	decision_rng_gen = np.random.default_rng(rng_seed)
+	anneal_rng_gen = np.random.default_rng(rng_seed + 1)
 	n_agents = waste_env.n_players
 	n_joint_actions = waste_env.action_space[0].n * waste_env.n_players
 	
@@ -224,6 +272,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	episode_start = epoch
 	episode_rewards = 0
 	episode_q_vals = []
+	temp = 1.0
 	
 	for it in range(num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
@@ -232,25 +281,12 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		done = False
 		while not done:
 			# interact with environment
-			if eps_type == 'epoch':
-				eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
+			if anneal_rng_gen.random() < temp:
+				actions = heuristic_execution(waste_env, n_agents, agent_models)
 			else:
-				eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
-			if rng_gen.random() < eps:
-				actions = waste_env.action_space.sample()
-			else:
-				v2_obs = get_model_obs(obs)
-				q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)))[0]
-					
-				if greedy_actions:
-					action = q_values.argmax(axis=-1)
-				else:
-					pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
-					pol = pol / pol.sum()
-					action = rng_gen.choice(range(n_joint_actions), p=pol)
-				joint_action = int(jax.device_get(action))
-				actions = convert_joint_act(joint_action, n_agents, waste_env.action_space[0].n)
-				episode_q_vals += [float(q_values[int(joint_action)])]
+				actions = model_execution(dqn_model, epoch, eps_type, exploration_decay, final_eps, get_model_obs, greedy_actions,
+										  initial_eps, it, max_timesteps, n_agents, n_joint_actions, num_iterations, obs, decision_rng_gen,
+										  waste_env, episode_q_vals)
 			
 			if debug_mode:
 				logger.info('Environment current state')
@@ -278,7 +314,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			if isinstance(obs[0], dict):
 				next_v2_obs = get_model_obs(next_obs)
 				astro_model.replay_buffer.add({'conv': v2_obs[0], 'array': v2_obs[1]}, {'conv': next_v2_obs[0], 'array': next_v2_obs[1]},
-											  np.array(actions), rewards, finished[0], [infos])
+											  np.array(actions), np.array(step_reward), finished[0], [infos])
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
 			
@@ -298,7 +334,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					dqn_model.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/mean_episode_return", episode_rewards / episode_len, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/iteration", it, it + start_record_it)
 				obs, *_ = waste_env.reset()
 				if waste_env.use_render:
 					waste_env.render()
@@ -309,19 +345,20 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				human_model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]))
+				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in agent_models]
+			
+		temp *= anneal_cool
 	
 	if interactive:
 		stop_thread.set()
 	return history
-
 
 def main():
 	parser = argparse.ArgumentParser(description='Train DQN model for Astro waste disposal game.')
 
 	# Multi-agent DQN params
 	parser.add_argument('--nagents', dest='n_agents', type=int, required=True, help='Number of agents in the environment')
-	parser.add_argument('--nlayers', dest='n_layers', type=int, required=True, help='Number of layers for the neural net in the DQN')
+	parser.add_argument('--architecture', dest='architecture', type=str, required=True, help='DQN architecture to use from the architectures yaml')
 	parser.add_argument('--buffer', dest='buffer_size', type=int, required=True, help='Size of the replay buffer in the DQN')
 	parser.add_argument('--gamma', dest='gamma', type=float, required=False, default=0.99, help='Discount factor for agent\'s future rewards')
 	parser.add_argument('--gpu', dest='use_gpu', action='store_true', help='Flag that signals the use of gpu for the training')
@@ -334,7 +371,6 @@ def main():
 	parser.add_argument('--tensorboardDetails', dest='tensorboard_details', nargs='+', required=False, default=None,
 						help='List with the details for the tensorboard summary writer: <log_dirname: str>, <queue_size :int>, <flush_time: int>, <suffix: str>'
 							 ' Use only in combination with --tensorboard option')
-	parser.add_argument('--layer-sizes', dest='layer_sizes', type=int, required=True, nargs='+', help='Size of each layer of the DQN\'s neural net')
 	
 	# Train parameters
 	# parser.add_argument('--cycles', dest='n_cycles', type=int, required=True,
@@ -361,6 +397,7 @@ def main():
 							 '<model_dirname: str> <model_filename: str> <last_cycle: int> Use only in combination with --restart option')
 	parser.add_argument('--debug', dest='debug', action='store_true', help='Flag signalling debug mode for model training')
 	parser.add_argument('--fraction', dest='fraction', type=str, default='0.5', help='Fraction of JAX memory pre-compilation')
+	parser.add_argument('--anneal-temp', dest='anneal_temp', type=float, default=ANNEAL_TEMP, help='Temperature for the heuristic annealing')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -379,7 +416,7 @@ def main():
 	args = parser.parse_args()
 	# DQN args
 	n_agents = args.n_agents
-	n_layers = args.n_layers
+	architecture = args.architecture
 	buffer_size = args.buffer_size
 	gamma = args.gamma
 	use_gpu = args.use_gpu
@@ -390,7 +427,6 @@ def main():
 	use_tensorboard = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
 	tensorboard_details = args.tensorboard_details
-	layer_sizes = args.layer_sizes
 	
 	# Train args
 	n_iterations = args.n_iterations
@@ -402,11 +438,11 @@ def main():
 	initial_eps = args.initial_eps
 	final_eps = args.final_eps
 	eps_decay = args.eps_decay
-	cycle_eps_decay = args.cycle_eps_decay
 	eps_type = args.eps_type
 	warmup = args.warmup
 	tensorboard_freq = args.tensorboard_freq
 	debug = args.debug
+	temp_anneal = args.anneal_temp
 	
 	# Astro environment args
 	env_version = args.env_version
@@ -420,7 +456,6 @@ def main():
 	render_mode = args.render_mode
 	use_render = args.use_render
 	
-
 	os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = args.fraction
 	if not use_gpu:
 		jax.default_device(jax.devices("cpu")[0])
@@ -432,6 +467,20 @@ def main():
 	configs_dir = Path(__file__).parent.absolute() / 'env' / 'data' / 'configs'
 	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(RNG_SEED)
+	
+	with open(configs_dir / 'q_network_architectures.yaml') as architecture_file:
+		arch_data = yaml.safe_load(architecture_file)
+		if architecture in arch_data.keys():
+			n_layers = arch_data[architecture]['n_layers']
+			layer_sizes = arch_data[architecture]['layer_sizes']
+			n_conv_layers = arch_data[architecture]['n_cnn_layers']
+			cnn_size = arch_data[architecture]['cnn_size']
+			cnn_kernel = [tuple(elem) for elem in arch_data[architecture]['cnn_kernel']]
+			cnn_strides = arch_data[architecture]['cnn_strides']
+			pool_window = [tuple(elem) for elem in arch_data[architecture]['pool_window']]
+			pool_strides = arch_data[architecture]['pool_strides']
+			pool_padding = arch_data[architecture]['pool_padding']
+			cnn_properties = [n_conv_layers, cnn_size, cnn_kernel, cnn_strides, pool_window, pool_strides, pool_padding]
 	
 	wandb.init(project='astro-toxic-waste', entity='miguel-faria',
 			   config={
@@ -467,21 +516,24 @@ def main():
 		logger.info('Level %s setup' % game_level)
 		if env_version == 1:
 			env = ToxicWasteEnvV1(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
-								  use_encoding, render_mode, slip=has_slip, use_render=use_render)
+								  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
 		else:
 			env = ToxicWasteEnvV2(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode,
-								  slip=has_slip, is_train=True, use_render=use_render)
+								  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True)
 		
 		obs, *_ = env.reset(seed=RNG_SEED)
-		human_agents = [env.players[idx] for idx in range(n_agents) if env.players[idx].agent_type == AgentType.HUMAN]
 		
 		logger.info('Getting human behaviour model')
-		if env_version == 1:
-			human_agent = GreedyHumanAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
-										   dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version)
-		else:
-			human_agent = GreedyHumanAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
-										   dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version, env.door_pos)
+		agent_models = []
+		for player in env.players:
+			if env_version == 1:
+				agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
+												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+												agent_type=player.agent_type))
+			else:
+				agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
+												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+												env.door_pos, agent_type=player.agent_type))
 		
 		logger.info('Train setup')
 		waste_idx = []
@@ -489,23 +541,24 @@ def main():
 			waste_idx.append(env.objects.index(obj))
 		waste_seqs = list(permutations(waste_idx))
 		waste_order = list(rng_gen.choice(np.array(waste_seqs)))
-		human_agent.waste_order = waste_order
+		for model in agent_models:
+			model.waste_order = waste_order
 		
 		logger.info('Creating DQN and starting train')
 		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
 		tensorboard_details += ['astro_' + game_level]
 		
-		astro_dqn = CentralizedMADQN(n_agents, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
-									 env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2),
-									 False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details)
+		astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes,
+									 buffer_size, gamma, env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2),
+									 False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties)
 		if env_version == 1:
-			history = train_astro_model(env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
-										learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-										train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
+			train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
+							  target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
+							  tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 		else:
-			history = train_astro_model_v2(env, astro_dqn, human_agent, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
-										   learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-										   train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
+			train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
+								 target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
+								 tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 
 		logger.info('Saving model and history list')
 		Path.mkdir(model_path, parents=True, exist_ok=True)

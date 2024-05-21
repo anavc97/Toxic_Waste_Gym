@@ -2,9 +2,14 @@
 
 import numpy as np
 
-from .toxic_waste_env_v2 import Actions, CellEntity, ActionDirection, ToxicWasteEnvV2, PlayerState, WasteState, AgentType
-from typing import List, Tuple, Dict
+from .toxic_waste_env_v2 import Actions, CellEntity, ActionDirection, ToxicWasteEnvV2, AgentType
+from .toxic_waste_env_v1 import ToxicWasteEnvV1
+from typing import List, Tuple, Dict, Union
 from enum import IntEnum
+from math import inf, sqrt
+
+
+SAFE_DISTANCE = 2
 
 
 class WasteStatus(IntEnum):
@@ -53,7 +58,7 @@ def get_adj_pos(pos: Tuple[int, int]) -> List[Tuple[int, int]]:
 	return [(pos[0] - 1, pos[1]), (pos[0] + 1, pos[1]), (pos[0], pos[1] - 1), (pos[0], pos[1] + 1)]
 
 
-class GreedyHumanAgent(object):
+class GreedyAgent(object):
 	
 	_pos: Tuple[int, int]
 	_orientation: Tuple[int, int]
@@ -65,9 +70,11 @@ class GreedyHumanAgent(object):
 	_rng_gen: np.random.Generator
 	_map_adjacencies: Dict[Tuple[int, int], List[Tuple[int, int]]]
 	_version: int
+	_agent_type: int
+	_plan: str
 	
 	def __init__(self, pos_init: Tuple[int, int], orient_init: Tuple[int, int], agent_id: str, objs_pos: Dict[int, Tuple[int, int]],
-				 rng_seed: int, field: np.ndarray, version: int, door_pos: Tuple = (-1, -1)):
+				 rng_seed: int, field: np.ndarray, version: int, door_pos: Tuple = (-1, -1), agent_type: int = AgentType.HUMAN):
 		
 		self._pos = pos_init
 		self._orientation = orient_init
@@ -78,6 +85,8 @@ class GreedyHumanAgent(object):
 		self._rng_gen = np.random.default_rng(rng_seed)
 		self._version = version
 		self._door_pos = door_pos
+		self._agent_type = agent_type
+		self._plan = 'none' if agent_type == AgentType.ROBOT else 'collect'
 		
 		# Create adjacency map
 		rows, cols = field.shape
@@ -122,6 +131,10 @@ class GreedyHumanAgent(object):
 	def waste_pos(self) -> Dict[int, Tuple[int, int]]:
 		return self._waste_pos
 
+	@property
+	def plan(self) -> str:
+		return self._plan
+
 	@pos.setter
 	def pos(self, new_pos: Tuple[int, int]) -> None:
 		self._pos = new_pos
@@ -142,24 +155,39 @@ class GreedyHumanAgent(object):
 		return 'Greedy agent {} at {} facing {} with objective {} and with {}'.format(self._agent_id, self._pos, self._orientation,
 																					  self._waste_pos[self._nxt_waste_idx], HumanStatus(self._status).name)
 		
+	@staticmethod
+	def are_facing(h_or: Tuple[int, int], r_or: Tuple[int, int]) -> bool:
+		return (h_or[0] + r_or[0]) == 0 and (h_or[1] + r_or[1]) == 0
+	
+	@staticmethod
+	def distance(ptr1: Tuple[int, int], ptr2: Tuple[int, int]) -> float:
+		return sqrt((ptr1[0] - ptr2[0]) ** 2 + (ptr1[1] - ptr2[1]) ** 2)
+	
+	def find_closest_waste(self, wastes_pos: List[Tuple[int, int]]) -> int:
+		
+		dist = inf
+		closest_waste_idxs = []
+		for idx in range(len(wastes_pos)):
+			pos = wastes_pos[idx]
+			dist_tmp = sqrt((self._pos[0] - pos[0])**2 + (self._pos[1] - pos[1])**2)
+			if dist_tmp < dist:
+				closest_waste_idxs = [idx]
+				dist = dist_tmp
+			elif dist_tmp == dist:
+				closest_waste_idxs.append(idx)
+		
+		return self._rng_gen.choice(closest_waste_idxs) if len(closest_waste_idxs) > 1 else closest_waste_idxs[0]
+	
 	def reset(self, waste_order: List[int], objs_pos: Dict[int, Tuple[int, int]]):
 		self._nxt_waste_idx = -1
 		self._status = HumanStatus.HANDS_FREE
 		self._waste_order = waste_order.copy()
 		self._waste_pos = objs_pos.copy()
-		
-	def act(self, obs: ToxicWasteEnvV2.Observation) -> int:
-		
-		def are_facing(h_or: Tuple[int, int], r_or: Tuple[int, int]) -> bool:
-			return (h_or[0] + r_or[0]) == 0 and (h_or[1] + r_or[1]) == 0
-		
-		self_agent = [agent for agent in obs.players if agent.name == self._agent_id][0]
-		robot = [agent for agent in obs.players if agent.agent_type == AgentType.ROBOT][0]
-		self._pos = self_agent.position
-		self._orientation = self_agent.orientation
-		self._status = HumanStatus.WASTE_PICKED if self_agent.is_holding_object() else HumanStatus.HANDS_FREE
-		robot_pos = robot.position
-		robot_or = robot.orientation
+	
+	def act_human(self, robot_agents: List, human_agents: List, objs: List) -> int:
+	
+		robot_pos = robot_agents[0].position
+		robot_or = robot_agents[0].orientation
 		
 		if self._nxt_waste_idx < 0:
 			self._nxt_waste_idx = self._waste_order.pop(0)
@@ -167,7 +195,7 @@ class GreedyHumanAgent(object):
 		if self._status == HumanStatus.HANDS_FREE:
 			nxt_waste = self._waste_pos[self._nxt_waste_idx]
 			found_waste = False
-			for obj in obs.objects:
+			for obj in objs:
 				waste_pos = obj.position
 				if waste_pos == nxt_waste:
 					found_waste = True
@@ -191,17 +219,21 @@ class GreedyHumanAgent(object):
 						nxt_waste = self._door_pos
 			
 			human_adj_pos = get_adj_pos(self._pos)
-			if nxt_waste in human_adj_pos and nxt_waste[0] == (self._pos[0] + self._orientation[0]) and nxt_waste[1] == (self._pos[1] + self._orientation[1]):
-				return int(Actions.INTERACT)
+			if nxt_waste == self._door_pos:
+				return int(self.move_to_position(nxt_waste))
 			
 			else:
-				return int(self.move_to_position(nxt_waste))
+				if nxt_waste in human_adj_pos and nxt_waste[0] == (self._pos[0] + self._orientation[0]) and nxt_waste[1] == (self._pos[1] + self._orientation[1]):
+					return int(Actions.INTERACT)
+				
+				else:
+					return int(self.move_to_position(nxt_waste))
 		
 		else:
 			self._waste_pos[self._nxt_waste_idx] = self._pos
 			
 			if robot_pos == (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]):
-				if are_facing(self._orientation, robot_or):
+				if self.are_facing(self._orientation, robot_or):
 					return int(Actions.INTERACT)
 				else:
 					return int(Actions.STAY)
@@ -209,7 +241,91 @@ class GreedyHumanAgent(object):
 			else:
 				return int(self.move_to_position(robot_pos))
 	
-	def expand_pos(self, start_node: PosNode, objective_pos: Tuple[int]) -> Tuple[int]:
+	def act_robot(self, robot_agents: List, human_agents: List, objs: List) -> int:
+		
+		def shadow_human() -> int:
+			if abs(self.distance(self._pos, human_pos)) < SAFE_DISTANCE:
+				if self._orientation == ActionDirection.UP:
+					return int(Actions.DOWN)
+				elif self._orientation == ActionDirection.DOWN:
+					return int(Actions.UP)
+				elif self._orientation == ActionDirection.LEFT:
+					return int(Actions.RIGHT)
+				else:
+					return int(Actions.LEFT)
+			elif abs(self.distance(self._pos, human_pos)) == SAFE_DISTANCE:
+				return int(Actions.STAY)
+			else:
+				return int(self.move_to_position(human_pos))
+		
+		human_pos = human_agents[0].position
+		human_or = human_agents[0].orientation
+		human_holding = (human_agents[0].held_objects is not None and len(human_agents[0].held_objects) > 0)
+		for idx in range(len(objs)):
+			self.waste_pos[idx] = objs[idx].position
+		
+		if human_holding:
+			self._plan = 'disposal'
+			if abs(self.distance(self._pos, human_pos)) == 1:
+				if self.are_facing(human_or, self._orientation):
+					return int(Actions.INTERACT)
+				else:
+					return int(self.move_to_position(human_pos))
+			
+			elif abs(self.distance(self._pos, human_pos)) <= SAFE_DISTANCE + 1:
+				return int(Actions.STAY)
+			
+			else:
+				return int(self.move_to_position(human_pos))
+		
+		else:
+			if self._plan == 'shadow':
+				return shadow_human()
+			
+			elif self._plan == 'identify':
+				waste_pos = self.waste_pos[self._nxt_waste_idx]
+				if abs(self.distance(self._pos, waste_pos)) == 1 and (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]) == waste_pos:
+					return int(Actions.IDENTIFY)
+				else:
+					return int(self.move_to_position(waste_pos))
+				
+			else:
+				if self._version == 1:
+					self._plan = 'shadow'
+					return shadow_human()
+				
+				else:
+					waste_unidentified = [(idx, objs[idx].position) for idx in range(len(objs)) if not objs[idx].identified]
+					if len(waste_unidentified) < 1 or self._rng_gen.random() < 0.5:
+						self._plan = 'shadow'
+						return shadow_human()
+					else:
+						waste_idx = [waste[0] for waste in waste_unidentified]
+						waste_pos = [waste[1] for waste in waste_unidentified]
+						self._plan = 'identify'
+						self._nxt_waste_idx = waste_idx[self.find_closest_waste(waste_pos)]
+						waste_pos = self.waste_pos[self._nxt_waste_idx]
+						if abs(self.distance(self._pos, waste_pos)) == 1 and map(sum, (self._pos, self._orientation)) == waste_pos:
+							return int(Actions.IDENTIFY)
+						else:
+							return int(self.move_to_position(waste_pos))
+		
+	def act(self, obs: Union[ToxicWasteEnvV1.Observation, ToxicWasteEnvV2.Observation]) -> int:
+		
+		self_agent = [agent for agent in obs.players if agent.name == self._agent_id][0]
+		robots = [agent for agent in obs.players if agent.agent_type == AgentType.ROBOT]
+		humans = [agent for agent in obs.players if agent.agent_type == AgentType.HUMAN]
+		objs = obs.objects
+		self._pos = self_agent.position
+		self._orientation = self_agent.orientation
+		self._status = HumanStatus.WASTE_PICKED if self_agent.is_holding_object() else HumanStatus.HANDS_FREE
+		
+		if self._agent_type == AgentType.ROBOT:
+			return self.act_robot(robots, humans, objs)
+		else:
+			return self.act_human(robots, humans, objs)
+	
+	def expand_pos(self, start_node: PosNode, objective_pos: Tuple[int, int]) -> Tuple[int, int]:
 		
 		node_pos = start_node.pos
 		cost = start_node.cost
@@ -244,7 +360,7 @@ class GreedyHumanAgent(object):
 			
 			return nxt_node.pos
 	
-	def move_to_position(self, objective_pos: Tuple[int]) -> int:
+	def move_to_position(self, objective_pos: Tuple[int, int]) -> int:
 		d_row = objective_pos[0] - self._pos[0]
 		d_col = objective_pos[1] - self._pos[1]
 
@@ -269,7 +385,7 @@ class GreedyHumanAgent(object):
 				action = Actions.RIGHT
 
 		nxt_pos = (self._pos[0] + ActionDirection[Actions(action).name].value[0], self._pos[1] + ActionDirection[Actions(action).name].value[1])
-		if nxt_pos in self._map_adjacencies[self._pos] or nxt_pos == objective_pos:
+		if nxt_pos in self._map_adjacencies[self._pos] and nxt_pos == objective_pos:
 			return action
 		else:
 			best_pos = self.expand_pos(PosNode(self._pos, 1, None), objective_pos)

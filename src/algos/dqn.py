@@ -35,7 +35,7 @@ class DQNetwork(object):
     
     def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], gamma: float, dueling_dqn: bool = False,
                  use_ddqn: bool = False, cnn_layer: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None,
-                 cnn_properties: List[int] = None, use_v2: bool = True, n_obs: int = 1):
+                 cnn_properties: List = None, use_v2: bool = True, n_obs: int = 1):
     
         """
         Initializes a DQN
@@ -57,22 +57,33 @@ class DQNetwork(object):
                  
         if cnn_layer:
             if cnn_properties is None:
-                cnn_size = 128
-                cnn_kernel = (3, 3)
-                pool_window = (2, 2)
+                num_conv_layers = 2
+                cnn_size = [16, 32]
+                cnn_kernel = [(3, 3), (3, 3)]
+                cnn_strides = [1, 1]
+                pool_window = [(2, 2), (2, 2)]
+                pool_strides = [2, 2]
+                pool_padding = [[(1, 1), (1, 1)], [(0, 0), (0, 0)]]
             else:
-                cnn_size = cnn_properties[0]
-                cnn_kernel = tuple(cnn_properties[1:3])
-                pool_window = tuple(cnn_properties[3:5])
+                num_conv_layers = cnn_properties[0]
+                cnn_size = cnn_properties[1]
+                cnn_kernel = cnn_properties[2]
+                cnn_strides = cnn_properties[3]
+                pool_window = cnn_properties[4]
+                pool_strides = cnn_properties[5]
+                pool_padding = cnn_properties[6]
             
             if use_v2:
                 if n_obs > 1:
-                    self._q_network = MultiObsDuelingQNetworkV2(action_dim=action_dim, num_obs = n_obs, num_layers=num_layers, activation_function=act_function,
-                                                                layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel,
-                                                                pool_window=pool_window)
+                    self._q_network = MultiObsDuelingQNetworkV2(action_dim=action_dim, num_obs=n_obs, num_layers=num_layers, activation_function=act_function,
+                                                                layer_sizes=layer_sizes.copy(), num_conv_layers=num_conv_layers, cnn_size=cnn_size,
+                                                                cnn_kernel=cnn_kernel, pool_window=pool_window, cnn_strides=cnn_strides,
+                                                                pool_strides=pool_strides, pool_padding=pool_padding)
                 else:
-                    self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
-                                                        layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
+                    self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, layer_sizes=layer_sizes.copy(),
+                                                        num_conv_layers=num_conv_layers, activation_function=act_function, cnn_size=cnn_size,
+                                                        cnn_kernel=cnn_kernel, cnn_strides=cnn_strides, pool_window=pool_window,
+                                                        pool_strides=pool_strides, pool_padding=pool_padding)
             elif dueling_dqn:
                 self._q_network = CNNDuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
                                                      layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)

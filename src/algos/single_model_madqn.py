@@ -440,7 +440,7 @@ class CentralizedMADQN(object):
 						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
 		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
 		self._madqn = DQNetwork(action_dim ** num_agents, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
-								board_data, cnn_properties, use_v2=use_v2, n_obs=num_agents)
+								board_data, cnn_properties, use_v2=use_v2)
 		if has_dict_space:
 			obs_space = observation_space[0] if isinstance(observation_space, gymnasium.spaces.Tuple) else observation_space
 			self._replay_buffer = buffer_type(buffer_size, obs_space, action_space, "cuda" if use_gpu else "cpu",
@@ -578,10 +578,9 @@ class CentralizedMADQN(object):
 						next_obs_conv = data.next_observations[0]
 						next_obs_array = data.next_observations[1]
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
-					print(actions)
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones
-					self.madqn.update_online_model((obs_conv, obs_array[:, 0]), actions, (next_obs_conv, next_obs_array[:, 0]),
+					self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
 				
 				else:

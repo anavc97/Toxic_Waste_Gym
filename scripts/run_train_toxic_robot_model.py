@@ -18,10 +18,9 @@ USE_DUELING = True
 USE_DDQN = True
 USE_CNN = True
 USE_TENSORBOARD = True
-USE_VDN = True
 
 # Train params
-N_ITERATIONS = 20000
+N_ITERATIONS = 2000
 BATCH_SIZE = 32
 TRAIN_FREQ = 1
 TARGET_FREQ = 10
@@ -30,26 +29,26 @@ ALPHA = 0.001
 TAU = 0.1
 INIT_EPS = 1.0
 FINAL_EPS = 0.05
-EPS_DECAY = 0.75	# for linear eps
-# EPS_DECAY = 0.025	# for log eps
+EPS_DECAY = 0.5	# for linear eps
+# EPS_DECAY = 0.25	# for log eps
 CYCLE_EPS = 0.97
 EPS_TYPE = "linear"
 USE_GPU = True
 RESTART = False
-DEBUG = False
+DEBUG = True
 RESTART_INFO = ["20230724-171745", "food_5x4_cycle_2", 2]
 USE_RENDER = False
 PRECOMP_FRAC = 0.33
 
 # Environment params
-# GAME_LEVEL = ['level_one', 'level_two']
-GAME_LEVEL = ['cramped_room']
+GAME_LEVEL = ['level_one']
+#GAME_LEVEL = ['cramped_room']
 STEPS_EPISODE = 400
 WARMUP_STEPS = STEPS_EPISODE * 2
 FIELD_LENGTH = 15
 SLIP = False
 FACING = True
-AGENT_CENTERED = False
+AGENT_CENTERED = True
 USE_ENCODING = True
 VERSION = 2
 
@@ -64,9 +63,9 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
 		 (" --restart --restart-info %s %s %s" % (RESTART_INFO[0], RESTART_INFO[1], str(RESTART_INFO[2])) if RESTART else "") +
-		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") + (" --vdn" if USE_VDN else "") +
+		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC))
-commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
+commamd = "python " + str(src_dir / 'train_toxic_single_model_astro_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
 

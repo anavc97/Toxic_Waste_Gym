@@ -130,7 +130,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
 				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-				 is_train: bool = False, dict_obs: bool = True):
+				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False):
 
 		self._dict_obs = dict_obs
 		self._is_train = is_train
@@ -141,7 +141,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, True, agent_centered,
-						 False, use_render, render_mode)
+						 False, use_render, render_mode, joint_obs)
 		self._start_time = time.time()
 	
 	###########################
@@ -418,11 +418,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			time_left = self.get_time_left()
 			
 			if self._dict_obs:
-				return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
-						 'array': np.array(time_left)}
-						for idx in range(self._n_players)]
+				if self._joint_obs:
+					return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
+				else:
+					return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+							 'array': np.array(time_left)}
+							for idx in range(self._n_players)]
 			else:
-				return np.array([np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+				if self._joint_obs:
+					return np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
+				else:
+					return np.array([np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
 										   np.array(time_left)],
 										  dtype=object)
 								 for idx in range(self._n_players)])

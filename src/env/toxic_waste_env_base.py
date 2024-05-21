@@ -1,10 +1,8 @@
 #! /usr/bin/env python
 
 import numpy as np
-import yaml
 import gymnasium
 
-from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.utils import seeding
 from gymnasium.spaces import Discrete, Box, MultiDiscrete
@@ -150,11 +148,11 @@ class PlayerState(object):
 				assert obj.position == self._position
 	
 	@property
-	def position(self) -> Tuple:
+	def position(self) -> Tuple[int, int]:
 		return self._position
 	
 	@property
-	def orientation(self) -> Tuple:
+	def orientation(self) -> Tuple[int, int]:
 		return self._orientation
 	
 	@property
@@ -259,7 +257,7 @@ class BaseToxicEnv(Env):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, use_render: bool = False,
-				 render_mode: List[str] = None):
+				 render_mode: List[str] = None, joint_obs: bool = False):
 		
 		self._np_random, _ = seeding.np_random(rnd_seed)
 		self._env_id = env_id
@@ -280,6 +278,7 @@ class BaseToxicEnv(Env):
 		self._render = None
 		self._use_render = use_render
 		self._use_layer_obs = layer_obs
+		self._joint_obs = joint_obs
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
 		self.setup_env()
@@ -354,6 +353,14 @@ class BaseToxicEnv(Env):
 	@property
 	def use_render(self) -> bool:
 		return self._use_render
+	
+	@property
+	def agent_centered(self) -> bool:
+		return self._agent_centered_obs
+	
+	@property
+	def use_joint_obs(self) -> bool:
+		return self._joint_obs
 	
 	@layout.setter
 	def layout(self, new_layout: str) -> None:

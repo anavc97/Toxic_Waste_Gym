@@ -28,10 +28,10 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False,
-				 render_mode: List[str] = None, use_render: bool = False, slip: bool = False):
+				 render_mode: List[str] = None, use_render: bool = False, slip: bool = False, joint_obs: bool = False):
 		
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v1', require_facing, layer_obs, agent_centered,
-						 use_encoding, use_render, render_mode)
+						 use_encoding, use_render, render_mode, joint_obs)
 		self._slip = slip
 		self._slip_prob = 0.0
 	
@@ -269,7 +269,10 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 					if self._field[row, col] == CellEntity.COUNTER:
 						occupancy_layer[row, col] = 0
 			
-			return np.array([np.stack([agent_layer, obj_layer, occupancy_layer, acting_layer[idx]]) for idx in range(self._n_players)])
+			if self._joint_obs:
+				return np.stack([agent_layer, obj_layer, occupancy_layer])
+			else:
+				return np.array([np.stack([agent_layer, obj_layer, occupancy_layer, acting_layer[idx]]) for idx in range(self._n_players)])
 	
 	def make_obs_dqn(self) -> np.ndarray:
 		state = []

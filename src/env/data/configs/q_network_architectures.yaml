@@ -1,0 +1,54 @@
+v1:
+  n_layers: 2
+  layer_sizes: [256, 256]
+  n_cnn_layers: 1
+  cnn_size: [128]
+  cnn_kernel: [[3, 3]]
+  cnn_strides: [1]
+  pool_window: [[2, 2]]
+  pool_strides: [2]
+  pool_padding: ['VALID']
+
+v2:
+  n_layers: 2
+  layer_sizes: [256, 256]
+  n_cnn_layers: 2
+  cnn_size: [16, 32]
+  cnn_kernel: [[3, 3], [3, 3]]
+  cnn_strides: [1, 1]
+  pool_window: [[2, 2], [2, 2]]
+  pool_strides: [2, 1]
+  pool_padding: ['SAME', 'VALID']
+
+v3:
+  n_layers: 2
+  layer_sizes: [128, 128]
+  n_cnn_layers: 2
+  cnn_size: [16, 32]
+  cnn_kernel: [[3, 3], [3, 3]]
+  cnn_strides: [1, 1]
+  pool_window: [[2, 2], [2, 2]]
+  pool_strides: [2, 1]
+  pool_padding: ['SAME', 'VALID']
+
+v4:
+  n_layers: 3
+  layer_sizes: [256, 256, 256]
+  n_cnn_layers: 3
+  cnn_size: [16, 32, 32]
+  cnn_kernel: [[3, 3], [3, 3], [2, 2]]
+  cnn_strides: [1, 1, 1]
+  pool_window: [[2, 2], [2, 2], [2, 2]]
+  pool_strides: [2, 1, 1]
+  pool_padding: ['SAME', 'SAME', 'VALID']
+
+v5:
+  n_layers: 3
+  layer_sizes: [128, 128, 128]
+  n_cnn_layers: 3
+  cnn_size: [16, 32, 32]
+  cnn_kernel: [[3, 3], [3, 3], [2, 2]]
+  cnn_strides: [1, 1, 1]
+  pool_window: [[2, 2], [2, 2], [2, 2]]
+  pool_strides: [2, 1, 1]
+  pool_padding: ['SAME', 'SAME', 'VALID']
