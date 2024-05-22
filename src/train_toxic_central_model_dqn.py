@@ -61,13 +61,9 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: thre
 	except KeyboardInterrupt as ki:
 		return
 
-def model_execution(dqn_model: DQNetwork, epoch: int, eps_type: str, exploration_decay: float, final_eps: float, get_model_obs: Callable,
+def model_execution(dqn_model: DQNetwork, epoch: int, eps: float, exploration_decay: float, final_eps: float, get_model_obs: Callable,
 					greedy_actions: bool, initial_eps: float, it: int, max_timesteps: int, n_agents: int, n_joint_actions: int, num_iterations: int,
 					obs: np.ndarray, rng_gen: np.random.Generator, waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List) -> List[int]:
-	if eps_type == 'epoch':
-		eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
-	else:
-		eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
 	
 	if rng_gen.random() < eps:
 		actions = waste_env.action_space.sample()
@@ -88,12 +84,11 @@ def model_execution(dqn_model: DQNetwork, epoch: int, eps_type: str, exploration
 	return actions
 
 
-def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_agents: int, agent_models: List[GreedyAgent]) -> List[int]:
+def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agent_models: List[GreedyAgent]) -> List[int]:
 
 	actions = []
 	obs = waste_env.create_observation()
-	for agent_idx in range(n_agents):
-		model = agent_models[agent_idx]
+	for model in agent_models:
 		actions.append(model.act(obs))
 	
 	return actions
@@ -273,18 +268,25 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	episode_rewards = 0
 	episode_q_vals = []
 	temp = 1.0
+	eps = initial_eps
 	
 	for it in range(num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
 		logger.info(waste_env.get_env_log())
 		episode_history = []
 		done = False
+		anneal = (anneal_rng_gen.random() < temp)
 		while not done:
 			# interact with environment
-			if anneal_rng_gen.random() < temp:
-				actions = heuristic_execution(waste_env, n_agents, agent_models)
+			if anneal:
+				actions = heuristic_execution(waste_env, agent_models)
 			else:
-				actions = model_execution(dqn_model, epoch, eps_type, exploration_decay, final_eps, get_model_obs, greedy_actions,
+				if eps_type == 'epoch':
+					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
+				else:
+					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
+				
+				actions = model_execution(dqn_model, epoch, eps, exploration_decay, final_eps, get_model_obs, greedy_actions,
 										  initial_eps, it, max_timesteps, n_agents, n_joint_actions, num_iterations, obs, decision_rng_gen,
 										  waste_env, episode_q_vals)
 			
@@ -334,6 +336,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					dqn_model.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/mean_episode_return", episode_rewards / episode_len, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/anneal_temp", temp, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/iteration", it, it + start_record_it)
 				obs, *_ = waste_env.reset()
 				if waste_env.use_render:
@@ -558,7 +562,7 @@ def main():
 		else:
 			train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
 								 target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
-								 tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
+								 tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=ANNEAL_TEMP)
 
 		logger.info('Saving model and history list')
 		Path.mkdir(model_path, parents=True, exist_ok=True)
