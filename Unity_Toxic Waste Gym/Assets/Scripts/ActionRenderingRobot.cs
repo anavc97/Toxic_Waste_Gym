@@ -188,6 +188,7 @@ public class ActionRenderingRobot : MonoBehaviour
       GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
       GameObject[] allBalls = GameObject.FindGameObjectsWithTag("Ball");
       float distanceToHuman = Mathf.Infinity;
+      string ballBeingIDd = "";
       //Debug.Log("Started astro automatic");
 
       while (balls.Length != 0)
@@ -244,7 +245,8 @@ public class ActionRenderingRobot : MonoBehaviour
         //StartCoroutine(ballInteraction.StartIdAnimation(closestBall));
         StartCoroutine(ballInteraction.StartIdAnimation(randomBall));
         previousStepAction = -1;
-        
+        ballBeingIDd = randomBall.name;
+
         /*action.data = new ActionDataRobot();
         action.data.id = 1;
         action.data.action = 4; 
@@ -252,6 +254,9 @@ public class ActionRenderingRobot : MonoBehaviour
         Debug.Log("robot command sent: " + jsonString);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
         yield return new WaitForSeconds(5f);
+        GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);
+        GameObject.Find("GameHandler").GetComponent<GameHandler>().setNewIDdBall(ballBeingIDd);
+        ballBeingIDd = "";
       }
 
       //When all balls identified robot still follows human when he's holding a ball
@@ -410,16 +415,20 @@ public class ActionRenderingRobot : MonoBehaviour
 
     public void moveOrRotateRobot(Vector3 newPosition, Vector2 newOrientation)
     { 
+      bool rotatedOnly = false;
       if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {
         animator.SetFloat("moveX", newOrientation.x);
         animator.SetFloat("moveY", newOrientation.y);
+        rotatedOnly = true;
       }
       if(transform.position != newPosition && ballInteraction.checkPositionVacancy(newPosition) && humanPlayer.transform.position != newPosition)
       {
         transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);
-      }    
-      
+        GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);
+        rotatedOnly = false;
+      }
+      if(rotatedOnly){GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);}   
     }
 
     public bool arrayContains (GameObject[] array, GameObject objToCheck) 

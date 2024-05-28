@@ -7,7 +7,6 @@ public class ActionRendering : MonoBehaviour
     public float movementSpeed;
     public Transform movePoint;
     //public LayerMask walls;
-
     private bool waiting = false;
     private bool hasBall = false;
     private Animator animator;
@@ -114,11 +113,12 @@ public class ActionRendering : MonoBehaviour
 
     public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
     { 
-
+      bool rotatedOnly = false;
       if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {
         animator.SetFloat("moveX", newOrientation.x);
         animator.SetFloat("moveY", newOrientation.y);
+        rotatedOnly = true; 
       }
       if(transform.position != newPosition && !walls.Contains(newPosition)) //TODO: Fix human not moving with constant values (shorter steps)
       { //Also check if not moving into any ball or astro's position
@@ -128,9 +128,11 @@ public class ActionRendering : MonoBehaviour
           //Debug.Log("New position: " + newPosition); 
           movePoint.position = newPosition;
           transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);  
-          //transform.position = Vector3.MoveTowards(transform.position, newPosition, movementSpeed * Time.deltaTime);  
+          GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);
+          rotatedOnly = false;
         }
       }
+      if(rotatedOnly){GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);} 
     }
 
     public void humanInteractWithBall()
@@ -138,6 +140,7 @@ public class ActionRendering : MonoBehaviour
       //Human starts holding or drops a given ball
       hasBall = !hasBall;
       animator.SetBool("hasBall", hasBall);
+      GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);
     }
 
     public bool getHasBall(){return hasBall;}

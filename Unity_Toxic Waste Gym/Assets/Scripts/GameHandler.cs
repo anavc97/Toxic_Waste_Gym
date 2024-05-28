@@ -22,6 +22,8 @@ public class GameHandler : MonoBehaviour
     public Vector3 astroPosition;
     public Vector3 doorPosition;
     public bool gameRunning;
+    public bool stateChanged = true;
+    public string newIDdball = "";
     public bool gameOver = false;
     public bool holdingBall = false;
     public bool previousHoldingBall = false;
@@ -41,6 +43,9 @@ public class GameHandler : MonoBehaviour
     public string currentScene;
     public string layout;
     public Dictionary<string, float> yellowBallMap = new Dictionary<string, float>(); //(Ball name, time held)
+    public Dictionary<string, Vector3> ballPositionsMap = new Dictionary<string, Vector3>();
+    public List<string> ballNameList = new List<string>();
+    public List<string> iddBalls = new List<string>();
     public GameObject logManager;
     public LogManager logger;
     
@@ -79,6 +84,8 @@ public class GameHandler : MonoBehaviour
         timeHoldingYellowBall = 0;
         humanOrientation = new Vector2(0,-1); 
         doorPosition = new Vector3(7,14,0);
+        GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball");
+        foreach (GameObject ball in balls){ballNameList.Add(ball.name);}
         initializeYellowBallMap();
         StartCoroutine(Logging());
     }
@@ -86,13 +93,28 @@ public class GameHandler : MonoBehaviour
     {
         while(!gameOver)
         {   
-            string b_held;
-            if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
-            string log = $@"""name"": ""human"", ""position"":{humanPlayer.transform.position}, ""orientation"": {humanOrientation}, ""held_object"": {b_held}";
-            log = log + "\n" + $@"""name"": ""robot"", ""position"":{astroPlayer.transform.position}, ""orientation"": {astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}";
-
-            logger.WriteLog(log);
-            yield return new WaitForSeconds(0.2f);
+            if(stateChanged) //Initially set to true so that initial state is printed
+            {
+                string b_held;
+                if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
+                string log = $@"""humanPosition"": ""{humanPlayer.transform.position}"", ""humanOrientation"": ""{humanOrientation}"", ""heldObject"": ""{b_held}"", ";
+                log = log + "\n" + $@"""robotPosition"": ""{astroPlayer.transform.position}"", ""robotOrientation"": ""{astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}"", ";
+                foreach(string ballName in ballNameList)
+                {
+                    if(GameObject.Find(ballName) != null){ballPositionsMap[ballName] = GameObject.Find(ballName).transform.position;}
+                    else{ballPositionsMap[ballName] = new Vector3(-1,-1,0);}
+                }
+                if(b_held!=null){ballPositionsMap[b_held] = humanPlayer.transform.position;}
+                if(newIDdball != ""){iddBalls.Add(newIDdball);}
+                log = log + "\n" + $@"""ballPositions"": ""[{string.Join(", ", ballPositionsMap)}]"", ""ballsIDd"": ""[{string.Join(", ", iddBalls)}]"", ";
+                log = log + "\n" + $@"""gameTimeLeft"": ""{timerScript.effectiveTimeRemaining}"", ""score"": ""{scoreScript.scoreValue}""";
+                
+                logger.WriteLog(log);
+                stateChanged = false;
+                newIDdball = "";
+                yield return new WaitForSeconds(0.1f);
+            }
+            yield return new WaitForSeconds(0.1f);
         }
     }
 
@@ -141,7 +163,8 @@ public class GameHandler : MonoBehaviour
         if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
         {
             SceneManager.LoadScene("level_two");
-            logger.WriteLog("############ LEVEL 2 ############");
+            logger.changeToLevel2();
+            stateChanged = true;
         }
     }
 
@@ -317,6 +340,16 @@ public class GameHandler : MonoBehaviour
     {
         humanPosition = humanPlayer.transform.position;
         astroPosition = astroPlayer.transform.position;
+    }
+
+    public void setStateChanged(bool hasChanged)
+    {
+        stateChanged = hasChanged;
+    }
+
+    public void setNewIDdBall(string newName)
+    {
+        newIDdball = newName;
     }
 
 }

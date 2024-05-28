@@ -21,21 +21,29 @@ public class LogManager : MonoBehaviour
     public void WriteLog(string additionalData)
     {
         // Create a new log entry with current date and time, log ID, and additional data
-        string logEntry = $"[{DateTime.Now}] {logID}: {additionalData}";
+        string logEntry = $@"""Time"": ""[{DateTime.Now.ToString("hh:mm:ss tt")}]"", ""State"": ""[{additionalData}]"", ";
         //Debug.Log(logFilePath);
         // Append the log entry to the log file
         File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
     }
 
+    public void changeToLevel2()
+    {
+        string lvlSeparator = "]" + "###################################################################################################################" + "\n" + "################################################ LEVEL 2 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
+        File.AppendAllText(logFilePath, lvlSeparator);
+    }
+
     public void defineLogID(string id)
     {
         logID = id;
-        logFileName = $"DataLogs/log_{logID}.txt";
+        logFileName = $"DataLogs/log_{logID}.txt"; 
         //Debug.Log("data path: " + Application.dataPath);
         //logFilePath = Application.dataPath + logFileName;
         logFilePath = logFileName;
         Button.SetActive(true);
         box_input.SetActive(false);
         txt.SetActive(false);
+        string beginningOfFile = $@"""LogID"": ""{logID}""" + "\n" + "[";
+        File.AppendAllText(logFilePath, beginningOfFile);
     }
 }
