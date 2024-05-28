@@ -294,8 +294,11 @@ public class ActionRenderingRobot : MonoBehaviour
       //Vector3 move = convertStepIntoMovement(next_step);
       List<Vector3>  moves = AStarPathfinding.FindPath(floor,transform.position,targetPosition);
       //Debug.Log("Pos: " + transform.position + " Move: " + moves[0]);
-      setNextOrientation(moves[1]);
-      moveOrRotateRobot(moves[1], astroOrientation);
+      if(moves.Count > 1)
+      {
+        setNextOrientation(moves[1]);
+        moveOrRotateRobot(moves[1], astroOrientation);
+      }
     }
 
     public Vector3 convertStepIntoMovement(int step)
