@@ -17,7 +17,7 @@ from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_agent_dqn import SingleAgentDQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
 from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
-from env.astro_greedy_agent import GreedyAgent
+from env.astro_greedy_human_model import GreedyHumanAgent
 from pathlib import Path
 from typing import List, Union, Dict
 from datetime import datetime
@@ -55,7 +55,7 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: bool
 		return
 
 
-def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_model: SingleAgentDQN, human_model: GreedyAgent, waste_order: List,
+def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_model: SingleAgentDQN, human_model: GreedyHumanAgent, waste_order: List,
 					  num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 					  eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 					  train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False) -> List:
@@ -183,7 +183,7 @@ def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_m
 	return history
 
 
-def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_model: SingleAgentDQN, human_model: GreedyAgent, waste_order: List,
+def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_model: SingleAgentDQN, human_model: GreedyHumanAgent, waste_order: List,
 						 num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
 						 eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
 						 train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
@@ -501,11 +501,11 @@ def main():
 		# human_model = extract_human_model(human_action_log)
 		# print(n_objects, env.objects)
 		if env_version == 1:
-			human_agent = GreedyAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
-									  dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version)
+			human_agent = GreedyHumanAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
+										   dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version)
 		else:
-			human_agent = GreedyAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
-									  dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version, env.door_pos)
+			human_agent = GreedyHumanAgent(human_agents[0].position, human_agents[0].orientation, human_agents[0].name,
+										   dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version, env.door_pos)
 		
 		logger.info('Train setup')
 		waste_idx = []

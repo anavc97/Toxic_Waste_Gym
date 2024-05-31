@@ -5,7 +5,7 @@ import pyglet
 import six
 import json
 
-from gymnasium import error
+from gym import error
 from .toxic_waste_env_base import BaseToxicEnv, CellEntity, HoldState, AgentType, ActionDirection
 from .toxic_waste_env_v2 import WasteType
 from typing import Tuple

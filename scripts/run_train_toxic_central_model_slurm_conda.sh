@@ -7,8 +7,8 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=shard:10
-#SBATCH --time=144:00:00
-#SBATCH --mem-per-cpu=1000
+#SBATCH --time=336:00:00
+#SBATCH --mem=4G
 date;hostname;pwd
 
 export LD_LIBRARY_PATH="/opt/cuda/lib64:$LD_LIBRARY_PATH"

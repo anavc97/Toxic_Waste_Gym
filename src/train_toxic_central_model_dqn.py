@@ -2,7 +2,6 @@
 
 import sys
 import argparse
-
 import wandb
 import numpy as np
 import threading
@@ -29,7 +28,7 @@ from itertools import permutations
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
-ANNEAL_TEMP = 0.9
+ANNEAL_TEMP = 0.999
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -61,8 +60,7 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: thre
 	except KeyboardInterrupt as ki:
 		return
 
-def model_execution(dqn_model: DQNetwork, epoch: int, eps: float, exploration_decay: float, final_eps: float, get_model_obs: Callable,
-					greedy_actions: bool, initial_eps: float, it: int, max_timesteps: int, n_agents: int, n_joint_actions: int, num_iterations: int,
+def model_execution(dqn_model: DQNetwork, eps: float, get_model_obs: Callable, greedy_actions: bool, n_agents: int, n_joint_actions: int,
 					obs: np.ndarray, rng_gen: np.random.Generator, waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List) -> List[int]:
 	
 	if rng_gen.random() < eps:
@@ -286,8 +284,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				else:
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
 				
-				actions = model_execution(dqn_model, epoch, eps, exploration_decay, final_eps, get_model_obs, greedy_actions,
-										  initial_eps, it, max_timesteps, n_agents, n_joint_actions, num_iterations, obs, decision_rng_gen,
+				actions = model_execution(dqn_model, eps, get_model_obs, greedy_actions, n_agents, n_joint_actions, obs, decision_rng_gen,
 										  waste_env, episode_q_vals)
 			
 			if debug_mode:
@@ -319,9 +316,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 											  np.array(actions), np.array(step_reward), finished[0], [infos])
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
-			
-			# update Q-network and target network
-			astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
+				
+				# update Q-network and target network
+				# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
 			
 			obs = next_obs
 			epoch += 1
@@ -350,12 +347,15 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				done = True
 				history += [episode_history]
 				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in agent_models]
-			
+		
+		# update Q-network and target network
+		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
 		temp *= anneal_cool
 	
 	if interactive:
 		stop_thread.set()
 	return history
+
 
 def main():
 	parser = argparse.ArgumentParser(description='Train DQN model for Astro waste disposal game.')

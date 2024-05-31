@@ -183,6 +183,7 @@ class GreedyAgent(object):
 		self._status = HumanStatus.HANDS_FREE
 		self._waste_order = waste_order.copy()
 		self._waste_pos = objs_pos.copy()
+		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
 	def act_human(self, robot_agents: List, human_agents: List, objs: List) -> int:
 	
@@ -301,14 +302,14 @@ class GreedyAgent(object):
 						return shadow_human()
 					else:
 						waste_idx = [waste[0] for waste in waste_unidentified]
-						waste_pos = [waste[1] for waste in waste_unidentified]
+						wastes_pos = [waste[1] for waste in waste_unidentified]
 						self._plan = 'identify'
-						self._nxt_waste_idx = waste_idx[self.find_closest_waste(waste_pos)]
-						waste_pos = self.waste_pos[self._nxt_waste_idx]
-						if abs(self.distance(self._pos, waste_pos)) == 1 and map(sum, (self._pos, self._orientation)) == waste_pos:
+						self._nxt_waste_idx = waste_idx[self.find_closest_waste(wastes_pos)]
+						if (abs(self.distance(self._pos, self.waste_pos[self._nxt_waste_idx])) == 1 and
+								(self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]) == self.waste_pos[self._nxt_waste_idx]):
 							return int(Actions.IDENTIFY)
 						else:
-							return int(self.move_to_position(waste_pos))
+							return int(self.move_to_position(self.waste_pos[self._nxt_waste_idx]))
 		
 	def act(self, obs: Union[ToxicWasteEnvV1.Observation, ToxicWasteEnvV2.Observation]) -> int:
 		
