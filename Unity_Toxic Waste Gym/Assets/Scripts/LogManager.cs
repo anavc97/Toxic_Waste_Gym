@@ -33,6 +33,12 @@ public class LogManager : MonoBehaviour
         File.AppendAllText(logFilePath, lvlSeparator);
     }
 
+    public void changeToLevel3()
+    {
+        string lvlSeparator = "]" + "###################################################################################################################" + "\n" + "################################################ LEVEL 3 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
+        File.AppendAllText(logFilePath, lvlSeparator);
+    }
+
     public void defineLogID(string id)
     {
         logID = id;

@@ -170,6 +170,8 @@ public class ActionRenderingRobot : MonoBehaviour
       Scene currentScene = SceneManager.GetActiveScene();
 		  if(currentScene.name == "level_one"){astroStation = new Vector3(6, 6,0);}
       else if(currentScene.name == "level_two"){astroStation = new Vector3(7, 7,0);}
+      else if(currentScene.name == "level_three"){astroStation = new Vector3(6, 10,0);}
+
       walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
@@ -223,11 +225,6 @@ public class ActionRenderingRobot : MonoBehaviour
           balls = GameObject.FindGameObjectsWithTag("Ball");
           if(balls.Length ==0){break;}
           if(!arrayContains(balls,randomBall)){randomBall = balls[Random.Range(0, balls.Length)];}
-          //Debug.Log("Entered while to move towards nearest ball");
-          /*//Go to closer ball
-          var results = FindClosestBall(balls);
-          GameObject ball = results.Item1;
-          closestDistance = results.Item2;*/
           
           //Go to random ball
           Vector3 newTarget = randomBall.transform.position + new Vector3(1.0f,0,0);
@@ -247,12 +244,6 @@ public class ActionRenderingRobot : MonoBehaviour
         previousStepAction = -1;
         ballBeingIDd = randomBall.name;
 
-        /*action.data = new ActionDataRobot();
-        action.data.id = 1;
-        action.data.action = 4; 
-        jsonString = JsonConvert.SerializeObject(action);
-        Debug.Log("robot command sent: " + jsonString);
-        GameObject.Find("GameHandler").GetComponent<GameHandler>().SendActionMessage(jsonString);*/
         yield return new WaitForSeconds(5f);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().setStateChanged(true);
         GameObject.Find("GameHandler").GetComponent<GameHandler>().setNewIDdBall(ballBeingIDd);

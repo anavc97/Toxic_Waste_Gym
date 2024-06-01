@@ -150,20 +150,37 @@ public class GameHandler : MonoBehaviour
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
             }
-            else
+            else if(SceneManager.GetActiveScene().name == "level_two")
             {
                 string gameOverReason = "Level exited!\n";
                 if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
                 string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";
                 if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";}
+                gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
+                gameOverStopWatch.Start();
+            }
+            else
+            {
+                string gameOverReason = "Level exited!\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/23)\n</color>";
+                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/23)\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Game concluded.";
             }
         }
 
         if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
         {
-            SceneManager.LoadScene("level_two");
-            logger.changeToLevel2();
+            if(SceneManager.GetActiveScene().name == "level_one")
+            {
+                SceneManager.LoadScene("level_two");
+                logger.changeToLevel2();
+            }
+            else
+            {
+                SceneManager.LoadScene("level_three");
+                logger.changeToLevel3();
+            }
             stateChanged = true;
         }
     }

@@ -13,6 +13,8 @@ public class GridLimits : MonoBehaviour
         Scene currentScene = SceneManager.GetActiveScene();
 		if(currentScene.name == "level_one"){defineGridLevelOne();}
         else if(currentScene.name == "level_two"){defineGridLevelTwo();}
+        else if(currentScene.name == "level_three"){defineGridLevelThree();}
+
     }
 
     void defineGridLevelOne()
@@ -89,6 +91,52 @@ public class GridLimits : MonoBehaviour
                             (y == 10 && (x >= 1 && x <= 3)) || (x == 6 && (y == 11 || y == 13)) ||
                             (y == 11 && x == 11) || (y == 12 && x == 11) ||
                             (y == 12 && (x >= 2 && x <= 4)) || (x == 8 && (y == 12 || y == 13)))  
+                    gridPositions.Add(new Vector3(x, y,0));
+            }
+        }
+
+        gridPosAvailable = new List<Vector3>();
+
+        for (int x = 0; x <= 14; x++)
+        {
+            for (int y = 0; y <= 14; y++)
+            {
+                Vector3 position = new Vector3(x, y, 0);
+                if (!gridPositions.Contains(position) && position != new Vector3(7,14,0))
+                {
+                    gridPosAvailable.Add(position);
+                }
+            }
+        }
+    }
+
+    void defineGridLevelThree()
+    {
+        gridPositions = new List<Vector3>();
+
+        // Add positions to the list using nested loops
+        for (int x = 0; x <= 14; x++)
+        {
+            for (int y = 0; y <= 14; y++)
+            {
+                // Add positions according to the specified patterns
+                if ((y == 0 && (x == 0 || x == 14)) || (y == 14 && (x == 0 || x == 14))) //Corners
+                    gridPositions.Add(new Vector3(x, y,0));
+                else if (y == 14 && x == 7) //Door wall
+                    gridPositions.Add(new Vector3(x, y+1,0));
+                else if ((x == 0 && (y >= 1 && y < 14)) || (x == 14 && (y >= 1 && y < 14))) //Outside horizontal
+                    gridPositions.Add(new Vector3(x, y,0));
+                else if ((y == 0 && (x >= 1 && x < 14)) || (y == 14 && (x >= 1 && x < 7)) || (y == 14 && (x >= 8 && x < 14)))//Outside vertical
+                    gridPositions.Add(new Vector3(x, y,0));
+                else if ((y == 2 && (x >= 1 && x <= 4)) || (y == 2 && (x >= 10 && x <= 13))  || 
+                            (y == 3 && (x == 1 || x == 13)) || (y == 4 && (x == 4 || x == 10)) ||
+                            (y == 5 && (x >= 1 && x <= 4)) || (y == 5 && (x >= 10 && x <= 13)) ||
+                            (y == 6 && (x == 1 || x == 13)) || (x == 7 && (y >= 4 && y <= 6)) ||
+                            (y == 7 && (x >= 4 && x <= 10)) || (y == 8 && (x >= 5 && x <= 9)) ||
+                            (y == 9 && (x >= 6 && x <= 8)) || (y == 10 && (x == 2 || x == 3)) ||
+                            (y == 10 && (x == 7 || x == 11 || x == 12)) || (y == 11 && (x == 2 || x == 12)) ||
+                            (y == 12 && (x == 2 || x == 3)) || (y == 12 && (x == 5 || x == 9)) ||
+                            (y == 12 && (x == 11 || x == 12)) || (y == 13 && (x == 5 || x == 9)))
                     gridPositions.Add(new Vector3(x, y,0));
             }
         }
