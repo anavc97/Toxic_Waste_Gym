@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 import shlex
-
+import argparse
 import subprocess
 from pathlib import Path
 
@@ -54,6 +54,11 @@ AGENT_CENTERED = False
 USE_ENCODING = True
 VERSION = 2
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--logs', dest='logs', type=str, required=False, default=TENSORBOARD_DATA[0])
+input_args = parser.parse_args()
+logs = input_args.logs
+
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
@@ -61,7 +66,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		% (N_AGENTS, ARCHITECTURE, BUFFER, GAMMA,																								# DQN parameters
 		   N_ITERATIONS, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, EPS_DECAY, EPS_TYPE, WARMUP_STEPS, CYCLE_EPS,	# Train parameters
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION, 															# Environment parameters
-		   TENSORBOARD_DATA[0], TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
+		   logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
 		 (" --restart --restart-info %s %s %s" % (RESTART_INFO[0], RESTART_INFO[1], str(RESTART_INFO[2])) if RESTART else "") +

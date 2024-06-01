@@ -497,6 +497,7 @@ def main():
 				   "eps_decay": eps_type,
 				   "iterations": n_iterations
 			   },
+			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
 			   sync_tensorboard=True)
 
