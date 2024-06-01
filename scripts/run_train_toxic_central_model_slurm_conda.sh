@@ -10,7 +10,6 @@
 #SBATCH --time=336:00:00
 #SBATCH --mem=4G
 date;hostname;pwd
-HOST=$(hostname)
 
 if [ -n "${SLURM_JOB_ID:-}" ] ; then
   script_path=$(dirname "$(scontrol show job "$SLURM_JOB_ID" | awk -F= '/Command=/{print $2}' | head -n 1)")
@@ -23,7 +22,7 @@ export PATH="/opt/cuda/bin:$PATH"
 source "$HOME"/miniconda3/bin/activate deep_rl_env
 
 
-if [ "$HOST" = "artemis" ] || [ "$HOST" = "poseidon" ] ; then
+if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   python "$script_path"/run_train_toxic_central_model.py --logs /mnt/scratch-artemis/miguelfaria/logs/toxic_waste
 else
   python "$script_path"/run_train_toxic_central_model.py
