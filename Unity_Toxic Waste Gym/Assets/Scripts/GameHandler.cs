@@ -143,28 +143,28 @@ public class GameHandler : MonoBehaviour
             GameObject gameOverText = panel.transform.Find("GameOver").gameObject;
             if(SceneManager.GetActiveScene().name == "level_one")
             {
-                string gameOverReason = "Level exited!\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/36)\n</color>";
-                if(scoreScript.scoreValue < 36){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/36)\n</color>";}
+                string gameOverReason = "Level exited!\n\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";
+                if(scoreScript.scoreValue < 36){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
             }
             else if(SceneManager.GetActiveScene().name == "level_two")
             {
-                string gameOverReason = "Level exited!\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";
-                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n</color>";}
+                string gameOverReason = "Level exited!\n\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";
+                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
             }
             else
             {
-                string gameOverReason = "Level exited!\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/23)\n</color>";
-                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/23)\n</color>";}
+                string gameOverReason = "Level exited!\n\n";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
+                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";
+                if(scoreScript.scoreValue < 23){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Game concluded.";
             }
         }
