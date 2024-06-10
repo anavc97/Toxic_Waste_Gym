@@ -1,6 +1,8 @@
 using UnityEngine;
 using System;
 using System.IO;
+using System.Linq;
+using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class LogManager : MonoBehaviour
@@ -27,15 +29,37 @@ public class LogManager : MonoBehaviour
         File.AppendAllText(logFilePath, logEntry + Environment.NewLine);
     }
 
+    public void printLevelStats(List<float> playerDistances, int totalTimeYellowBalls, int totalTimeAllBalls, string levelEndedReason, int nBallsIdd, Dictionary<string, Vector3> ballPositionsMap)
+    {
+        string statsSeperator = "]" + "----------------------------------------------- Stats -----------------------------------------------" + "\n";
+        File.AppendAllText(logFilePath, statsSeperator);
+
+        double playerDistanceAvg = playerDistances.Average();
+        double playerDistanceStandardDeviation = Math.Sqrt(playerDistances.Average(v => Math.Pow(v-playerDistanceAvg, 2)));
+        double playerDistanceStandardError = playerDistanceStandardDeviation / Math.Sqrt(playerDistances.Count());
+        
+        string log = $@"""playerDistAvg"": ""{playerDistanceAvg}"", ""playerDistStandardDeviation"": ""{playerDistanceStandardDeviation}"", ""playerDistStandardError"": ""{playerDistanceStandardError}"", ";
+        log = log + "\n" + $@"""levelOverReason"": ""{levelEndedReason}"", ""timeWithBalls"": ""{totalTimeAllBalls}"", ""timeWithYellowBalls"": ""{totalTimeYellowBalls}"", ""NOfBallsIdd"": ""{nBallsIdd}"", ";
+
+        List<string> disposedBalls = new List<string>();
+        foreach(var item in ballPositionsMap)
+        {
+            if(item.Value == new Vector3(-1,-1,0)){disposedBalls.Add(item.Key);}
+        }
+        log = log + "\n" + $@"""disposedBalls"": ""[{string.Join(", ", disposedBalls)}]""";
+        
+        File.AppendAllText(logFilePath, log + Environment.NewLine);
+    }
+
     public void changeToLevel2()
     {
-        string lvlSeparator = "]" + "###################################################################################################################" + "\n" + "################################################ LEVEL 2 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
+        string lvlSeparator = "###################################################################################################################" + "\n" + "################################################ LEVEL 2 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
         File.AppendAllText(logFilePath, lvlSeparator);
     }
 
     public void changeToLevel3()
     {
-        string lvlSeparator = "]" + "###################################################################################################################" + "\n" + "################################################ LEVEL 3 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
+        string lvlSeparator = "###################################################################################################################" + "\n" + "################################################ LEVEL 3 #######################################################" + "\n" + "##################################################################################################################" + "\n" + "[";
         File.AppendAllText(logFilePath, lvlSeparator);
     }
 

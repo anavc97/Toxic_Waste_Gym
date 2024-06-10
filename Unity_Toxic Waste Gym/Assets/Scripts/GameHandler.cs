@@ -30,12 +30,14 @@ public class GameHandler : MonoBehaviour
     public int previousHeldBallType = 0;
     public int popUp_time = 0;
     public int timeHoldingYellowBall = 0;
+    public int timeHoldingBalls = 0;
     public GameObject canvas;
     public TMP_Text popUp;
     public BallInteraction ballInteraction;
     public ScoreScript scoreScript;
     public Timer timerScript;
     public Stopwatch popUpStopWatch = new Stopwatch();
+    public Stopwatch timeWithBallsStopWatch = new Stopwatch();
     public Stopwatch gameOverStopWatch = new Stopwatch();
     public GameObject humanPlayer;
     public GameObject astroPlayer;
@@ -46,6 +48,9 @@ public class GameHandler : MonoBehaviour
     public Dictionary<string, Vector3> ballPositionsMap = new Dictionary<string, Vector3>();
     public List<string> ballNameList = new List<string>();
     public List<string> iddBalls = new List<string>();
+    public List<float> playerDistances = new List<float>();
+    public int totalTimeWithYellowBalls = 0;
+    public string levelEndedReasonLog = "";
     public GameObject logManager;
     public LogManager logger;
     
@@ -98,7 +103,9 @@ public class GameHandler : MonoBehaviour
                 string b_held;
                 if (heldBall == null){b_held = null;} else{b_held = heldBall.name;}
                 string log = $@"""humanPosition"": ""{humanPlayer.transform.position}"", ""humanOrientation"": ""{humanOrientation}"", ""heldObject"": ""{b_held}"", ";
-                log = log + "\n" + $@"""robotPosition"": ""{astroPlayer.transform.position}"", ""robotOrientation"": ""{astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}"", ";
+                float dist_robot_human = Vector3.Distance(humanPlayer.transform.position, astroPlayer.transform.position);
+                playerDistances.Add(dist_robot_human);
+                log = log + "\n" + $@"""robotPosition"": ""{astroPlayer.transform.position}"", ""robotOrientation"": ""{astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation}"", ""dist_robot_human"": ""{dist_robot_human}"", ";
                 foreach(string ballName in ballNameList)
                 {
                     if(GameObject.Find(ballName) != null){ballPositionsMap[ballName] = GameObject.Find(ballName).transform.position;}
@@ -134,6 +141,9 @@ public class GameHandler : MonoBehaviour
 
         if((!timerScript.timeIsRunning || humanPlayer.transform.position == doorPosition) && !gameOver)
         {
+            if(timeWithBallsStopWatch.IsRunning){timeWithBallsStopWatch.Stop();}
+            timeHoldingBalls = (int)Math.Round((double)timeWithBallsStopWatch.Elapsed.Seconds);
+            
             canvas.GetComponent<Canvas>().enabled = true;
             gameOver = true;
             astroPlayer.GetComponent<ActionRenderingRobot>().gameOverRobot = true;
@@ -143,34 +153,40 @@ public class GameHandler : MonoBehaviour
             GameObject gameOverText = panel.transform.Find("GameOver").gameObject;
             if(SceneManager.GetActiveScene().name == "level_one")
             {
-                string gameOverReason = "Level exited!\n\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";
-                if(scoreScript.scoreValue < 36){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";}
+                string gameOverReason = "Level exited!";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!";}
+                string finalScoreText = "\n\n<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";
+                if(scoreScript.scoreValue < 36){finalScoreText = "\n\n<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/36)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
+                levelEndedReasonLog = gameOverReason;
             }
             else if(SceneManager.GetActiveScene().name == "level_two")
             {
-                string gameOverReason = "Level exited!\n\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";
-                if(scoreScript.scoreValue < 33){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";}
+                string gameOverReason = "Level exited!";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!";}
+                string finalScoreText = "\n\n<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";
+                if(scoreScript.scoreValue < 33){finalScoreText = "\n\n<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/33)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Loading next level...";
                 gameOverStopWatch.Start();
+                levelEndedReasonLog = gameOverReason;
             }
             else
             {
-                string gameOverReason = "Level exited!\n\n";
-                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!\n\n";}
-                string finalScoreText = "<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";
-                if(scoreScript.scoreValue < 23){finalScoreText = "<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";}
+                string gameOverReason = "Level exited!";
+                if(!timerScript.timeIsRunning){gameOverReason = "Time ended!";}
+                string finalScoreText = "\n\n<color=#39AB10>You obtained the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";
+                if(scoreScript.scoreValue < 23){finalScoreText = "\n\n<color=#B80000>You didn't obtain the max score in this level!(" + scoreScript.scoreValue + "/23)\n\n</color>";}
                 gameOverText.GetComponent<TextMeshProUGUI>().text = gameOverReason + finalScoreText + "Game concluded.";
+                levelEndedReasonLog = gameOverReason;
+                logger.printLevelStats(playerDistances, totalTimeWithYellowBalls, timeHoldingBalls, levelEndedReasonLog, iddBalls.Count(), ballPositionsMap);
+
             }
         }
 
         if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 12)
         {
+            logger.printLevelStats(playerDistances, totalTimeWithYellowBalls, timeHoldingBalls, levelEndedReasonLog, iddBalls.Count(), ballPositionsMap);
             if(SceneManager.GetActiveScene().name == "level_one")
             {
                 SceneManager.LoadScene("level_two");
@@ -214,6 +230,7 @@ public class GameHandler : MonoBehaviour
                     updatePopUp (heldBall, 0); //0=Point update
                     humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
                     heldBall = null;
+                    timeWithBallsStopWatch.Stop();
                 }
                 else if(ballInteraction.checkPositionVacancy(newBallPosition)) //Make sure ball not dropped on top of other ball
                 {  
@@ -221,13 +238,15 @@ public class GameHandler : MonoBehaviour
                     updatePopUp(heldBall, 1); //1=might have stopped holding yellow ball
                     humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
                     heldBall = null;
+                    timeWithBallsStopWatch.Stop();
                 }
             }
-            else //Migjt start holding a ball
+            else //Might start holding a ball
             {
                 GameObject closestBall = ballInteraction.findClosestBall(ballInteraction.allBalls, humanPosition, humanOrientation, true);
                 if(closestBall != null)
                 {
+                    timeWithBallsStopWatch.Start();
                     heldBall = closestBall;
                     updateBallState(heldBall, 1, new Vector3(0,0,0));
                     humanPlayer.GetComponent<ActionRendering>().humanInteractWithBall();
@@ -323,6 +342,7 @@ public class GameHandler : MonoBehaviour
                 if(popUpStopWatch.Elapsed.Seconds >= 1 || timeHoldingYellowBall == 0)
                 {
                     timeHoldingYellowBall += 1;
+                    totalTimeWithYellowBalls +=1;
                     //popUp.text = -(timeHoldingYellowBall * 2) + " seconds!";
                     //popUp.text = -(timeHoldingYellowBall) + " seconds!";
                     //popUp.color = new Color32(168,147,0,255);  //Yellow
