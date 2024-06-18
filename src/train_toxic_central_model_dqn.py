@@ -12,6 +12,8 @@ import random
 import time
 import yaml
 import logging
+import json
+import traceback
 
 from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_model_madqn import CentralizedMADQN
@@ -209,11 +211,11 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 	return history
 
 
-def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List,
-						 num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
-						 eps_type: str, rng_seed: int, logger: logging.Logger, exploration_decay: float = 0.99, warmup: int = 0, target_freq: int = 1000,
-						 train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-						 debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9) -> List:
+def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List, num_iterations: int, max_timesteps: int,
+						 batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger,
+						 model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, warmup: int = 0, start_it: int = 0,
+						 checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
+						 debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False) -> List:
 	
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> Tuple[np.ndarray, np.ndarray]:
 		conv_obs = []
@@ -254,6 +256,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	dqn_model = astro_model.madqn
 	v2_obs = get_model_obs(obs)
 	dqn_model.init_network_states(rng_seed, (v2_obs[0], v2_obs[1].reshape((1, 1))), optim_learn_rate)
+	if restart:
+		dqn_model.load_model_v2('v2_l-%s-checkpoint_ctce.model' % game_level, model_path, logger, (v2_obs[0].shape, (1, 1)))
+		dqn_model.target_params = dqn_model.online_state.params.copy()
 	
 	if waste_env.use_render:
 		waste_env.render()
@@ -268,7 +273,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	temp = 1.0
 	eps = initial_eps
 	
-	for it in range(num_iterations):
+	for it in range(start_it, num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
 		logger.info(waste_env.get_env_log())
 		episode_history = []
@@ -351,9 +356,16 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		# update Q-network and target network
 		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
 		temp *= anneal_cool
+		
+		if it % checkpoint_freq == 0:
+			astro_model.save_model('v2_l-%s-checkpoint' % game_level, model_path, logger)
+			with open(chkpt_file, 'w') as j_file:
+				chkt_data[game_level] = {'iteration': it, 'temp': temp}
+				json.dump(chkt_data, j_file)
 	
 	if interactive:
 		stop_thread.set()
+	
 	return history
 
 
@@ -367,7 +379,6 @@ def main():
 	parser.add_argument('--gamma', dest='gamma', type=float, required=False, default=0.99, help='Discount factor for agent\'s future rewards')
 	parser.add_argument('--gpu', dest='use_gpu', action='store_true', help='Flag that signals the use of gpu for the training')
 	parser.add_argument('--ddqn', dest='use_ddqn', action='store_true', help='Flag that signals the use of a Double DQN')
-	parser.add_argument('--vdn', dest='use_vdn', action='store_true', help='Flag that signals the use of a VDN DQN architecture')
 	parser.add_argument('--cnn', dest='use_cnn', action='store_true', help='Flag that signals the use of a CNN as entry for the DQN architecture')
 	parser.add_argument('--dueling', dest='dueling_dqn', action='store_true', help='Flag that signals the use of a Dueling DQN architecture')
 	parser.add_argument('--tensorboard', dest='use_tensorboard', action='store_true',
@@ -394,14 +405,16 @@ def main():
 	parser.add_argument('--warmup-steps', dest='warmup', type=int, required=False, default=10000, help='Number of epochs to pass before training starts')
 	parser.add_argument('--tensorboard-freq', dest='tensorboard_freq', type=int, required=False, default=1,
 						help='Number of epochs between each log in tensorboard. Use only in combination with --tensorboard option')
+	parser.add_argument('--checkpoint-freq', dest='checkpoint_freq', type=int, required=False, default=10,
+						help='Number of epochs between each model train checkpointing.')
 	parser.add_argument('--restart', dest='restart_train', action='store_true',
 						help='Flag that signals that train is suppose to restart from a previously saved point.')
-	parser.add_argument('--restart-info', dest='restart_info', type=str, nargs='+', required=False, default=None,
-						help='List with the info required to recover previously saved model and restart from same point: '
-							 '<model_dirname: str> <model_filename: str> <last_cycle: int> Use only in combination with --restart option')
 	parser.add_argument('--debug', dest='debug', action='store_true', help='Flag signalling debug mode for model training')
 	parser.add_argument('--fraction', dest='fraction', type=str, default='0.5', help='Fraction of JAX memory pre-compilation')
 	parser.add_argument('--anneal-temp', dest='anneal_temp', type=float, default=ANNEAL_TEMP, help='Temperature for the heuristic annealing')
+	parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
+	parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
+	parser.add_argument('--checkpoint-file', dest='checkpoint_file', type=str, required=False, default='', help='File with data from previous training checkpoint')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -426,7 +439,6 @@ def main():
 	use_gpu = args.use_gpu
 	dueling_dqn = args.dueling_dqn
 	use_ddqn = args.use_ddqn
-	use_vdn = args.use_vdn
 	use_cnn = args.use_cnn
 	use_tensorboard = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
@@ -445,8 +457,10 @@ def main():
 	eps_type = args.eps_type
 	warmup = args.warmup
 	tensorboard_freq = args.tensorboard_freq
+	checkpoint_freq = args.checkpoint_freq
 	debug = args.debug
 	temp_anneal = args.anneal_temp
+	chkpt_file = args.checkpoint_file
 	
 	# Astro environment args
 	env_version = args.env_version
@@ -466,11 +480,20 @@ def main():
 	
 	now = datetime.now()
 	home_dir = Path(__file__).parent.absolute().parent.absolute()
-	log_dir = home_dir / 'logs'
-	models_dir = home_dir / 'models'
+	log_dir = Path(args.logs_dir) if args.logs_dir != '' else home_dir / 'logs'
+	models_dir = Path(args.models_dir) / 'models' if args.models_dir != '' else home_dir / 'models'
 	configs_dir = Path(__file__).parent.absolute() / 'env' / 'data' / 'configs'
 	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(RNG_SEED)
+	
+	if chkpt_file != '' and args.restart_train:
+		with open(chkpt_file, 'r') as j_file:
+			chkpt_data = json.load(j_file)
+	else:
+		chkpt_data = {}
+		for level in game_levels:
+			chkpt_data[level] = {'iteration': 0, 'temp': 1.0}
+		chkpt_file = str(models_dir / ('v%d_train_checkpoint_data.json' % env_version))
 	
 	with open(configs_dir / 'q_network_architectures.yaml') as architecture_file:
 		arch_data = yaml.safe_load(architecture_file)
@@ -500,77 +523,88 @@ def main():
 			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
 			   sync_tensorboard=True)
-
+	
+	if len(logging.root.handlers) > 0:
+		for handler in logging.root.handlers:
+			logging.root.removeHandler(handler)
+	
+	# logging.basicConfig(filename=(log_dir / 'train_astro_disposal_multi_dqn_ctce.log'), level=logging.INFO, format='%(name)s %(asctime)s %(levelname)s:\t%(message)s')
 	for game_level in game_levels:
 		log_filename = ('train_astro_disposal_multi_dqn_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
-		logging.basicConfig(filename=(log_dir / (log_filename + '_log.txt')), filemode='w', format='%(name)s %(asctime)s %(levelname)s:\t%(message)s',
-							level=logging.INFO)
-		logger = logging.getLogger('INFO')
-		err_logger = logging.getLogger('ERROR')
-		handler = logging.StreamHandler(sys.stderr)
-		handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
-		err_logger.addHandler(handler)
+		logger = logging.getLogger("%s" % game_level)
+		logger.setLevel(logging.INFO)
+		file_handler = logging.FileHandler(log_dir / (log_filename + '.log'))
+		file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
+		file_handler.setLevel(logging.INFO)
+		logger.addHandler(file_handler)
 		Path.mkdir(model_path, parents=True, exist_ok=True)
-		with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
-			objects = yaml.safe_load(config_file)['objects']
-			n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
-		
-		logger.info('#######################################')
-		logger.info('Starting Astro Waste Disposal DQN Train')
-		logger.info('#######################################')
-		logger.info('Level %s setup' % game_level)
-		if env_version == 1:
-			env = ToxicWasteEnvV1(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
-								  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
-		else:
-			env = ToxicWasteEnvV2(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode,
-								  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True)
-		
-		obs, *_ = env.reset(seed=RNG_SEED)
-		
-		logger.info('Getting human behaviour model')
-		agent_models = []
-		for player in env.players:
+		Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
+		try:
+			with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
+				objects = yaml.safe_load(config_file)['objects']
+				n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
+			
+			logger.info('#######################################')
+			logger.info('Starting Astro Waste Disposal DQN Train')
+			logger.info('#######################################')
+			logger.info('Level %s setup' % game_level)
 			if env_version == 1:
-				agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
-												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
-												agent_type=player.agent_type))
+				env = ToxicWasteEnvV1(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
+									  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
 			else:
-				agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
-												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
-												env.door_pos, agent_type=player.agent_type))
+				env = ToxicWasteEnvV2(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode,
+									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True)
+			
+			obs, *_ = env.reset(seed=RNG_SEED)
+			
+			logger.info('Getting human behaviour model')
+			agent_models = []
+			for player in env.players:
+				if env_version == 1:
+					agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
+													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+													agent_type=player.agent_type))
+				else:
+					agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
+													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+													env.door_pos, agent_type=player.agent_type))
+			
+			logger.info('Train setup')
+			waste_idx = []
+			for obj in env.objects:
+				waste_idx.append(env.objects.index(obj))
+			waste_seqs = list(permutations(waste_idx))
+			waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+			for model in agent_models:
+				model.waste_order = waste_order
+			
+			logger.info('Creating DQN and starting train')
+			tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
+			tensorboard_details += ['astro_' + game_level]
+			
+			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes,
+										 buffer_size, gamma, env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2),
+										 False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties)
+			if env_version == 1:
+				train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
+								  target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
+								  tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
+			else:
+				train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate, target_update_rate, initial_eps,
+									 final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data, eps_decay, warmup, checkpoint_freq,
+									 target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=ANNEAL_TEMP, restart=args.restart_train)
+	
+			logger.info('Saving model and history list')
+			astro_dqn.save_model(game_level, model_path, logger)
 		
-		logger.info('Train setup')
-		waste_idx = []
-		for obj in env.objects:
-			waste_idx.append(env.objects.index(obj))
-		waste_seqs = list(permutations(waste_idx))
-		waste_order = list(rng_gen.choice(np.array(waste_seqs)))
-		for model in agent_models:
-			model.waste_order = waste_order
+		except KeyboardInterrupt as ks:
+			logger.info('Caught keyboard interrupt, cleaning up and closing.')
+			wandb.finish()
 		
-		logger.info('Creating DQN and starting train')
-		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
-		tensorboard_details += ['astro_' + game_level]
-		
-		astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes,
-									 buffer_size, gamma, env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2),
-									 False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties)
-		if env_version == 1:
-			train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
-							  target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
-							  tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
-		else:
-			train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
-								 target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
-								 tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=ANNEAL_TEMP)
-
-		logger.info('Saving model and history list')
-		Path.mkdir(model_path, parents=True, exist_ok=True)
-		astro_dqn.save_model(game_level, model_path, logger)
-		# obs_path = model_path / (game_level + '.json')
-		# with open(obs_path, "w") as of:
-		# 	of.write(json.dumps(history))
+		except Exception as e:
+			logger.error("Caught an unexpected exception while training level %s: %s\n%s" % (game_level, str(e), traceback.format_exc()))
+	
+	wandb.finish()
 
 
 if __name__ == '__main__':

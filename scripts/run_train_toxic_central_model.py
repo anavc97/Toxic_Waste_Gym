@@ -18,7 +18,6 @@ USE_DUELING = True
 USE_DDQN = True
 USE_CNN = True
 USE_TENSORBOARD = True
-USE_VDN = True
 
 # Train params
 N_ITERATIONS = 20000
@@ -36,9 +35,7 @@ EPS_DECAY = 0.75	# for linear eps
 CYCLE_EPS = 0.97
 EPS_TYPE = "linear"
 USE_GPU = True
-RESTART = False
 DEBUG = False
-RESTART_INFO = ["20230724-171745", "food_5x4_cycle_2", 2]
 USE_RENDER = False
 PRECOMP_FRAC = 0.33
 
@@ -55,23 +52,32 @@ USE_ENCODING = True
 VERSION = 2
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--logs', dest='logs', type=str, required=False, default=TENSORBOARD_DATA[0])
+parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
+parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
+parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
+parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--checkpoint-file', dest='chkpt_file', type=str, default='', help='Checkpoint file location to use to restart train')
 input_args = parser.parse_args()
-logs = input_args.logs
+data_logs = input_args.data_logs
+models_dir = input_args.models_dir
+logs_dir = input_args.logs_dir
+restart = input_args.restart
+chkpt_file  = input_args.chkpt_file if input_args.chkpt_file != '' else ''
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
 		"--tensorboardDetails %s %d %d %s"
-		% (N_AGENTS, ARCHITECTURE, BUFFER, GAMMA,																								# DQN parameters
-		   N_ITERATIONS, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, EPS_DECAY, EPS_TYPE, WARMUP_STEPS, CYCLE_EPS,	# Train parameters
-		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION, 															# Environment parameters
-		   logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
+		% (N_AGENTS, ARCHITECTURE, BUFFER, GAMMA,  # DQN parameters
+		   N_ITERATIONS, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, EPS_DECAY, EPS_TYPE, WARMUP_STEPS, CYCLE_EPS,  # Train parameters
+		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
+		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
-		 (" --restart --restart-info %s %s %s" % (RESTART_INFO[0], RESTART_INFO[1], str(RESTART_INFO[2])) if RESTART else "") +
-		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") + (" --vdn" if USE_VDN else "") +
-		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC))
+		 (" --restart --checkpoint-file %s" % chkpt_file if restart else "") +
+		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
+		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
+		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else ""))
 commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)

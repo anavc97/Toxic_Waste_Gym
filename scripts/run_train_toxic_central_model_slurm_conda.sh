@@ -9,6 +9,7 @@
 #SBATCH --gres=shard:10
 #SBATCH --time=336:00:00
 #SBATCH --mem=4G
+#SBATCH --output="job-%x-%j.out"
 date;hostname;pwd
 
 if [ -n "${SLURM_JOB_ID:-}" ] ; then
@@ -21,9 +22,8 @@ export LD_LIBRARY_PATH="/opt/cuda/lib64:$LD_LIBRARY_PATH"
 export PATH="/opt/cuda/bin:$PATH"
 source "$HOME"/miniconda3/bin/activate deep_rl_env
 
-
 if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
-  python "$script_path"/run_train_toxic_central_model.py --logs /mnt/scratch-artemis/miguelfaria/logs/toxic_waste
+  python "$script_path"/run_train_toxic_central_model.py --data-logs /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste
 else
   python "$script_path"/run_train_toxic_central_model.py
 fi

@@ -181,7 +181,15 @@ class GreedyAgent(object):
 	def reset(self, waste_order: List[int], objs_pos: Dict[int, Tuple[int, int]]):
 		self._nxt_waste_idx = -1
 		self._status = HumanStatus.HANDS_FREE
-		self._waste_order = waste_order.copy()
+		n_wastes = self._rng_gen.integers(len(waste_order))
+		if n_wastes > 0:
+			ordering = []
+			waste_idxs = self._rng_gen.choice(np.arange(len(waste_order)), size=n_wastes)
+			for idx in waste_idxs:
+				ordering.append(waste_order[idx])
+			self._waste_order = ordering
+		else:
+			self._waste_order = [len(waste_order)]
 		self._waste_pos = objs_pos.copy()
 		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
@@ -192,69 +200,93 @@ class GreedyAgent(object):
 		
 		if self._nxt_waste_idx < 0:
 			self._nxt_waste_idx = self._waste_order.pop(0)
-			
-		if self._status == HumanStatus.HANDS_FREE:
-			nxt_waste = self._waste_pos[self._nxt_waste_idx]
-			found_waste = False
-			for obj in objs:
-				waste_pos = obj.position
-				if waste_pos == nxt_waste:
-					found_waste = True
-					break
-				else:
-					waste_adj_pos = [(waste_pos[0] - 1, waste_pos[1]), (waste_pos[0] + 1, waste_pos[1]),
-									 (waste_pos[0], waste_pos[1] - 1), (waste_pos[0], waste_pos[1] + 1)]
-					if nxt_waste in waste_adj_pos:
-						self._waste_pos[self._nxt_waste_idx] = waste_pos
-						nxt_waste = waste_pos
-						found_waste = True
-						break
-			
-			if not found_waste:
-				if self._version == 1 or (self._version == 2 and len(self._waste_order) > 0):
-					self._nxt_waste_idx = self._waste_order.pop(0)
-					nxt_waste = self._waste_pos[self._nxt_waste_idx]
-				
-				else:
-					if self._version == 2:
-						nxt_waste = self._door_pos
-			
-			human_adj_pos = get_adj_pos(self._pos)
-			if nxt_waste == self._door_pos:
-				return int(self.move_to_position(nxt_waste))
-			
-			else:
-				if nxt_waste in human_adj_pos and nxt_waste[0] == (self._pos[0] + self._orientation[0]) and nxt_waste[1] == (self._pos[1] + self._orientation[1]):
-					return int(Actions.INTERACT)
-				
-				else:
-					return int(self.move_to_position(nxt_waste))
+		
+		if self._nxt_waste_idx >= len(self._waste_order):
+			self._plan = 'exit'
+			nxt_waste = self._door_pos
+			return int(self.move_to_position(nxt_waste))
 		
 		else:
-			self._waste_pos[self._nxt_waste_idx] = self._pos
-			
-			if robot_pos == (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]):
-				if self.are_facing(self._orientation, robot_or):
-					return int(Actions.INTERACT)
+			if self._status == HumanStatus.HANDS_FREE:
+				nxt_waste = self._waste_pos[self._nxt_waste_idx]
+				found_waste = False
+				for obj in objs:
+					waste_pos = obj.position
+					if waste_pos == nxt_waste:
+						found_waste = True
+						break
+					else:
+						waste_adj_pos = [(waste_pos[0] - 1, waste_pos[1]), (waste_pos[0] + 1, waste_pos[1]),
+										 (waste_pos[0], waste_pos[1] - 1), (waste_pos[0], waste_pos[1] + 1)]
+						if nxt_waste in waste_adj_pos:
+							self._waste_pos[self._nxt_waste_idx] = waste_pos
+							nxt_waste = waste_pos
+							found_waste = True
+							break
+				
+				if not found_waste:
+					if self._version == 1 or (self._version == 2 and len(self._waste_order) > 0):
+						self._nxt_waste_idx = self._waste_order.pop(0)
+						nxt_waste = self._waste_pos[self._nxt_waste_idx]
+					
+					else:
+						if self._version == 2:
+							self._plan = 'exit'
+							nxt_waste = self._door_pos
+				
+				human_adj_pos = get_adj_pos(self._pos)
+				if nxt_waste == self._door_pos:
+					return int(self.move_to_position(nxt_waste))
+				
 				else:
-					return int(Actions.STAY)
+					if nxt_waste in human_adj_pos and nxt_waste[0] == (self._pos[0] + self._orientation[0]) and nxt_waste[1] == (self._pos[1] + self._orientation[1]):
+						return int(Actions.INTERACT)
+					
+					else:
+						return int(self.move_to_position(nxt_waste))
 			
 			else:
-				return int(self.move_to_position(robot_pos))
+				self._waste_pos[self._nxt_waste_idx] = self._pos
+				
+				if robot_pos == (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]):
+					if self.are_facing(self._orientation, robot_or):
+						return int(Actions.INTERACT)
+					else:
+						return int(Actions.STAY)
+				
+				else:
+					return int(self.move_to_position(robot_pos))
 	
 	def act_robot(self, robot_agents: List, human_agents: List, objs: List) -> int:
 		
 		def shadow_human() -> int:
-			if abs(self.distance(self._pos, human_pos)) < SAFE_DISTANCE:
-				if self._orientation == ActionDirection.UP:
-					return int(Actions.DOWN)
-				elif self._orientation == ActionDirection.DOWN:
-					return int(Actions.UP)
-				elif self._orientation == ActionDirection.LEFT:
-					return int(Actions.RIGHT)
+			distance = self.distance(self._pos, human_pos)
+			if abs(distance) < SAFE_DISTANCE:
+				h_direction = ((human_pos[0] - self._pos[0]) * -1, human_pos[1] - self._pos[1] * -1)
+				if self._pos in list(self._map_adjacencies.keys()):
+					if (self._pos[0] + h_direction[0], self._pos[1] + h_direction[1]) in self._map_adjacencies[self._pos]:
+						if h_direction == ActionDirection.UP.value:
+							return int(Actions.UP)
+						elif h_direction == ActionDirection.DOWN.value:
+							return int(Actions.DOWN)
+						elif h_direction == ActionDirection.LEFT.value:
+							return int(Actions.LEFT)
+						else:
+							return int(Actions.RIGHT)
+					elif (self._pos[0] + self._orientation[0] * -1, self._pos[1] + self._orientation[1] * -1) in self._map_adjacencies[self._pos]:
+						if self._orientation == ActionDirection.UP.value:
+							return int(Actions.DOWN)
+						elif self._orientation == ActionDirection.DOWN.value:
+							return int(Actions.UP)
+						elif self._orientation == ActionDirection.LEFT.value:
+							return int(Actions.RIGHT)
+						else:
+							return int(Actions.LEFT)
+					else:
+						return int(self._rng_gen.choice(list(Actions)))
 				else:
-					return int(Actions.LEFT)
-			elif abs(self.distance(self._pos, human_pos)) == SAFE_DISTANCE:
+					return int(self._rng_gen.choice(list(Actions)))
+			elif abs(distance) == SAFE_DISTANCE:
 				return int(Actions.STAY)
 			else:
 				return int(self.move_to_position(human_pos))
@@ -286,6 +318,7 @@ class GreedyAgent(object):
 			elif self._plan == 'identify':
 				waste_pos = self.waste_pos[self._nxt_waste_idx]
 				if abs(self.distance(self._pos, waste_pos)) == 1 and (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]) == waste_pos:
+					self._plan = 'none'
 					return int(Actions.IDENTIFY)
 				else:
 					return int(self.move_to_position(waste_pos))
@@ -303,12 +336,12 @@ class GreedyAgent(object):
 					else:
 						waste_idx = [waste[0] for waste in waste_unidentified]
 						wastes_pos = [waste[1] for waste in waste_unidentified]
-						self._plan = 'identify'
 						self._nxt_waste_idx = waste_idx[self.find_closest_waste(wastes_pos)]
 						if (abs(self.distance(self._pos, self.waste_pos[self._nxt_waste_idx])) == 1 and
 								(self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]) == self.waste_pos[self._nxt_waste_idx]):
 							return int(Actions.IDENTIFY)
 						else:
+							self._plan = 'identify'
 							return int(self.move_to_position(self.waste_pos[self._nxt_waste_idx]))
 		
 	def act(self, obs: Union[ToxicWasteEnvV1.Observation, ToxicWasteEnvV2.Observation]) -> int:
@@ -320,7 +353,6 @@ class GreedyAgent(object):
 		self._pos = self_agent.position
 		self._orientation = self_agent.orientation
 		self._status = HumanStatus.WASTE_PICKED if self_agent.is_holding_object() else HumanStatus.HANDS_FREE
-		
 		if self._agent_type == AgentType.ROBOT:
 			return self.act_robot(robots, humans, objs)
 		else:

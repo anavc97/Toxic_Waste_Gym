@@ -42,7 +42,7 @@ def main():
 										env.door_pos, agent_type=player.agent_type))
 	for model in agent_models:
 		model.waste_order = waste_order
-	print(env.get_filled_field())
+	# print(env.get_filled_field())
 	env.render()
 	successes = 0
 	
@@ -70,8 +70,10 @@ def main():
 			if finished or timeout:
 				done = True
 				env.reset()
+				[model.reset(waste_order, dict([(idx, env.objects[idx].position) for idx in range(env.n_objects)])) for model in agent_models]
 				if finished:
 					successes += 1
+		input()
 				
 	print('Finished %f of attempts' % (successes / N_CYCLES))
 	

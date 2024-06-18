@@ -595,10 +595,10 @@ class CentralizedMADQN(object):
 				self.madqn.update_target_model(tau)
 	
 	def save_model(self, filename: str, model_dir: Path, logger: logging.Logger) -> None:
-		self._madqn.save_model(filename + '_ctce.model', model_dir, logger)
+		self._madqn.save_model(filename + '_ctce', model_dir, logger)
 	
 	def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: Tuple) -> None:
-		self._madqn.load_model(filename + '_ctce.model', model_dir, logger, obs_shape)
+		self._madqn.load_model(filename + '_ctce', model_dir, logger, obs_shape)
 	
 	def get_history_entry(self, obs: np.ndarray, actions: List):
 		

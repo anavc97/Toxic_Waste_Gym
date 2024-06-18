@@ -164,7 +164,9 @@ class DQNetwork(object):
         self._gamma = new_gamma
         
     @target_params.setter
-    def target_params(self, new_params: flax.core.FrozenDict) -> None:
+    def target_params(self, new_params: Union[flax.core.FrozenDict, dict]) -> None:
+        if isinstance(new_params, dict):
+            new_params = flax.core.freeze(new_params)
         self._target_state_params = new_params
         
     @online_state.setter
