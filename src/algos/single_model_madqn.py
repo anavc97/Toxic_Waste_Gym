@@ -424,7 +424,7 @@ class CentralizedMADQN(object):
 	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_converter: Callable, act_function: Callable, layer_sizes: List[int],
 				 buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False,
 				 use_ddqn: bool = False, use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tensorboard: bool = False,
-				 tensorboard_data: List = None, cnn_properties: List[int] = None):
+				 tensorboard_data: List = None, cnn_properties: List[int] = None, buffer_data: tuple = (False, '')):
 		
 		self._num_agents = num_agents
 		self._use_v2 = use_v2
@@ -443,11 +443,11 @@ class CentralizedMADQN(object):
 								board_data, cnn_properties, use_v2=use_v2)
 		if has_dict_space:
 			obs_space = observation_space[0] if isinstance(observation_space, gymnasium.spaces.Tuple) else observation_space
-			self._replay_buffer = buffer_type(buffer_size, obs_space, action_space, "cuda" if use_gpu else "cpu",
-											  handle_timeout_termination=handle_timeout, n_agents=num_agents)
+			self._replay_buffer = buffer_type(buffer_size, obs_space, action_space, "cuda" if use_gpu else "cpu", handle_timeout_termination=handle_timeout, n_agents=num_agents,
+											  smart_add=buffer_data[0], add_method=buffer_data[1])
 		else:
-			self._replay_buffer = buffer_type(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
-											  handle_timeout_termination=handle_timeout, n_agents=num_agents)
+			self._replay_buffer = buffer_type(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu", handle_timeout_termination=handle_timeout,
+											  n_agents=num_agents, smart_add=buffer_data[0], add_method=buffer_data[1])
 		
 	########################
 	### Class Properties ###

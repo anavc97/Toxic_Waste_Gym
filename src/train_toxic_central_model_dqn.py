@@ -30,7 +30,8 @@ from itertools import permutations
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
-ANNEAL_TEMP = 0.999
+ANNEAL_DECAY = 0.999
+RESTART_WARMUP = 5
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -213,9 +214,10 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 
 def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List, num_iterations: int, max_timesteps: int,
 						 batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger,
-						 model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, warmup: int = 0, start_it: int = 0,
-						 checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0,
-						 debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False) -> List:
+						 model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, start_it: int = 0,
+						 start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000,
+						 greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False,
+						 only_move: bool = True, curriculum_model: Union[str, Path] = '') -> List:
 	
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> Tuple[np.ndarray, np.ndarray]:
 		conv_obs = []
@@ -255,10 +257,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	obs, *_ = waste_env.reset()
 	dqn_model = astro_model.madqn
 	v2_obs = get_model_obs(obs)
-	dqn_model.init_network_states(rng_seed, (v2_obs[0], v2_obs[1].reshape((1, 1))), optim_learn_rate)
+	dqn_model.init_network_states(rng_seed, (v2_obs[0], v2_obs[1].reshape((1, 1))), optim_learn_rate, curriculum_model)
 	if restart:
-		dqn_model.load_model_v2('v2_l-%s-checkpoint_ctce.model' % game_level, model_path, logger, (v2_obs[0].shape, (1, 1)))
-		dqn_model.target_params = dqn_model.online_state.params.copy()
+		warm_anneal_count = RESTART_WARMUP
 	
 	if waste_env.use_render:
 		waste_env.render()
@@ -270,15 +271,16 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	episode_start = epoch
 	episode_rewards = 0
 	episode_q_vals = []
-	temp = 1.0
+	temp = start_temp
 	eps = initial_eps
+	warmup_anneal = restart
 	
 	for it in range(start_it, num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
 		logger.info(waste_env.get_env_log())
 		episode_history = []
 		done = False
-		anneal = (anneal_rng_gen.random() < temp)
+		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
 		while not done:
 			# interact with environment
 			if anneal:
@@ -298,13 +300,13 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
+			if only_move:
+				rewards = np.zeros(waste_env.n_players) if terminated else -1 * np.ones(waste_env.n_players)
 			if waste_env.use_render:
 				waste_env.render()
-			if debug_mode:
-				logger.info('Player rewards: %s' % str(rewards))
 			
 			episode_history += [get_history_entry(waste_env.create_observation(), actions, n_agents)]
-			step_reward = sum(rewards) / astro_model.num_agents
+			step_reward = sum(rewards) / waste_env.n_players
 			episode_rewards += step_reward
 			if dqn_model.use_summary:
 				astro_model.madqn.summary_writer.add_scalar("charts/reward", step_reward, epoch)
@@ -322,9 +324,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
 				
-				# update Q-network and target network
-				# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
-			
 			obs = next_obs
 			epoch += 1
 			if terminated or timeout:
@@ -352,6 +351,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				done = True
 				history += [episode_history]
 				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in agent_models]
+				if warmup_anneal:
+					warm_anneal_count -= 1
+					warmup_anneal = warm_anneal_count > 0
 		
 		# update Q-network and target network
 		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
@@ -411,10 +413,19 @@ def main():
 						help='Flag that signals that train is suppose to restart from a previously saved point.')
 	parser.add_argument('--debug', dest='debug', action='store_true', help='Flag signalling debug mode for model training')
 	parser.add_argument('--fraction', dest='fraction', type=str, default='0.5', help='Fraction of JAX memory pre-compilation')
-	parser.add_argument('--anneal-temp', dest='anneal_temp', type=float, default=ANNEAL_TEMP, help='Temperature for the heuristic annealing')
+	parser.add_argument('--anneal-decay', dest='anneal_decay', type=float, default=ANNEAL_DECAY, help='Decay value for the heuristic annealing')
+	parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 	parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 	parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
 	parser.add_argument('--checkpoint-file', dest='checkpoint_file', type=str, required=False, default='', help='File with data from previous training checkpoint')
+	parser.add_argument('--buffer-smart-add', dest='buffer_smart_add', action='store_true',
+						help='Flag denoting the use of smart sample add to experience replay buffer instead of first-in first-out')
+	parser.add_argument('--buffer-method', dest='buffer_method', type=str, required=False, default='uniform', choices=['uniform', 'weighted'],
+						help='Method of deciding how to add new experience samples when replay buffer is full')
+	parser.add_argument('--use-curriculum', dest='use_curriculum', action='store_true',
+						help='Flag that signals training using previously trained models as a starting model')
+	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, default='', help='Path to model to use as a starting model to improve.')
+	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -459,8 +470,12 @@ def main():
 	tensorboard_freq = args.tensorboard_freq
 	checkpoint_freq = args.checkpoint_freq
 	debug = args.debug
-	temp_anneal = args.anneal_temp
+	decay_anneal = args.anneal_decay
+	anneal_temp = args.init_temp
 	chkpt_file = args.checkpoint_file
+	use_curriculum = args.use_curriculum
+	curriculum_model = args.curriculum_model
+	only_movement = args.only_movement
 	
 	# Astro environment args
 	env_version = args.env_version
@@ -492,8 +507,15 @@ def main():
 	else:
 		chkpt_data = {}
 		for level in game_levels:
-			chkpt_data[level] = {'iteration': 0, 'temp': 1.0}
+			chkpt_data[level] = {'iteration': 0, 'temp': anneal_temp}
 		chkpt_file = str(models_dir / ('v%d_train_checkpoint_data.json' % env_version))
+	
+	if use_curriculum:
+		try:
+			assert curriculum_model != ''
+		except AssertionError:
+			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point')
+			return
 	
 	with open(configs_dir / 'q_network_architectures.yaml') as architecture_file:
 		arch_data = yaml.safe_load(architecture_file)
@@ -581,18 +603,23 @@ def main():
 			logger.info('Creating DQN and starting train')
 			tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
 			tensorboard_details += ['astro_' + game_level]
-			
-			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes,
-										 buffer_size, gamma, env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2),
-										 False, use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties)
+			start_it = chkpt_data[game_level]['iteration']
+			start_temp = chkpt_data[game_level]['temp']
+			if args.restart_train and curriculum_model != '':
+				curriculum_model = 'v2_l-%s-checkpoint_ctce.model' % game_level
+			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
+										 env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
+										 use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties,
+										 buffer_data=(args.buffer_smart_add, args.buffer_method))
 			if env_version == 1:
 				train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
 								  target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,
 								  tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 			else:
 				train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate, target_update_rate, initial_eps,
-									 final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data, eps_decay, warmup, checkpoint_freq,
-									 target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=ANNEAL_TEMP, restart=args.restart_train)
+									 final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data, eps_decay, start_it, start_temp,
+									 checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal,
+									 restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement)
 	
 			logger.info('Saving model and history list')
 			astro_dqn.save_model(game_level, model_path, logger)

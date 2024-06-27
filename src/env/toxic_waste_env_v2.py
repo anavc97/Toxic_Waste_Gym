@@ -130,7 +130,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
 				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False):
+				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False):
 
 		self._dict_obs = dict_obs
 		self._is_train = is_train
@@ -140,6 +140,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._time_penalties = 0.0
 		self._score = 0.0
 		self._door_pos = (-1, 1)
+		self._collect_all = pick_all
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, True, agent_centered,
 						 False, use_render, render_mode, joint_obs)
 		self._start_time = time.time()
@@ -273,7 +274,12 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					continue
 	
 	def is_game_finished(self) -> bool:
-		return any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
+		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
+		if self._collect_all:
+			remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
+			return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
+		else:
+			return player_at_door
 	
 	def is_game_timedout(self) -> bool:
 		return self.get_time_left() <= 0
