@@ -184,17 +184,20 @@ class DQNetwork(object):
             if file_path == '':
                 self._online_state = TrainState.create(
                     apply_fn=self._q_network.apply,
-                    params=self._q_network.init(q_key, obs[0], obs[1]) if isinstance(obs, tuple) else self._q_network.init(q_key, obs),
+                    params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
+                            else self._q_network.init(q_key, jnp.empty(obs.shape))),
                     tx=optax.adam(learning_rate=optim_learn_rate),
                 )
             else:
                 template = TrainState.create(apply_fn=self._q_network.apply,
-                                             params=self._q_network.init(q_key, obs[0], obs[1]) if isinstance(obs, tuple) else self._q_network.init(q_key, obs),
+                                             params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
+                                                     else self._q_network.init(q_key, jnp.empty(obs.shape))),
                                              tx=optax.adam(learning_rate=optim_learn_rate))
                 with open(file_path, "rb") as f:
                     self._online_state = flax.serialization.from_bytes(template, f.read())
         if self._target_state_params is None:
-            self._target_state_params = self._q_network.init(q_key, obs[0], obs[1]) if isinstance(obs, tuple) else self._q_network.init(q_key, obs)
+            self._target_state_params = (self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
+                                         else self._q_network.init(q_key, jnp.empty(obs.shape)))
             update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params, 1.0)
             self._target_state_params = flax.core.freeze(update_target_state_params)
         

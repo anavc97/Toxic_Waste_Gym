@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import numpy as np
 
-from src.env.toxic_waste_env_v1 import Actions, ToxicWasteEnvV1
+from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2
 from typing import List
 
 RNG_SEED = 12072023
@@ -30,9 +30,10 @@ def main():
 	facing = True
 	layer_obs = True
 	centered_obs = False
-	encoding = False
+	use_render = True
+	render_mode = ['human']
 	
-	env = ToxicWasteEnvV1(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, layer_obs, centered_obs, encoding, slip=has_slip)
+	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode, use_render, slip=has_slip, is_train=True)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())
@@ -53,12 +54,13 @@ def main():
 		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)
 		print(env.objects)
-		print(rewards)
+		print(rewards, dones)
 		print(env.objects)
 		# print(env.get_filled_field())
 		env.render()
-		if env.is_over():
-			break
+		if dones:
+			obs, *_ = env.reset()
+			env.render()
 
 	env.close()
 

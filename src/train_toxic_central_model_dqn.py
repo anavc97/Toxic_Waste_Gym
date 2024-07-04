@@ -533,14 +533,19 @@ def main():
 	
 	wandb.init(project='astro-toxic-waste', entity='miguel-faria',
 			   config={
-				   "agent_type": "joint_policy",
-				   "env_version": "v1" if env_version == 1 else "v2",
-				   "agents": n_agents,
-				   "online_learing_rate": learn_rate,
-				   "target_learning_rate": target_update_rate,
-				   "discount": gamma,
-				   "eps_decay": eps_type,
-				   "iterations": n_iterations
+					   "agent_type": "joint_policy",
+					   "env_version": "v1" if env_version == 1 else "v2",
+					   "agents": n_agents,
+					   "online_learing_rate": learn_rate,
+					   "target_learning_rate": target_update_rate,
+					   "discount": gamma,
+					   "eps_decay_type": eps_type,
+					   "eps_decay": eps_decay,
+					   "iterations": n_iterations,
+					   "buffer_size": buffer_size,
+					   "buffer_add": "smart" if args.buffer_smart_add else "plain",
+					   "buffer_add_method": args.buffer_method if args.buffer_smart_add else "fifo",
+					   "batch_size": batch_size
 			   },
 			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),

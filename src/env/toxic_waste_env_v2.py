@@ -13,6 +13,7 @@ from typing import List, Tuple, Any, Union
 from termcolor import colored
 from collections import namedtuple
 from copy import deepcopy
+from itertools import product
 
 
 MOVE_REWARD = 0.0
@@ -180,7 +181,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def _get_action_space(self) -> MultiDiscrete:
 		return MultiDiscrete([len(Actions)] * self._n_players)
 		
-	
 	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict]:
 		
 		# grid observation space
@@ -230,6 +230,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._slip_prob = float(config_data['slip_prob'])
 		# self._max_time = float(config_data['max_train_time']) if self._is_train else float(config_data['max_game_time'])
 		self._max_time = float(config_data['max_game_time'])
+		self._max_time_steps = float(config_data['max_train_time'])
 		config_sight = float(config_data['sight'])
 		self._agent_sight = config_sight if config_sight > 0 else min(self._rows, self._cols)
 		n_red = 0
@@ -282,7 +283,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			return player_at_door
 	
 	def is_game_timedout(self) -> bool:
-		return self.get_time_left() <= 0
+		return self.get_time_left() <= 0 if not self._is_train else self._current_step >= self.max_steps
 	
 	def move_ice(self, move_agent: PlayerState, next_position: Tuple) -> Tuple:
 		
@@ -446,6 +447,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		obs, info = super().reset(seed=seed, options=options)
+		
+		if self._is_train:
+			valid_pos = list(product(range(self.rows), range(self.cols)))
+			for pos in np.transpose(np.nonzero(self._field)):
+				valid_pos.remove(tuple(pos))
+			
+			for p in self.players:
+				row, col = self._np_random.choice(valid_pos)
+				p.position = tuple([row, col])
+				valid_pos.remove(tuple([row, col]))
+				
 		self._start_time = time.time()
 		
 		return obs, info
