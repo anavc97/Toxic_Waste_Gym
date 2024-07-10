@@ -459,6 +459,9 @@ class BaseToxicEnv(Env):
 	####################
 	def get_env_log(self) -> str:
 		raise NotImplementedError('The environment log is specific for each version')
+
+	def get_full_env_log(self) -> str:
+		raise NotImplementedError('The environment log is specific for each version')
 	
 	def create_observation(self) -> Observation:
 		return self.Observation(field=self.field,

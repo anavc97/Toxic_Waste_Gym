@@ -105,7 +105,7 @@ def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_m
 							astro_model.summary_writer.add_scalar("charts/episodic_q_vals", float(q_values[int(action)]), epoch)
 			if debug_mode:
 				logger.info('Environment current state')
-				logger.info(waste_env.get_env_log())
+				logger.info(waste_env.get_full_env_log())
 				logger.info(str(human_model))
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
@@ -195,7 +195,7 @@ def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astr
 	
 	for it in range(num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
-		logger.info(waste_env.get_env_log())
+		logger.info(waste_env.get_full_env_log())
 		episode_history = []
 		done = False
 		while not done:
@@ -234,7 +234,7 @@ def train_astro_model_v2(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astr
 							astro_model.summary_writer.add_scalar("charts/episodic_q_vals", float(q_values[int(action)]), epoch)
 			if debug_mode:
 				logger.info('Environment current state')
-				logger.info(waste_env.get_env_log())
+				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 			if debug_mode:

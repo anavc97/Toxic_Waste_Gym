@@ -174,6 +174,21 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 	### MAIN METHODS ###
 	####################
 	def get_env_log(self) -> str:
+
+		env_log = 'Environment state:\nPlayer states:\n'
+		for player in self._players:
+			env_log += '\t- ' + str(player) + '\n'
+
+		env_log += 'Object states:\n'
+		for obj in self._objects:
+			if obj.hold_state != HoldState.HELD:
+				env_log += '\t- ' + str(obj) + '\n'
+
+		env_log += 'Current timestep: %d\nGame is finished: %r\nGame has timed out: %r\n' % (self._current_step, self.is_game_finished(), self.is_game_timedout())
+
+		return env_log
+
+	def get_full_env_log(self) -> str:
 		
 		env_log = 'Environment state:\nPlayer states:\n'
 		for player in self._players:

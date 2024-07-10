@@ -32,6 +32,7 @@ ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
 ANNEAL_DECAY = 0.999
 RESTART_WARMUP = 5
+MOVE_PENALTY = -0.1
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -159,7 +160,7 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 			
 			if debug_mode:
 				logger.info('Environment current state')
-				logger.info(waste_env.get_env_log())
+				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
@@ -274,10 +275,12 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	temp = start_temp
 	eps = initial_eps
 	warmup_anneal = restart
+	avg_episode_len = []
+	avg_episode_reward = []
 	
 	for it in range(start_it, num_iterations):
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
-		logger.info(waste_env.get_env_log())
+		logger.info(waste_env.get_full_env_log())
 		episode_history = []
 		done = False
 		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
@@ -293,15 +296,15 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				
 				actions = model_execution(dqn_model, eps, get_model_obs, greedy_actions, n_agents, n_joint_actions, obs, decision_rng_gen,
 										  waste_env, episode_q_vals)
-			
+
+			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
+
 			if debug_mode:
 				logger.info('Environment current state')
-				logger.info(waste_env.get_env_log())
+				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
-			
-			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 			if only_move:
-				rewards = np.zeros(waste_env.n_players) if terminated else -1 * np.ones(waste_env.n_players)
+				rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
 			if waste_env.use_render:
 				waste_env.render()
 			
@@ -328,6 +331,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			epoch += 1
 			if terminated or timeout:
 				episode_len = epoch - episode_start
+				avg_episode_len += [episode_len]
+				avg_episode_reward += [episode_rewards]
 				dqn_model = astro_model.madqn
 				if dqn_model.use_summary:
 					sum_qs = sum(episode_q_vals)
@@ -335,8 +340,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					dqn_model.summary_writer.add_scalar("charts/episode_q_vals", sum_qs, epoch)
 					dqn_model.summary_writer.add_scalar("charts/mean_episode_q_vals", sum_qs / n_qs if n_qs > 0 else 0, epoch + start_record_epoch)
 					dqn_model.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/mean_episode_return", episode_rewards / episode_len, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/avg_episode_return", np.mean(avg_episode_reward), it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/avg_episode_len", np.mean(avg_episode_len), it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/anneal_temp", temp, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/iteration", it, it + start_record_it)
