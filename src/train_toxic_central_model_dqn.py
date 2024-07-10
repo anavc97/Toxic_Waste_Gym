@@ -215,7 +215,7 @@ def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN,
 
 def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List, num_iterations: int, max_timesteps: int,
 						 batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str, rng_seed: int, logger: logging.Logger,
-						 model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, start_it: int = 0,
+						 model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, warmup: int = 0, start_it: int = 0,
 						 start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000,
 						 greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False,
 						 only_move: bool = True, curriculum_model: Union[str, Path] = '') -> List:
@@ -326,7 +326,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 											  np.array(actions), np.array(step_reward), finished[0], [infos])
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
-				
+
+			astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
+
 			obs = next_obs
 			epoch += 1
 			if terminated or timeout:
@@ -362,7 +364,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					warmup_anneal = warm_anneal_count > 0
 		
 		# update Q-network and target network
-		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
+		# astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
 		temp *= anneal_cool
 		
 		if it % checkpoint_freq == 0:
@@ -551,7 +553,9 @@ def main():
 					   "buffer_size": buffer_size,
 					   "buffer_add": "smart" if args.buffer_smart_add else "plain",
 					   "buffer_add_method": args.buffer_method if args.buffer_smart_add else "fifo",
-					   "batch_size": batch_size
+					   "batch_size": batch_size,
+					   "online_frequency": train_freq,
+					   "target_frequency": target_freq,
 			   },
 			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
@@ -628,7 +632,7 @@ def main():
 								  tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION)
 			else:
 				train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate, target_update_rate, initial_eps,
-									 final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data, eps_decay, start_it, start_temp,
+									 final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data, eps_decay, warmup, start_it, start_temp,
 									 checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal,
 									 restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement)
 	

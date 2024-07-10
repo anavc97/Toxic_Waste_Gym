@@ -191,8 +191,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			grid_shape = (self._rows, self._cols)
 			
 		# agents layer: agent levels
-		agents_min = np.zeros(grid_shape, dtype=np.int32)
-		agents_max = np.ones(grid_shape, dtype=np.int32)
+		robots_min = np.zeros(grid_shape, dtype=np.int32)
+		robots_max = np.ones(grid_shape, dtype=np.int32)
+		humans_min = np.zeros(grid_shape, dtype=np.int32)
+		humans_max = np.ones(grid_shape, dtype=np.int32)
 		
 		# waste layer: waste pos
 		balls_min = np.zeros(grid_shape, dtype=np.int32)
@@ -209,8 +211,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		occupancy_max = np.ones(grid_shape, dtype=np.int32)
 		
 		# total layer
-		min_obs = np.stack([agents_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
-		max_obs = np.stack([agents_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
+		min_obs = np.stack([robots_min, humans_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
+		max_obs = np.stack([robots_max, humans_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
 		
 		if self._dict_obs:
 			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
@@ -364,7 +366,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		if self._agent_centered_obs:
 			layers_size = (self._rows + 2 * self._agent_sight, self._cols + 2 * self._agent_sight)
-			agent_layer = np.zeros(layers_size, dtype=np.int32)
+			robot_layer = np.zeros(layers_size, dtype=np.int32)
+			human_layer = np.zeros(layers_size, dtype=np.int32)
 			balls_layer = np.zeros(layers_size, dtype=np.int32)
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
@@ -377,7 +380,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			for agent in self._players:
 				pos = agent.position
-				agent_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				if agent.agent_type == AgentType.HUMAN:
+					human_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				else:
+					robot_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				occupancy_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 0
 				
 			for obj in self._objects:
@@ -397,7 +403,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					if self._field[row, col] == CellEntity.COUNTER:
 						occupancy_layer[row + self._agent_sight, col + self._agent_sight] = 0
 			
-			obs = np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
+			obs = np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
 			padding = 2 * self._agent_sight + 1
 			time_left = self.get_time_left()
 			
@@ -411,7 +417,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		else:
 			layers_size = (self._rows, self._cols)
-			agent_layer = np.zeros(layers_size, dtype=np.int32)
+			robot_layer = np.zeros(layers_size, dtype=np.int32)
+			human_layer = np.zeros(layers_size, dtype=np.int32)
 			balls_layer = np.zeros(layers_size, dtype=np.int32)
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
@@ -421,7 +428,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			for agent_idx in range(self._n_players):
 				pos = self._players[agent_idx].position
-				agent_layer[pos[0], pos[1]] = 1
+				if self._players[agent_idx].agent_type == AgentType.HUMAN:
+					human_layer[pos[0], pos[1]] = 1
+				else:
+					robot_layer[pos[0], pos[1]] = 1
 				occupancy_layer[pos[0], pos[1]] = 0
 				acting_layer[agent_idx, pos[0], pos[1]] = 1
 			
@@ -445,16 +455,16 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			if self._dict_obs:
 				if self._joint_obs:
-					return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
+					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
 				else:
-					return [{'conv': np.stack([agent_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
 							 'array': np.array(time_left)}
 							for idx in range(self._n_players)]
 			else:
 				if self._joint_obs:
-					return np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
+					return np.array([np.stack([robot_layer, human_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
 				else:
-					return np.array([np.array([np.stack([agent_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+					return np.array([np.array([np.stack([robot_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
 										   np.array(time_left)],
 										  dtype=object)
 								 for idx in range(self._n_players)])
