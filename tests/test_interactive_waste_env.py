@@ -2,11 +2,12 @@
 import numpy as np
 
 from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2
-from typing import List
+from typing import List, Tuple
 
 RNG_SEED = 12072023
 N_CYCLES = 100
 ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT}
+np.set_printoptions(precision=3, linewidth=2000, threshold=1000)
 
 
 def get_history_entry(obs: np.ndarray, actions: List[int], n_agents: int) -> List:
@@ -17,6 +18,19 @@ def get_history_entry(obs: np.ndarray, actions: List[int], n_agents: int) -> Lis
 		entry += [state_str, str(action)]
 	
 	return entry
+
+
+def get_model_obs(raw_obs) -> Tuple[np.ndarray, np.ndarray]:
+	conv_obs = []
+	arr_obs = []
+
+	if isinstance(raw_obs[0], dict):
+		conv_obs = raw_obs[0]['conv']
+		arr_obs = np.array(raw_obs[0]['array'])
+	else:
+		conv_obs = raw_obs[0][0].reshape(1, *raw_obs[0].shape)
+		arr_obs = raw_obs[0][1:]
+	return conv_obs.reshape(1, *conv_obs.shape), arr_obs
 
 
 def main():
@@ -49,10 +63,14 @@ def main():
 		for idx in range(n_players):
 			action = input('%s action: ' % env.players[idx].name)
 			actions += [int(ACTION_MAP[action])]
-
 		print(' '.join([Actions(action).name for action in actions]))
 		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)
+		next_v2_obs = get_model_obs(state)
+		print(next_v2_obs[0].shape)
+		for layer in state[0]['conv']:
+			print(layer)
+			print('\n')
 		print(env.objects)
 		print(rewards, dones)
 		print(env.objects)

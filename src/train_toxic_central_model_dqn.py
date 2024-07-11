@@ -64,13 +64,13 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: thre
 	except KeyboardInterrupt as ki:
 		return
 
-def model_execution(dqn_model: DQNetwork, eps: float, get_model_obs: Callable, greedy_actions: bool, n_agents: int, n_joint_actions: int,
-					obs: np.ndarray, rng_gen: np.random.Generator, waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List) -> List[int]:
-	
+
+def model_execution(dqn_model: DQNetwork, eps: float, greedy_actions: bool, n_agents: int, n_joint_actions: int, v2_obs: Tuple, rng_gen: np.random.Generator,
+					waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List) -> List[int]:
+
 	if rng_gen.random() < eps:
 		actions = waste_env.action_space.sample()
 	else:
-		v2_obs = get_model_obs(obs)
 		q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)))[0]
 		
 		if greedy_actions:
@@ -94,6 +94,7 @@ def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agen
 		actions.append(model.act(obs))
 	
 	return actions
+
 
 def train_astro_model(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMADQN, agent_models: List[GreedyAgent], waste_order: List,
 					  num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float,
@@ -234,7 +235,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			return conv_obs.reshape(1, *conv_obs.shape), arr_obs
 		
 		else:
-			n_agents = len(raw_obs)
 			for idx in range(n_agents):
 				if isinstance(raw_obs[idx], dict):
 					conv_obs += [raw_obs[idx]['conv']]
@@ -286,6 +286,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
 		while not done:
 			# interact with environment
+			v2_obs = get_model_obs(obs)
 			if anneal:
 				actions = heuristic_execution(waste_env, agent_models)
 			else:
@@ -294,8 +295,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				else:
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
 				
-				actions = model_execution(dqn_model, eps, get_model_obs, greedy_actions, n_agents, n_joint_actions, obs, decision_rng_gen,
-										  waste_env, episode_q_vals)
+				actions = model_execution(dqn_model, eps, greedy_actions, n_agents, n_joint_actions, v2_obs, decision_rng_gen, waste_env, episode_q_vals)
 
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
@@ -304,7 +304,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
 			if only_move:
-				rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				rewards = np.ones(waste_env.n_players) if terminated else np.zeros(waste_env.n_players)
 			if waste_env.use_render:
 				waste_env.render()
 			
@@ -323,11 +323,11 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			if isinstance(obs[0], dict):
 				next_v2_obs = get_model_obs(next_obs)
 				astro_model.replay_buffer.add({'conv': v2_obs[0], 'array': v2_obs[1]}, {'conv': next_v2_obs[0], 'array': next_v2_obs[1]},
-											  np.array(actions), np.array(step_reward), finished[0], [infos])
+												np.array(actions), np.array(step_reward), finished[0], [infos])
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
 
-			astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
+			# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
 
 			obs = next_obs
 			epoch += 1
@@ -364,7 +364,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					warmup_anneal = warm_anneal_count > 0
 		
 		# update Q-network and target network
-		# astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
+		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
 		temp *= anneal_cool
 		
 		if it % checkpoint_freq == 0:
