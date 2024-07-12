@@ -11,8 +11,8 @@ USE_SHELL = False
 # DQN params
 N_AGENTS = 2
 ARCHITECTURE = "v4"
-BUFFER = 10000
-GAMMA = 0.95
+BUFFER = 200000
+GAMMA = 0.9
 TENSORBOARD_DATA = [str(log_dir), 50, 25, '.log']
 USE_DUELING = True
 USE_DDQN = True
@@ -22,7 +22,7 @@ USE_TENSORBOARD = True
 # Train params
 N_ITERATIONS = 20000
 # N_ITERATIONS = 10
-BATCH_SIZE = 128
+BATCH_SIZE = 64
 TRAIN_FREQ = 1
 TARGET_FREQ = 10
 # ALPHA = 0.003566448247686571
@@ -68,6 +68,8 @@ parser.add_argument('--only-movement', dest='only_movement', action='store_true'
 parser.add_argument('--curriculum-learning', dest='curriculum_learning', action='store_true', help='Flag denoting the use of curriculum learning.')
 parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str, required=False, default='', help='Path to the model to use in curriculum learning.')
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
+parser.add_argument('--buffer-size', dest='buffer_size', type=int, required=False, default=BUFFER)
+
 
 input_args = parser.parse_args()
 n_iterations = input_args.max_iterations
@@ -77,19 +79,21 @@ data_logs = input_args.data_logs
 models_dir = input_args.models_dir
 logs_dir = input_args.logs_dir
 restart = input_args.restart
-chkpt_file  = input_args.chkpt_file if input_args.chkpt_file != '' else ''
+chkpt_file = input_args.chkpt_file if input_args.chkpt_file != '' else ''
 smart_add = input_args.buffer_smart_add
 add_method = input_args.buffer_method
 train_only_movement = input_args.only_movement
 use_curriculum_learning = input_args.curriculum_learning
 curriculum_path = input_args.curriculum_model
 anneal_init = input_args.init_temp
+buffer_size = input_args.buffer_size
+
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
 		"--tensorboardDetails %s %d %d %s"
-		% (N_AGENTS, ARCHITECTURE, BUFFER, GAMMA,  																								# DQN parameters
+		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  																								# DQN parameters
 		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  	# Train parameters
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  															# Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))

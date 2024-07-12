@@ -45,4 +45,4 @@ sight: -1
 
 max_game_time: 200.0
 
-max_train_time: 400
+max_train_time: 600

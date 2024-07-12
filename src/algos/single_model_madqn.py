@@ -577,6 +577,7 @@ class CentralizedMADQN(object):
 						obs_array = data.observations[1]
 						next_obs_conv = data.next_observations[0]
 						next_obs_array = data.next_observations[1]
+					print(obs_conv.shape)
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones

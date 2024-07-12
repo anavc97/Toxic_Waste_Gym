@@ -303,8 +303,10 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				logger.info('Environment current state')
 				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
+
 			if only_move:
 				rewards = np.ones(waste_env.n_players) if terminated else np.zeros(waste_env.n_players)
+
 			if waste_env.use_render:
 				waste_env.render()
 			
