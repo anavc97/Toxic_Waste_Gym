@@ -10,6 +10,7 @@
 /[Ll]ogs/
 /src/[Ll]ogs/
 /src/exp_logs/
+/src/logs_example/
 /[Uu]ser[Ss]ettings/
 
 # MemoryCaptures can get excessive in size.
