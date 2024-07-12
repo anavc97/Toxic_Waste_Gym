@@ -14,6 +14,7 @@ public class ActionRendering : MonoBehaviour
     private List<Vector3> walls;
     private BallInteraction ballInteraction;
     private GameObject astroPlayer;
+    private List<Vector3> doorPositions = new List<Vector3>();
 
     void Awake()
     {
@@ -28,83 +29,16 @@ public class ActionRendering : MonoBehaviour
       walls = GameObject.Find("Grid").GetComponent<GridLimits>().gridPositions;
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
       astroPlayer = GameObject.Find("astro");
+      doorPositions = GameObject.Find("GameHandler").GetComponent<GameHandler>().doorPositions;
+      this.GetComponent<SpriteRenderer>().enabled = true;
     }
 
     // Update is called once per frame
     void Update()
     {
-      /*
-      transform.position = Vector3.MoveTowards(transform.position, movePoint.position, movementSpeed * Time.deltaTime);
-      
-      //Move in a constant distance
-      if(Vector3.Distance(transform.position, movePoint.position) <= .05f)
-      {
-        //If input is left or right arrows
-        if(Mathf.Abs(Input.GetAxisRaw("Horizontal")) == 1f)
-        { 
 
-          //Check if human is already facing the correct way or needs to rotate first
-          if(!Rotate("Horizontal", "moveX", "moveY") && !waiting)
-          {
-            //Is it trying to move into a wall?
-            if(!Physics2D.OverlapCircle(movePoint.position + new Vector3(Input.GetAxisRaw("Horizontal"), 0f, 0f), .2f, walls))
-            {
-              movePoint.position += new Vector3(Input.GetAxisRaw("Horizontal"), 0f, 0f);
-            }
-          }
-        }
-
-        //If input is up or down arrows
-        else if(Mathf.Abs(Input.GetAxisRaw("Vertical")) == 1f)
-        {
-          //Check if human is already facing the correct way or needs to rotate first
-          if(!Rotate("Vertical", "moveY", "moveX") && !waiting)
-          {
-            //Is it trying to move into a wall?
-            if(!Physics2D.OverlapCircle(movePoint.position + new Vector3(0f, Input.GetAxisRaw("Vertical"), 0f), .2f, walls))
-            {
-              movePoint.position += new Vector3(0f, Input.GetAxisRaw("Vertical"), 0f);
-            }
-          }
-        }
-      }
-      if(Input.GetKeyDown(KeyCode.Space))
-      {
-        hasBall = !hasBall;
-        animator.SetBool("hasBall", hasBall);
-      }
-
-        /*horizontal = Input.GetAxis("Horizontal");
-        vertical = Input.GetAxis("Vertical");
-        if (horizontal != 0) vertical = 0;
-        myRigidbody2D.velocity = new Vector2(horizontal * movementSpeed, vertical * movementSpeed);*/
     }
 
-    /*private bool Rotate(string direction, string animationParameter, string oppositeAnimationParameter)
-    {
-      if(animator.GetFloat(animationParameter) >= 0f && Input.GetAxisRaw(direction) == -1f)
-      {
-        animator.SetFloat(animationParameter, Input.GetAxisRaw(direction));
-        animator.SetFloat(oppositeAnimationParameter, 0f);
-        if (!waiting)
-        {
-          StartCoroutine(Wait());
-        }
-        return true;
-      }
-      else if(animator.GetFloat(animationParameter) <= 0f && Input.GetAxisRaw(direction) == 1f)
-      {
-        animator.SetFloat(animationParameter, Input.GetAxisRaw(direction));
-        animator.SetFloat(oppositeAnimationParameter, 0f);
-        if (!waiting)
-        {
-          StartCoroutine(Wait());
-        }
-        return true;
-      }
-      return false;
-    }*/
-    
     private IEnumerator Wait()
     {
       waiting = true;
@@ -114,6 +48,13 @@ public class ActionRendering : MonoBehaviour
 
     public void moveOrRotate(Vector3 newPosition, Vector2 newOrientation)
     { 
+      foreach (Vector3 vector in doorPositions)
+      {
+          if (vector == newPosition)  
+          {   
+            this.GetComponent<SpriteRenderer>().enabled = false;
+          }
+      }
 
       if(animator.GetFloat("moveX")!=newOrientation.x || animator.GetFloat("moveY")!=newOrientation.y)
       {

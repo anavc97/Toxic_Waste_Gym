@@ -9,6 +9,7 @@ TagManager:
   - IDdBall
   - CollectedBall
   - Logger
+  - Chat
   layers:
   - Default
   - TransparentFX

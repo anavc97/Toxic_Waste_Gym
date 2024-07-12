@@ -5,6 +5,7 @@ using UnityEngine;
 using TMPro;
 using Unity.Collections.LowLevel.Unsafe;
 using JetBrains.Annotations;
+using Unity.VisualScripting;
 
 public class BallInteraction : MonoBehaviour
 {
@@ -32,14 +33,26 @@ public class BallInteraction : MonoBehaviour
        Id_time = astroPlayer.GetComponent<ActionRenderingRobot>().Id_time;
     }
 
-    public IEnumerator StartIdAnimation(GameObject ball, int index)
+    public IEnumerator StartIdAnimation(GameObject ball, int index, bool error)
     {
         if(BallsIdentified.Contains(ball.name)) //Check if ball had already been identified before
         {
             yield return 0;
         }
         string type = ball.name.Split('_')[0];
-        int nr= (currentChatNumber - 1) % 7 + 1;
+        int nr=(currentChatNumber - 1) % 7 + 1;
+        if ((currentChatNumber-1)%7 == 0)
+        {
+            //Resetting all the chats
+            // Find all GameObjects whose name starts with "Chat"
+            GameObject[] chatObjects = GameObject.FindGameObjectsWithTag("Chat");
+            // Iterate through each found object
+            foreach (GameObject obj in chatObjects)
+            {
+                obj.SetActive(false);
+            }
+        }
+
         string currentChatName = "Chat" + nr;
         currentChat = historyChat.transform.Find(currentChatName).gameObject;
         currentChat.SetActive(true);
@@ -52,16 +65,30 @@ public class BallInteraction : MonoBehaviour
             text.GetComponent<TextMeshPro>().enabled = false;
         }
         load.GetComponent<TextMeshPro>().enabled = true;
-        ball.tag = "IDdBall";
-        BallsIdentified.Add(ball.name);
         yield return new WaitForSeconds(Id_time);
         load.GetComponent<TextMeshPro>().enabled = false;
         text.GetComponent<TextMeshPro>().enabled = true;
         if(type == "green"){text.GetComponent<TextMeshPro>().color = new Color32(18,154,14,255);}
         else if(type == "red"){text.GetComponent<TextMeshPro>().color = new Color32(184,28,3,255);}
         else {text.GetComponent<TextMeshPro>().color = new Color32(240,154,4,255);}
-        text.GetComponent<TextMeshPro>().text = $"Ball {index} is a {type} ball!";
+        if(error){text.GetComponent<TextMeshPro>().fontSize = 11;text.GetComponent<TextMeshPro>().text = $"*bzz* Ball {index}...*bzz* {type} ball...";}
+        else {
+            text.GetComponent<TextMeshPro>().fontSize = 14;
+            text.GetComponent<TextMeshPro>().text = $"Ball {index} is a {type} ball!";
+            ball.tag = "IDdBall";
+            BallsIdentified.Add(ball.name);}
         currentChatNumber += 1;
+    }
+
+    public void CancelIdAnimation()
+    {
+
+        bubble = currentChat.transform.Find("Bubble").gameObject;
+        load = bubble.transform.Find("Load").gameObject;
+        text = bubble.transform.Find("Text").gameObject;        
+        load.GetComponent<TextMeshPro>().enabled = false;
+        text.GetComponent<TextMeshPro>().enabled = true;
+        text.GetComponent<TextMeshPro>().text = "Identification canceled.";
     }
     
     public bool checkPositionVacancy(Vector3 positionToCheck)

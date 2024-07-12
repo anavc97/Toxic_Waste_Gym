@@ -7,7 +7,7 @@ public class Timer : MonoBehaviour
     public float timeRemaining;
     public float effectiveTimeRemaining;
     public int timeChangedCounter = 3;
-    public bool timeIsRunning = true;
+    public bool timeIsRunning = false;
     public bool gameOverTimer = false;
     public TMP_Text timeText;
     public Stopwatch stopWatch;
