@@ -317,8 +317,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				a_id = agents_ids[a_idx]
 				multi_agt_model.replay_buffer(a_id).add(obs[a_idx], next_obs[a_idx], np.array(actions[a_idx]), rewards[a_idx], finished[a_idx], [infos])
 			
-			# update Q-network and target network
-			multi_agt_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup)
+			# # update Q-network and target network
+			# multi_agt_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup)
 			
 			obs = next_obs
 			epoch += 1
@@ -351,6 +351,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 					warmup_anneal = warm_anneal_count > 0
 		
 		temp *= anneal_cool
+		# update Q-network and target network
+		multi_agt_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup)
 		
 		if it % checkpoint_freq == 0:
 			for a_idx in range(n_agents):
