@@ -18,11 +18,11 @@ import traceback
 from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_model_madqn import CentralizedMADQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
-from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
 from env.astro_greedy_agent import GreedyAgent
 from pathlib import Path
 from itertools import product
-from typing import List, Union, Dict, Tuple, Callable
+from typing import List, Union, Dict, Tuple
 from datetime import datetime
 from itertools import permutations
 

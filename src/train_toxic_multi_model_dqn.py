@@ -14,11 +14,12 @@ import time
 import yaml
 import logging
 import json
+import traceback
 
 from algos.dqn import EPS_TYPE, DQNetwork
 from algos.multi_model_madqn import MultiAgentDQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
-from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, AgentType
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
 from env.astro_greedy_agent import GreedyAgent
 from pathlib import Path
 from typing import List, Union, Dict
@@ -414,7 +415,7 @@ def main():
 						help='Method of deciding how to add new experience samples when replay buffer is full')
 	parser.add_argument('--use-curriculum', dest='use_curriculum', action='store_true',
 						help='Flag that signals training using previously trained models as a starting model')
-	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, default='', help='Path to model to use as a starting model to improve.')
+	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, nargs='+', default='', help='Path to model to use as a starting model to improve.')
 	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
 	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 
@@ -466,7 +467,7 @@ def main():
 	anneal_temp = args.init_temp
 	chkpt_file = args.checkpoint_file
 	use_curriculum = args.use_curriculum
-	curriculum_model = args.curriculum_model
+	curriculum_models = args.curriculum_model
 	only_movement = args.only_movement
 	
 	# Astro environment args
@@ -504,10 +505,13 @@ def main():
 	
 	if use_curriculum:
 		try:
-			assert curriculum_model != ''
+			assert curriculum_models is not None
+			assert all([curriculum_model != '' for curriculum_model in curriculum_models])
 		except AssertionError:
 			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point')
 			return
+	else:
+		curriculum_models = None
 	
 	with open(configs_dir / 'q_network_architectures.yaml') as architecture_file:
 		arch_data = yaml.safe_load(architecture_file)
@@ -616,7 +620,7 @@ def main():
 				train_astro_model_v2(env, astro_dqn, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 									 learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data,
 									 eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, greedy_actions=False,
-									 interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement)
+									 interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train, curriculum_model=curriculum_models, only_move=only_movement)
 	
 			logger.info('Saving model and history list')
 			Path.mkdir(model_path, parents=True, exist_ok=True)
