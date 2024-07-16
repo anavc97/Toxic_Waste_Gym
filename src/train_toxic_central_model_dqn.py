@@ -32,7 +32,8 @@ ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
 ANNEAL_DECAY = 0.999
 RESTART_WARMUP = 5
-MOVE_PENALTY = -0.1
+MOVE_PENALTY = -1
+FINISH_REWARD = 100
 
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
@@ -81,7 +82,7 @@ def model_execution(dqn_model: DQNetwork, eps: float, greedy_actions: bool, n_ag
 			action = rng_gen.choice(range(n_joint_actions), p=pol)
 		joint_action = int(jax.device_get(action))
 		actions = convert_joint_act(joint_action, n_agents, waste_env.action_space[0].n)
-		episode_q_vals += [float(q_values[int(joint_action)])]
+		episode_q_vals.append(float(q_values[int(joint_action)]))
 	
 	return actions
 
@@ -271,7 +272,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	start_record_epoch = cycle * max_timesteps
 	episode_start = epoch
 	episode_rewards = 0
-	episode_q_vals = []
 	temp = start_temp
 	eps = initial_eps
 	warmup_anneal = restart
@@ -284,6 +284,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		episode_history = []
 		done = False
 		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
+		episode_q_vals = []
 		while not done:
 			# interact with environment
 			v2_obs = get_model_obs(obs)
@@ -299,13 +300,15 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
+			if only_move:
+				# rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+
 			if debug_mode:
 				logger.info('Environment current state')
 				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
-
-			if only_move:
-				rewards = np.ones(waste_env.n_players) if terminated else np.zeros(waste_env.n_players)
+				logger.info('Rewards: %s' % str(rewards))
 
 			if waste_env.use_render:
 				waste_env.render()
@@ -329,7 +332,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
 
-			# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
+			astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
 
 			obs = next_obs
 			epoch += 1
@@ -339,10 +342,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				avg_episode_reward += [episode_rewards]
 				dqn_model = astro_model.madqn
 				if dqn_model.use_summary:
-					sum_qs = sum(episode_q_vals)
-					n_qs = len(episode_q_vals)
-					dqn_model.summary_writer.add_scalar("charts/episode_q_vals", sum_qs, epoch)
-					dqn_model.summary_writer.add_scalar("charts/mean_episode_q_vals", sum_qs / n_qs if n_qs > 0 else 0, epoch + start_record_epoch)
+					dqn_model.summary_writer.add_scalar("charts/episode_q_vals", np.sum(episode_q_vals), it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/mean_episode_q_vals", np.mean(episode_q_vals), it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/avg_episode_return", np.mean(avg_episode_reward), it + start_record_it)
 					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
@@ -366,7 +367,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					warmup_anneal = warm_anneal_count > 0
 		
 		# update Q-network and target network
-		astro_model.update_dqn_models(batch_size, it + 1, start_time, target_freq, tau, summary_frequency, train_freq, 1, waste_env.action_space[0].n)
+		# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
 		temp *= anneal_cool
 		
 		if it % checkpoint_freq == 0:
@@ -558,6 +559,7 @@ def main():
 					   "batch_size": batch_size,
 					   "online_frequency": train_freq,
 					   "target_frequency": target_freq,
+					   "architecture": architecture
 			   },
 			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),

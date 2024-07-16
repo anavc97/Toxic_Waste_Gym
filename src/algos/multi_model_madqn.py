@@ -323,13 +323,14 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
 					else:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]
-							self._agent_dqns[a_id].update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
+							observations = (obs_conv[a_idx], obs_array[a_idx])
+							next_observations = (next_obs_conv[a_idx], next_obs_array[a_idx])
+							self._agent_dqns[a_id].update_online_model(observations, actions[a_idx], next_observations, rewards[a_idx],
 																	   dones[a_idx], epoch, start_time, tensorboard_frequency)
 				
 				else:
@@ -352,9 +353,8 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_pred).mean(), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
 						
 					else:
 						for a_idx in range(self._num_agents):
@@ -366,16 +366,16 @@ class MultiAgentDQN(object):
 				for a_id in self._agent_ids:
 					self._agent_dqns[a_id].update_target_model(tau)
 	
-	def save_models(self, filename: str, model_dir: Path, logger: logging.Logger) -> None:
+	def save_models(self, filename_prefix: str, model_dir: Path, logger: logging.Logger) -> None:
 		for agent_id in self._agent_ids:
-			self._agent_dqns[agent_id].save_model(filename, model_dir, logger)
+			self._agent_dqns[agent_id].save_model(filename_prefix + "%s_%s_model" % ('_vdn' if self._use_vdn else '', agent_id), model_dir, logger)
 	
-	def save_model(self, filename: str, agent_id: str, model_dir: Path, logger: logging.Logger) -> None:
-		self._agent_dqns[agent_id].save_model(filename, model_dir, logger)
+	def save_model(self, filename_prefix: str, agent_id: str, model_dir: Path, logger: logging.Logger) -> None:
+		self._agent_dqns[agent_id].save_model(filename_prefix + "%s_%s_model" % ('_vdn' if self._use_vdn else '', agent_id), model_dir, logger)
 	
 	def load_models(self, filename_prefix: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
 		for agent_id in self._agent_ids:
-			self._agent_dqns[agent_id].load_model(filename_prefix + '_' + agent_id, model_dir, logger, obs_shape)
+			self._agent_dqns[agent_id].load_model(filename_prefix + "%s_%s_model" % ('_vdn' if self._use_vdn else '', agent_id), model_dir, logger, obs_shape)
 	
-	def load_model(self, filename: str, agent_id: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
-		self._agent_dqns[agent_id].load_model(filename, model_dir, logger, obs_shape)
+	def load_model(self, filename_prefix: str, agent_id: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
+		self._agent_dqns[agent_id].load_model(filename_prefix + "%s_%s_model" % ('_vdn' if self._use_vdn else '', agent_id), model_dir, logger, obs_shape)

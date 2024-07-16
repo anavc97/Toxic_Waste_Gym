@@ -210,7 +210,6 @@ class DQNetwork(object):
     
     def compute_ddqn_targets(self, dones, next_observations, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
         q_next_target = self._q_network.apply(target_state_params, next_observations)  # get target network q values
-        # DDQN the target network is used to evaluate how good the online network's predictions are
         q_next_online = self._q_network.apply(q_state.params, next_observations)  # get online network's prescribed actions
         online_acts = jnp.argmax(q_next_online, axis=1)
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
@@ -218,10 +217,10 @@ class DQNetwork(object):
     
     def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
         q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None])  # get target network q values
-        # DDQN the target network is used to evaluate how good the online network's predictions are
         q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None])  # get online network's prescribed actions
         online_acts = jnp.argmax(q_next_online, axis=1)
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
+        print('compute_v2_targets: ', q_next_target.shape, rewards.shape, dones.shape, (rewards + (1 - dones) * self._gamma * q_next_target).shape)
         return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze()  # compute Bellman equation
     
     def mse_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
@@ -233,7 +232,8 @@ class DQNetwork(object):
     def mse_loss_v2(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                      next_q_value: Union[np.ndarray, jax.Array]):
         q = self._q_network.apply(params, observations[0], observations[1][:, None])  # get online model's q_values
-        q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
+        q = q[np.arange(q.shape[0]), actions.squeeze()]
+        print('mse_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
     
     @partial(jit, static_argnums=(0,))
@@ -270,7 +270,7 @@ class DQNetwork(object):
             print(colored('Unrecognized exploration decay type, defaulting to logarithmic decay', 'red'))
             return max((1 / (1 + decay_rate * step)) * init_eps, end_eps)
 
-    def update_online_model(self, observations: jnp.ndarray, actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray,
+    def update_online_model(self, observations: Union[jnp.ndarray, Tuple], actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray,
                             epoch: int, start_time: float, summary_frequency: int) -> float:
         
         # perform a gradient-descent step
@@ -278,6 +278,7 @@ class DQNetwork(object):
             q_state = self._online_state
             target_params = self._target_state_params
             next_q_value = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params)
+            print('update_online_model: ', next_q_value.shape, observations[0].shape, observations[1].shape, actions.shape)
             
             (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
             self._online_state = q_state.apply_gradients(grads=grads)
