@@ -323,13 +323,15 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			epoch += 1
 			if terminated or timeout:
 				episode_len = epoch - episode_start
+				avg_episode_len.append(episode_len)
 				for a_idx in range(n_agents):
 					dqn_model = multi_agt_model.agent_dqns[agents_ids[a_idx]]
+					avg_episode_reward[a_idx].append(episode_rewards[a_idx])
 					if dqn_model.use_summary:
-						dqn_model.summary_writer.add_scalar("%s-charts/episode_q_vals" % agents_ids[a_idx], np.sum(episode_q_vals), it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/mean_episode_q_vals" % agents_ids[a_idx], np.mean(episode_q_vals), it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/episode_return" % agents_ids[a_idx], episode_rewards, it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/avg_episode_return" % agents_ids[a_idx], np.mean(avg_episode_reward), it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/episode_q_vals" % agents_ids[a_idx], np.sum(episode_q_vals[a_idx]), it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/mean_episode_q_vals" % agents_ids[a_idx], np.mean(episode_q_vals[a_idx]), it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/episode_return" % agents_ids[a_idx], episode_rewards[a_idx], it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/avg_episode_return" % agents_ids[a_idx], np.mean(avg_episode_reward[a_idx]), it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/episodic_length" % agents_ids[a_idx], episode_len, it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/avg_episode_len" % agents_ids[a_idx], np.mean(avg_episode_len), it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/epsilon" % agents_ids[a_idx], eps, it + start_record_it)
