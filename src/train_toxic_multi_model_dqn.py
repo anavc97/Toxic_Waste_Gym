@@ -416,6 +416,7 @@ def main():
 						help='Flag that signals training using previously trained models as a starting model')
 	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, default='', help='Path to model to use as a starting model to improve.')
 	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
+	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -554,72 +555,81 @@ def main():
 		handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
 		err_logger.addHandler(handler)
 		Path.mkdir(model_path, parents=True, exist_ok=True)
-		with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
-			objects = yaml.safe_load(config_file)['objects']
-			n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
-		
-		logger.info('#######################################')
-		logger.info('Starting Astro Waste Disposal DQN Train')
-		logger.info('#######################################')
-		logger.info('Level %s setup' % game_level)
-		if env_version == 1:
-			env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing,
-								  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
-		else:
-			env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing,
-								  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=has_pick_all)
-		
-		obs, *_ = env.reset(seed=RNG_SEED)
-		agents_id = [agent.name for agent in env.players]
-		
-		heuristic_agents = []
-		for player in env.players:
+		try:
+			with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
+				objects = yaml.safe_load(config_file)['objects']
+				n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
+			
+			logger.info('#######################################')
+			logger.info('Starting Astro Waste Disposal DQN Train')
+			logger.info('#######################################')
+			logger.info('Level %s setup' % game_level)
 			if env_version == 1:
-				heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
-												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
-												agent_type=player.agent_type))
+				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing,
+									  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
 			else:
-				heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
-												dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
-												env.door_pos, agent_type=player.agent_type))
+				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing,
+									  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
+			
+			obs, *_ = env.reset(seed=RNG_SEED)
+			agents_id = [agent.name for agent in env.players]
+			
+			heuristic_agents = []
+			for player in env.players:
+				if env_version == 1:
+					heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
+													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+													agent_type=player.agent_type))
+				else:
+					heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
+													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+													env.door_pos, agent_type=player.agent_type))
+			
+			logger.info('Train setup')
+			waste_idx = []
+			for obj in env.objects:
+				waste_idx.append(env.objects.index(obj))
+			waste_seqs = list(permutations(waste_idx))
+			waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+			
+			logger.info('Creating DQN and starting train')
+			tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
+			tensorboard_details += ['astro_' + game_level]
+			start_it = chkpt_data[game_level]['iteration']
+			start_temp = chkpt_data[game_level]['temp']
+			
+			if use_vdn:
+				astro_dqn = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
+										  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
+										  use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
+										  cnn_properties=cnn_properties)
+			else:
+				astro_dqn = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
+										  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
+										  use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
+										  cnn_properties=cnn_properties)
+			if env_version == 1:
+				train_astro_model(agents_id, env, astro_dqn, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
+								  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
+								  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
+			else:
+				train_astro_model_v2(env, astro_dqn, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
+									 learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data,
+									 eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, greedy_actions=False,
+									 interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement)
+	
+			logger.info('Saving model and history list')
+			Path.mkdir(model_path, parents=True, exist_ok=True)
+			astro_dqn.save_models(game_level, model_path, logger)
 		
-		logger.info('Train setup')
-		waste_idx = []
-		for obj in env.objects:
-			waste_idx.append(env.objects.index(obj))
-		waste_seqs = list(permutations(waste_idx))
-		waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+		except KeyboardInterrupt as ks:
+			logger.info('Caught keyboard interrupt, cleaning up and closing.')
+			wandb.finish()
 		
-		logger.info('Creating DQN and starting train')
-		tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
-		tensorboard_details += ['astro_' + game_level]
-		
-		if use_vdn:
-			astro_dqn = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
-									  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-									  use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
-									  cnn_properties=cnn_properties)
-		else:
-			astro_dqn = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
-									  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-									  use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
-									  cnn_properties=cnn_properties)
-		if env_version == 1:
-			train_astro_model(agents_id, env, astro_dqn, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
-							  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq,
-							  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
-		else:
-			train_astro_model_v2(env, astro_dqn, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
-								 learn_rate, target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file, chkpt_data,
-								 eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, greedy_actions=False,
-								 interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement)
-
-		logger.info('Saving model and history list')
-		Path.mkdir(model_path, parents=True, exist_ok=True)
-		astro_dqn.save_models(game_level, model_path, logger)
-		# obs_path = model_path / (game_level + '.json')
-		# with open(obs_path, "w") as of:
-		# 	of.write(json.dumps(history))
+		except Exception as e:
+			logger.error("Caught an unexpected exception while training level %s: %s\n%s" % (game_level, str(e), traceback.format_exc()))
+	
+	wandb.finish()
 
 
 if __name__ == '__main__':

@@ -437,6 +437,7 @@ def main():
 						help='Flag that signals training using previously trained models as a starting model')
 	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, default='', help='Path to model to use as a starting model to improve.')
 	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
+	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 
 	# Environment parameters
 	parser.add_argument('--version', dest='env_version', type=int, required=True, help='Environment version to use')
@@ -594,7 +595,7 @@ def main():
 									  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
 			else:
 				env = ToxicWasteEnvV2(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode,
-									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True)
+									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all)
 			
 			obs, *_ = env.reset(seed=RNG_SEED)
 			
