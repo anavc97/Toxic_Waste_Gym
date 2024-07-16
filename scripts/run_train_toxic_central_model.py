@@ -10,7 +10,7 @@ USE_SHELL = False
 
 # DQN params
 N_AGENTS = 2
-ARCHITECTURE = "v4"
+ARCHITECTURE = "v3"
 BUFFER = 200000
 GAMMA = 0.9
 TENSORBOARD_DATA = [str(log_dir), 50, 25, '.log']
@@ -72,28 +72,28 @@ parser.add_argument('--buffer-size', dest='buffer_size', type=int, required=Fals
 
 
 input_args = parser.parse_args()
-n_iterations = input_args.max_iterations
-eps_type = input_args.eps_type
-eps_decay = input_args.eps_decay
-data_logs = input_args.data_logs
-models_dir = input_args.models_dir
-logs_dir = input_args.logs_dir
-restart = input_args.restart
-chkpt_file = input_args.chkpt_file if input_args.chkpt_file != '' else ''
-smart_add = input_args.buffer_smart_add
 add_method = input_args.buffer_method
-train_only_movement = input_args.only_movement
-use_curriculum_learning = input_args.curriculum_learning
-curriculum_path = input_args.curriculum_model
 anneal_init = input_args.init_temp
 buffer_size = input_args.buffer_size
+chkpt_file = input_args.chkpt_file if input_args.chkpt_file != '' else ''
+curriculum_path = input_args.curriculum_model
+data_logs = input_args.data_logs
+eps_type = input_args.eps_type
+eps_decay = input_args.eps_decay
+logs_dir = input_args.logs_dir
+models_dir = input_args.models_dir
+n_iterations = input_args.max_iterations
+restart = input_args.restart
+smart_add = input_args.buffer_smart_add
+train_only_movement = input_args.only_movement
+use_curriculum_learning = input_args.curriculum_learning
 
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
 		"--tensorboardDetails %s %d %d %s"
-		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  																								# DQN parameters
+		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  																						# DQN parameters
 		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  	# Train parameters
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  															# Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))

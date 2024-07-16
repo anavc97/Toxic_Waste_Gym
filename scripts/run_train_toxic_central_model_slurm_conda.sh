@@ -20,12 +20,12 @@ fi
 
 export LD_LIBRARY_PATH="/usr/lib/cuda/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/lib/cuda/bin:$PATH"
-source "$HOME"/miniconda3/bin/activate drl_env
+source "$HOME"/miniconda3/bin/activate deep_rl_env
 
 if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   python "$script_path"/run_train_toxic_central_model.py --data-logs /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste
 else
-  python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 6000 --eps-type linear --eps-decay 0.2 --buffer-size 10000 
+  python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 10 --eps-type linear --eps-decay 0.2 --buffer-size 10000
 fi
 
 source "$HOME"/miniconda3/bin/deactivate
