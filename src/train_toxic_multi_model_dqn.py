@@ -91,7 +91,7 @@ def model_execution(agent_ids: List[str], ma_model: MultiAgentDQN, eps: float, g
 				pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
 				pol = pol / pol.sum()
 				action = rng_gen.choice(range(waste_env.action_space[0].n), p=pol)
-				episode_q_vals[a_idx].append(float(q_values[int(action)]))
+			episode_q_vals[a_idx] += float(q_values[int(action)])
 			actions += [int(jax.device_get(action))]
 	
 	return actions
@@ -260,15 +260,16 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 	start_record_it = cycle * num_iterations
 	start_record_epoch = cycle * max_timesteps
 	episode_start = epoch
-	episode_rewards = [0] * n_agents
-	episode_q_vals = [0] * n_agents
 	warmup_anneal = restart
 	temp = start_temp
 	eps = initial_eps
-	avg_episode_len = [[]] * n_agents
+	avg_episode_len = []
+	avg_episode_q_vals = [[]] * n_agents
 	avg_episode_reward = [[]] * n_agents
-	
+
 	for it in range(start_it, num_iterations):
+		episode_rewards = [0.0] * n_agents
+		episode_q_vals = [0.0] * n_agents
 		logger.info("Iteration %d out of %d" % (it + 1, num_iterations))
 		logger.info(waste_env.get_full_env_log())
 		episode_history = []
@@ -327,8 +328,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				for a_idx in range(n_agents):
 					dqn_model = multi_agt_model.agent_dqns[agents_ids[a_idx]]
 					avg_episode_reward[a_idx].append(episode_rewards[a_idx])
+					avg_episode_q_vals[a_idx].append(episode_q_vals[a_idx])
 					if dqn_model.use_summary:
-						dqn_model.summary_writer.add_scalar("%s-charts/episode_q_vals" % agents_ids[a_idx], np.sum(episode_q_vals[a_idx]), it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/episode_q_vals" % agents_ids[a_idx], episode_q_vals[a_idx], it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/mean_episode_q_vals" % agents_ids[a_idx], np.mean(episode_q_vals[a_idx]), it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/episode_return" % agents_ids[a_idx], episode_rewards[a_idx], it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/avg_episode_return" % agents_ids[a_idx], np.mean(avg_episode_reward[a_idx]), it + start_record_it)
@@ -548,7 +550,7 @@ def main():
 					   "target_frequency": target_freq,
 					   "architecture": architecture
 			   },
-			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
+			   name=('multi_model%s_' % ("_vdn" if use_vdn else "") + now.strftime("%Y%m%d-%H%M%S")),
 			   sync_tensorboard=True)
 
 	for game_level in game_levels:
