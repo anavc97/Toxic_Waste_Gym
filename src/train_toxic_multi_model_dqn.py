@@ -331,14 +331,14 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 					avg_episode_q_vals[a_idx].append(episode_q_vals[a_idx])
 					if dqn_model.use_summary:
 						dqn_model.summary_writer.add_scalar("%s-charts/performance/episode_q_vals" % agents_ids[a_idx], episode_q_vals[a_idx], it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/performance/mean_episode_q_vals" % agents_ids[a_idx], np.mean(episode_q_vals[a_idx]), it + start_record_it)
+						dqn_model.summary_writer.add_scalar("%s-charts/performance/mean_episode_q_vals" % agents_ids[a_idx], np.mean(avg_episode_q_vals[a_idx]), it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/performance/episode_return" % agents_ids[a_idx], episode_rewards[a_idx], it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/performance/avg_episode_return" % agents_ids[a_idx], np.mean(avg_episode_reward[a_idx]), it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/performance/episodic_length" % agents_ids[a_idx], episode_len, it + start_record_it)
 						dqn_model.summary_writer.add_scalar("%s-charts/performance/avg_episode_len" % agents_ids[a_idx], np.mean(avg_episode_len), it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/control/epsilon" % agents_ids[a_idx], eps, it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/control/anneal_temp" % agents_ids[a_idx], temp, it + start_record_it)
-						dqn_model.summary_writer.add_scalar("%s-charts/control/iteration" % agents_ids[a_idx], it, it + start_record_it)
+				dqn_model.summary_writer.add_scalar("charts/control/epsilon", eps, it + start_record_it)
+				dqn_model.summary_writer.add_scalar("charts/control/anneal_temp", temp, it + start_record_it)
+				dqn_model.summary_writer.add_scalar("charts/control/iteration", it, it + start_record_it)
 				obs, *_ = waste_env.reset()
 				episode_rewards = [0] * n_agents
 				episode_q_vals = [0] * n_agents
