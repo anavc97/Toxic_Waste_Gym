@@ -323,8 +323,8 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("%s-losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("%s-losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
 					else:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]
@@ -353,8 +353,8 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("%s-losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("%s-losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
+								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
 						
 					else:
 						for a_idx in range(self._num_agents):
