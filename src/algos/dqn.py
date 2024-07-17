@@ -278,7 +278,7 @@ class DQNetwork(object):
             q_state = self._online_state
             target_params = self._target_state_params
             next_q_value = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params)
-            print('update_online_model: ', next_q_value.shape, observations[0].shape, observations[1].shape, actions.shape)
+            print('update_online_model: ', next_q_value.shape, observations[0].shape, observations[1].shape, actions.shape, rewards.shape, finished.shape)
             
             (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
             self._online_state = q_state.apply_gradients(grads=grads)
