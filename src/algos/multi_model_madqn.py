@@ -278,7 +278,7 @@ class MultiAgentDQN(object):
 																					  q_state[idx], rewards[idx].reshape(-1, 1), target_state_params[idx])
 		new_q_states = []
 		(loss_value, q_vals), grads = jax.value_and_grad(self.l2_v2_loss, has_aux=True)([state.params for state in q_state], observations_conv,
-																						observations_arr, actions, next_q_value)
+																						observations_arr, actions, next_q_value[:, None])
 		print('compute_vdn_v2_loss: ', len(grads), q_vals.shape)
 		for idx in range(self._num_agents):
 			new_q_states.append(q_state[idx].apply_gradients(grads=grads[idx]))
