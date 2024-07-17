@@ -30,7 +30,7 @@ from itertools import permutations
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
-ANNEAL_DECAY = 0.999
+ANNEAL_DECAY = 0.95
 RESTART_WARMUP = 5
 MOVE_PENALTY = -1
 
