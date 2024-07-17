@@ -33,6 +33,7 @@ INTERACTIVE_SESSION = False
 ANNEAL_DECAY = 0.95
 RESTART_WARMUP = 5
 MOVE_PENALTY = -1
+FINISH_REWARD = 100
 
 
 def get_history_entry(obs: ToxicWasteEnvV2.Observation, actions: List[int], n_agents: int) -> List:
@@ -290,7 +291,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
 			if only_move:
-				rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				# rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
 				
 			if debug_mode:
 				logger.info('Environment current state')
