@@ -601,6 +601,8 @@ def main():
 				waste_idx.append(env.objects.index(obj))
 			waste_seqs = list(permutations(waste_idx))
 			waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+			for model in heuristic_agents:
+				model.waste_order = waste_order
 			
 			logger.info('Creating DQN and starting train')
 			tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
