@@ -555,8 +555,12 @@ def main():
 			   name=('multi_model%s_' % ("_vdn" if use_vdn else "") + now.strftime("%Y%m%d-%H%M%S")),
 			   sync_tensorboard=True)
 
+	if len(logging.root.handlers) > 0:
+		for handler in logging.root.handlers:
+			logging.root.removeHandler(handler)
+
 	for game_level in game_levels:
-		log_filename = ('train_astro_disposal_multi_dqn_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
+		log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
 		logger = logging.getLogger("%s" % game_level)
 		logger.setLevel(logging.INFO)
 		file_handler = logging.FileHandler(log_dir / (log_filename + '.log'))
