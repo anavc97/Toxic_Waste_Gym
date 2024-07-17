@@ -71,6 +71,7 @@ parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='D
 parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 
 
 input_args = parser.parse_args()
@@ -89,6 +90,7 @@ n_iterations = input_args.max_iterations
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
 train_only_movement = input_args.only_movement
+temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
@@ -105,7 +107,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") + (" --vdn" if USE_VDN else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
-		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init))
+		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) + (" --anneal-decay %f" % temp_decay))
 commamd = "python " + str(src_dir / 'train_toxic_multi_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
