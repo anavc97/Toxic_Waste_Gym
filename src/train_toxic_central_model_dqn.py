@@ -316,7 +316,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			step_reward = sum(rewards) / waste_env.n_players
 			episode_rewards += step_reward
 			if dqn_model.use_summary:
-				astro_model.madqn.summary_writer.add_scalar("charts/reward", step_reward, epoch)
+				astro_model.madqn.summary_writer.add_scalar("charts/performance/reward", step_reward, epoch)
 			
 			if terminated:
 				finished = np.ones(n_agents)
@@ -341,15 +341,15 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				avg_episode_reward += [episode_rewards]
 				dqn_model = astro_model.madqn
 				if dqn_model.use_summary:
-					dqn_model.summary_writer.add_scalar("charts/episode_q_vals", np.sum(episode_q_vals), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/mean_episode_q_vals", np.mean(episode_q_vals), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/episode_return", episode_rewards, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/avg_episode_return", np.mean(avg_episode_reward), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/episodic_length", episode_len, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/avg_episode_len", np.mean(avg_episode_len), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/epsilon", eps, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/anneal_temp", temp, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/iteration", it, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/episode_q_vals", np.sum(episode_q_vals), it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/mean_episode_q_vals", np.mean(episode_q_vals), it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/episode_return", episode_rewards, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/avg_episode_return", np.mean(avg_episode_reward), it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/episodic_length", episode_len, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/performance/avg_episode_len", np.mean(avg_episode_len), it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/control/epsilon", eps, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/control/anneal_temp", temp, it + start_record_it)
+					dqn_model.summary_writer.add_scalar("charts/control/iteration", it, it + start_record_it)
 				obs, *_ = waste_env.reset()
 				if waste_env.use_render:
 					waste_env.render()

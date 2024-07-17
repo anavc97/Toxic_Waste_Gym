@@ -557,14 +557,14 @@ def main():
 
 	for game_level in game_levels:
 		log_filename = ('train_astro_disposal_multi_dqn_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
-		logging.basicConfig(filename=(log_dir / (log_filename + '_log.txt')), filemode='w', format='%(name)s %(asctime)s %(levelname)s:\t%(message)s',
-							level=logging.INFO)
-		logger = logging.getLogger('INFO')
-		err_logger = logging.getLogger('ERROR')
-		handler = logging.StreamHandler(sys.stderr)
-		handler.setFormatter(logging.Formatter('%(name)s - %(levelname)s - %(message)s'))
-		err_logger.addHandler(handler)
+		logger = logging.getLogger("%s" % game_level)
+		logger.setLevel(logging.INFO)
+		file_handler = logging.FileHandler(log_dir / (log_filename + '.log'))
+		file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
+		file_handler.setLevel(logging.INFO)
+		logger.addHandler(file_handler)
 		Path.mkdir(model_path, parents=True, exist_ok=True)
+		Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
 		try:
 			with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
 				objects = yaml.safe_load(config_file)['objects']

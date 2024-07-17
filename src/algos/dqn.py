@@ -289,12 +289,14 @@ class DQNetwork(object):
         else:
             td_loss, q_val, self._online_state = self.compute_dqn_loss(self._online_state, self._target_state_params, observations, actions,
                                                                        next_observations, rewards, finished)
-        
+
+        print("update_online_model: ", td_loss.shape, q_val.shape)
+
         #  update tensorboard
         if self._use_tensorboard and epoch % summary_frequency == 0:
-            self._tensorboard_writer.add_scalar("losses/td_loss", jax.device_get(td_loss), epoch)
-            self._tensorboard_writer.add_scalar("losses/avg_q_values", jax.device_get(q_val).mean(), epoch)
-            self._tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
+            self._tensorboard_writer.add_scalar("charts/losses/td_loss", jax.device_get(td_loss), epoch)
+            self._tensorboard_writer.add_scalar("charts/losses/avg_q_values", jax.device_get(q_val).mean(), epoch)
+            # self._tensorboard_writer.add_scalar("charts/SPS", int(epoch / (time.time() - start_time)), epoch)
         return td_loss
     
     def update_target_model(self, tau: float):

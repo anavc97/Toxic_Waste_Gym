@@ -133,6 +133,7 @@ class MultiAgentDQN(object):
 			qa = self._agent_dqns[self._agent_ids[idx]].q_network.apply(q_state[idx], observations_conv[idx], observations_arr[idx, :, None])
 			q += qa[np.arange(qa.shape[0]), actions[idx].squeeze()]
 		q = q.reshape(-1, 1)
+		print('l2_v2_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
 		return ((q - next_q_value) ** 2).mean(), q
 	
 	def train_dqns(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
@@ -272,11 +273,13 @@ class MultiAgentDQN(object):
 		n_obs = len(observations_conv[0])
 		next_q_value = jnp.zeros(n_obs)
 		for idx in range(self._num_agents):
+			print('compute_vdn_v2_loss: ', next_observations_conv[idx].shape, next_observations_arr[idx].shape, rewards[idx].shape, dones[idx].shape)
 			next_q_value += self._agent_dqns[self._agent_ids[idx]].compute_v2_targets(dones[idx], next_observations_conv[idx], next_observations_arr[idx],
-																					  q_state[idx], rewards[ idx].reshape(-1, 1), target_state_params[idx])
+																					  q_state[idx], rewards[idx].reshape(-1, 1), target_state_params[idx])
 		new_q_states = []
 		(loss_value, q_vals), grads = jax.value_and_grad(self.l2_v2_loss, has_aux=True)([state.params for state in q_state], observations_conv,
 																						observations_arr, actions, next_q_value)
+		print('compute_vdn_v2_loss: ', len(grads), q_vals.shape)
 		for idx in range(self._num_agents):
 			new_q_states.append(q_state[idx].apply_gradients(grads=grads[idx]))
 		return loss_value, q_vals, new_q_states
