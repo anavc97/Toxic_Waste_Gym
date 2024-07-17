@@ -52,29 +52,32 @@ USE_ENCODING = True
 VERSION = 2
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
-parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
-parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
-parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
-parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
-parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
-parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
-parser.add_argument('--checkpoint-file', dest='chkpt_file', type=str, default='', help='Checkpoint file location to use to restart train')
-parser.add_argument('--buffer-smart-add', dest='buffer_smart_add', action='store_true',
-					help='Flag denoting the use of smart sample add to experience replay buffer instead of first-in first-out')
+parser.add_argument('--batch-size', dest='batch_size', type=int, required=False, default=BATCH_SIZE)
+parser.add_argument('--buffer-size', dest='buffer_size', type=int, required=False, default=BUFFER)
 parser.add_argument('--buffer-method', dest='buffer_method', type=str, required=False, default='uniform', choices=['uniform', 'weighted'],
 					help='Method of deciding how to add new experience samples when replay buffer is full')
-parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
+parser.add_argument('--buffer-smart-add', dest='buffer_smart_add', action='store_true',
+					help='Flag denoting the use of smart sample add to experience replay buffer instead of first-in first-out')
+parser.add_argument('--checkpoint-file', dest='chkpt_file', type=str, default='', help='Checkpoint file location to use to restart train')
 parser.add_argument('--curriculum-learning', dest='curriculum_learning', action='store_true', help='Flag denoting the use of curriculum learning.')
 parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str, required=False, default='', help='Path to the model to use in curriculum learning.')
+parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
+parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
+parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
-parser.add_argument('--buffer-size', dest='buffer_size', type=int, required=False, default=BUFFER)
+parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
+parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
+parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
+parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
+parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 
 
 input_args = parser.parse_args()
 add_method = input_args.buffer_method
 anneal_init = input_args.init_temp
 buffer_size = input_args.buffer_size
+batch_size = input_args.batch_size
 chkpt_file = input_args.chkpt_file if input_args.chkpt_file != '' else ''
 curriculum_path = input_args.curriculum_model
 data_logs = input_args.data_logs
@@ -86,6 +89,7 @@ n_iterations = input_args.max_iterations
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
 train_only_movement = input_args.only_movement
+temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 
 
@@ -103,7 +107,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
-		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init))
+		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) + (" --anneal-decay %f" % temp_decay))
 commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
