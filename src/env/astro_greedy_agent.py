@@ -193,7 +193,7 @@ class GreedyAgent(object):
 		self._waste_pos = objs_pos.copy()
 		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
-	def act_human(self, robot_agents: List, human_agents: List, objs: List) -> int:
+	def act_human(self, robot_agents: List, human_agents: List, objs: List, only_movement: bool = False) -> int:
 	
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
@@ -201,7 +201,7 @@ class GreedyAgent(object):
 		if self._nxt_waste_idx < 0:
 			self._nxt_waste_idx = self._waste_order.pop(0)
 		
-		if self._nxt_waste_idx >= len(self._waste_order):
+		if only_movement or self._nxt_waste_idx >= len(self._waste_order):
 			self._plan = 'exit'
 			nxt_waste = self._door_pos
 			return int(self.move_to_position(nxt_waste))
@@ -344,7 +344,7 @@ class GreedyAgent(object):
 							self._plan = 'identify'
 							return int(self.move_to_position(self.waste_pos[self._nxt_waste_idx]))
 		
-	def act(self, obs: Union[ToxicWasteEnvV1.Observation, ToxicWasteEnvV2.Observation]) -> int:
+	def act(self, obs: Union[ToxicWasteEnvV1.Observation, ToxicWasteEnvV2.Observation], only_movement: bool = False) -> int:
 		
 		self_agent = [agent for agent in obs.players if agent.name == self._agent_id][0]
 		robots = [agent for agent in obs.players if agent.agent_type == AgentType.ROBOT]
@@ -356,7 +356,7 @@ class GreedyAgent(object):
 		if self._agent_type == AgentType.ROBOT:
 			return self.act_robot(robots, humans, objs)
 		else:
-			return self.act_human(robots, humans, objs)
+			return self.act_human(robots, humans, objs, only_movement)
 	
 	def expand_pos(self, start_node: PosNode, objective_pos: Tuple[int, int]) -> Tuple[int, int]:
 		

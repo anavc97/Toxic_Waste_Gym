@@ -97,12 +97,12 @@ def model_execution(agent_ids: List[str], ma_model: MultiAgentDQN, eps: float, g
 	return actions
 
 
-def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agent_models: List[GreedyAgent]) -> List[int]:
+def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agent_models: List[GreedyAgent], train_only_movement: bool = False) -> List[int]:
 
 	actions = []
 	obs = waste_env.create_observation()
 	for model in agent_models:
-		actions.append(model.act(obs))
+		actions.append(model.act(obs, train_only_movement))
 	
 	return actions
 
@@ -278,7 +278,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		while not done:
 			# interact with environment
 			if anneal:
-				actions = heuristic_execution(waste_env, heuristic_models)
+				actions = heuristic_execution(waste_env, heuristic_models, only_move)
 			else:
 				if eps_type == 'epoch':
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
