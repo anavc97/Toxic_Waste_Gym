@@ -627,9 +627,9 @@ def main():
 			if args.restart_train and curriculum_model != '':
 				curriculum_model = 'v2_l-%s-checkpoint_ctce.model' % game_level
 			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
-										 env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
-										 use_tensorboard=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties,
-										 buffer_data=(args.buffer_smart_add, args.buffer_method))
+			                             env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
+			                             use_tracker=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties,
+			                             buffer_data=(args.buffer_smart_add, args.buffer_method))
 			if env_version == 1:
 				train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
 								  target_update_rate, initial_eps, final_eps, eps_type, RNG_SEED, logger, eps_decay, warmup, target_freq, train_freq,

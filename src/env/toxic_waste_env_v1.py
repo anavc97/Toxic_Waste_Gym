@@ -109,9 +109,9 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 	def _get_action_space(self) -> MultiDiscrete:
 		return MultiDiscrete([self._n_actions] * self._n_players)
 	
-	def setup_env(self) -> None:
+	def setup_env(self, data_dir: Union[Path, str]) -> None:
 		
-		config_filepath = Path(__file__).parent.absolute() / 'data' / 'configs' / 'layouts' / (self._room_layout + '.yaml')
+		config_filepath = Path(data_dir) / 'configs' / 'layouts' / (self._room_layout + '.yaml')
 		with open(config_filepath) as config_file:
 			config_data = yaml.safe_load(config_file)
 		field_data = config_data['field']

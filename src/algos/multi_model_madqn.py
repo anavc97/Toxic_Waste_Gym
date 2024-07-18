@@ -14,10 +14,11 @@ from gymnasium.spaces import Space, Discrete
 from pathlib import Path
 from src.algos.dqn import DQNetwork, EPS_TYPE
 from src.utilities.buffers import ReplayBuffer, DictReplayBuffer
-from typing import List, Dict, Callable, Set
+from typing import List, Dict, Callable, Optional
 from datetime import datetime
 from functools import partial
 from jax import jit
+from wandb.wandb_run import Run
 
 
 COEF = 1.0
@@ -29,16 +30,17 @@ class MultiAgentDQN(object):
 	_agent_ids: List[str]
 	_agent_dqns: Dict[str, DQNetwork]
 	_replay_buffer: Dict[str, ReplayBuffer]
-	_write_tensorboard: bool
+	_perform_tracker: Run
+	_use_tracker: bool
 	_use_vdn: bool
 	_use_ddqn: bool
 	_use_v2: bool
 	
 	def __init__(self, num_agents: int, agent_ids: List[str], action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int],
-				 buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False,
-				 use_vdn: bool = False, use_cnn: bool = False, handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None,
-				 cnn_properties: List[int] = None, use_v2: bool = True):
-		
+	             buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False,
+	             use_vdn: bool = False, use_cnn: bool = False, handle_timeout: bool = False, use_tracker: bool = False, tracker: Optional[Run] = None,
+	             cnn_properties: List[int] = None, use_v2: bool = True):
+
 		"""
 		Initialize a multi-agent scenario DQN with decentralized training and execution
 		
@@ -52,7 +54,7 @@ class MultiAgentDQN(object):
         :param observation_space: gym space for the agent observations
         :param use_gpu: flag that controls use of cpu or gpu
         :param handle_timeout: flag that controls handle timeout termination (due to timelimit) separately and treat the task as infinite horizon task.
-        :param use_tensorboard: flag that notes usage of a tensorboard summary writer (default: False)
+        :param use_tracker: flag that notes usage of a tensorboard summary writer (default: False)
         :param tensorboard_data: list of the form [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str] with summary data for
         the summary writer (default is None)
         
@@ -63,7 +65,7 @@ class MultiAgentDQN(object):
         :type layer_sizes: list[int]
         :type use_gpu: bool
         :type handle_timeout: bool
-        :type use_tensorboard: bool
+        :type use_tracker: bool
         :type gamma: float
         :type act_function: callable
         :type observation_space: gym.Space
@@ -72,7 +74,9 @@ class MultiAgentDQN(object):
 		
 		self._num_agents = num_agents
 		self._agent_ids = agent_ids
-		self._write_tensorboard = use_tensorboard
+		self._use_tracker = use_tracker
+		if use_tracker:
+			self._perform_tracker = tracker
 		self._use_vdn = use_vdn
 		self._use_ddqn = use_ddqn
 		self._use_v2 = use_v2
@@ -80,14 +84,8 @@ class MultiAgentDQN(object):
 		self._replay_buffer = {}
 		for a_idx in range(self._num_agents):
 			agent_id = agent_ids[a_idx]
-			now = datetime.now()
-			if tensorboard_data is not None:
-				board_data = [tensorboard_data[0] + '/' + agent_id + '_' + now.strftime("%Y%m%d-%H%M%S"), tensorboard_data[1], tensorboard_data[2],
-							  tensorboard_data[3], agent_id]
-			else:
-				board_data = tensorboard_data
-			self._agent_dqns[agent_id] = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
-										board_data, cnn_properties)
+			self._agent_dqns[agent_id] = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
+			                                       cnn_properties)
 			has_dict_space = isinstance(observation_space[a_idx], gymnasium.spaces.Dict)
 			buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
 			self._replay_buffer[agent_id] = buffer_type(buffer_size, observation_space[a_idx], Discrete(action_dim), "cuda" if use_gpu else "cpu",
@@ -109,8 +107,8 @@ class MultiAgentDQN(object):
 		return self._agent_dqns
 	
 	@property
-	def write_tensorboard(self) -> bool:
-		return self._write_tensorboard
+	def use_tracker(self) -> bool:
+		return self._use_tracker
 	
 	@property
 	def replay_buffers(self) -> Dict[str, ReplayBuffer]:
@@ -119,7 +117,11 @@ class MultiAgentDQN(object):
 	@property
 	def use_vdn(self) -> bool:
 		return self._use_vdn
-	
+
+	@property
+	def performance_tracker(self) -> Run:
+		return self._perform_tracker
+
 	def replay_buffer(self, a_id: str) -> ReplayBuffer:
 		return self._replay_buffer[a_id]
 	
@@ -133,7 +135,7 @@ class MultiAgentDQN(object):
 			qa = self._agent_dqns[self._agent_ids[idx]].q_network.apply(q_state[idx], observations_conv[idx], observations_arr[idx, :, None])
 			q += qa[np.arange(qa.shape[0]), actions[idx].squeeze()]
 		q = q.reshape(-1, 1)
-		print('l2_v2_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
+		# print('l2_v2_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
 		return ((q - next_q_value) ** 2).mean(), q
 	
 	def train_dqns(self, env: gymnasium.Env, num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float,
@@ -218,7 +220,7 @@ class MultiAgentDQN(object):
 				if terminated or timeout:
 					done = True
 					obs, *_ = env.reset()
-					if self._write_tensorboard:
+					if self._use_tracker:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]
 							self._agent_dqns[a_id].summary_writer.add_scalar("charts/episodic_return", episode_rewards[a_idx], it + start_record_it)
@@ -273,13 +275,13 @@ class MultiAgentDQN(object):
 		n_obs = len(observations_conv[0])
 		next_q_value = jnp.zeros(n_obs)
 		for idx in range(self._num_agents):
-			print('compute_vdn_v2_loss: ', next_observations_conv[idx].shape, next_observations_arr[idx].shape, rewards[idx].shape, dones[idx].shape)
+			# print('compute_vdn_v2_loss: ', next_observations_conv[idx].shape, next_observations_arr[idx].shape, rewards[idx].shape, dones[idx].shape)
 			next_q_value += self._agent_dqns[self._agent_ids[idx]].compute_v2_targets(dones[idx], next_observations_conv[idx], next_observations_arr[idx],
 																					  q_state[idx], rewards[idx].reshape(-1, 1), target_state_params[idx])
 		new_q_states = []
 		(loss_value, q_vals), grads = jax.value_and_grad(self.l2_v2_loss, has_aux=True)([state.params for state in q_state], observations_conv,
 																						observations_arr, actions, next_q_value)
-		print('compute_vdn_v2_loss: ', len(grads), q_vals.shape)
+		# print('compute_vdn_v2_loss: ', len(grads), q_vals.shape)
 		for idx in range(self._num_agents):
 			new_q_states.append(q_state[idx].apply_gradients(grads=grads[idx]))
 		return loss_value, q_vals, new_q_states
@@ -326,8 +328,7 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
+								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)}, step=epoch)
 					else:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]
@@ -356,9 +357,8 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/td_loss" % self._agent_ids[a_idx], jax.device_get(loss), epoch)
-								agent_dqn.tensorboard_writer.add_scalar("%s-charts/losses/avg_q_values" % self._agent_ids[a_idx], jax.device_get(q_pred).mean(), epoch)
-						
+								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)}, step=epoch)
+
 					else:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]

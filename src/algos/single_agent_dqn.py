@@ -3,16 +3,16 @@ import sys
 import time
 import gymnasium
 import jax
-import jax.numpy as jnp
 import numpy as np
 import logging
 
 from pathlib import Path
 from src.algos.dqn import DQNetwork, EPS_TYPE
 from src.utilities.buffers import ReplayBuffer
-from typing import List, Callable
+from typing import List, Callable, Optional
 from datetime import datetime
 from gymnasium.spaces import Space
+from wandb.wandb_run import Run
 
 
 class SingleAgentDQN(object):
@@ -23,23 +23,15 @@ class SingleAgentDQN(object):
 	_use_v2: bool
 
 	def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, action_space: Space,
-				 observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_cnn: bool = False,
-				 handle_timeout: bool = False, use_tensorboard: bool = False, tensorboard_data: List = None, cnn_properties: List[int] = None,
-				 use_v2: bool = False):
+	             observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_cnn: bool = False,
+	             handle_timeout: bool = False, use_tensorboard: bool = False, tracker: Optional[Run] = None, cnn_properties: List[int] = None,
+	             use_v2: bool = False):
 		
 		self._write_tensorboard = use_tensorboard
 		self._use_v2 = use_v2
 		now = datetime.now()
-		if use_tensorboard and tensorboard_data is not None:
-			log_name = (tensorboard_data[0] + '/single_agent_' + now.strftime("%Y%m%d-%H%M%S"))
-			if len(tensorboard_data) == 4:
-				board_data = [log_name, tensorboard_data[1], tensorboard_data[2], tensorboard_data[3], 'central_train']
-			else:
-				board_data = [log_name + '_' + tensorboard_data[4], tensorboard_data[1], tensorboard_data[2], tensorboard_data[3], 'central_train']
-		else:
-			board_data = tensorboard_data
 		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
-									board_data, cnn_properties)
+									tracker, cnn_properties)
 		self._replay_buffer = ReplayBuffer(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
 										   handle_timeout_termination=handle_timeout)
 	
@@ -117,9 +109,9 @@ class SingleAgentDQN(object):
 					done = True
 					history += [episode_history]
 					if self._write_tensorboard:
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/episodic_return", episode_rewards, epoch)
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/epsilon", eps, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_return", episode_rewards, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/epsilon", eps, epoch)
 						print("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
 		
 		return history
@@ -180,9 +172,9 @@ class SingleAgentDQN(object):
 					done = True
 					history += [episode_history]
 					if self._write_tensorboard:
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/episodic_return", episode_rewards, epoch)
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-						self._agent_dqn.tensorboard_writer.add_scalar("charts/epsilon", eps, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_return", episode_rewards, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
+						self._agent_dqn.performance_tracker.add_scalar("charts/epsilon", eps, epoch)
 						logger.debug("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
 		
 		return history

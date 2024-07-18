@@ -402,7 +402,7 @@ class BaseToxicEnv(Env):
 		
 		return field
 	
-	def setup_env(self) -> None:
+	def setup_env(self, data_dir: Union[Path, str]) -> None:
 		raise NotImplementedError('The environment setup has to be specified in each version of the environment')
 	
 	@staticmethod

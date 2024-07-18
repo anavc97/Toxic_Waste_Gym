@@ -27,8 +27,8 @@ BATCH_SIZE = 32
 TRAIN_FREQ = 1
 TARGET_FREQ = 10
 # ALPHA = 0.003566448247686571
-ALPHA = 0.001
-TAU = 0.1
+ONLINE_LR = 0.001
+TARGET_LR = 0.1
 INIT_EPS = 1.0
 FINAL_EPS = 0.05
 # EPS_DECAY = 0.5	# for linear eps
@@ -69,8 +69,10 @@ parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0,
 parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
 parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
 parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
+parser.add_argument('--online-lr', dest='online_lr', type=float, default=ONLINE_LR, help='Learning rate for the online model.')
 parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--target-lr', dest='target_lr', type=float, default=TARGET_LR, help='Learning rate for the target model.')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 
 
@@ -89,17 +91,18 @@ models_dir = input_args.models_dir
 n_iterations = input_args.max_iterations
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
+online_lr = input_args.online_lr
+target_lr = input_args.target_lr
 train_only_movement = input_args.only_movement
 temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
-		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
-		"--tensorboardDetails %s %d %d %s"
-		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,																							# DQN parameters
-		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,	# Train parameters
-		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION, 															# Environment parameters
+		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d --tensorboardDetails %s %d %d %s"
+		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  # DQN parameters
+		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  # Train parameters
+		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
