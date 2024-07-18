@@ -4,9 +4,8 @@ import numpy as np
 import yaml
 
 from src.env.toxic_waste_env_base import BaseToxicEnv, PlayerState, Actions, ActionDirection, AgentType, CellEntity, HoldState
-from pathlib import Path
 from gymnasium.spaces import Box, MultiDiscrete
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
 from termcolor import colored
 from collections import namedtuple
 from pathlib import Path
