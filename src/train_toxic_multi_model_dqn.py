@@ -309,8 +309,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
 			if only_move:
-				# rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
-				rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				# rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
 				
 			if debug_mode:
 				logger.info('Environment current state')
@@ -631,8 +631,7 @@ def main():
 				                 "target_frequency":     target_freq,
 				                 "architecture":         architecture
 		                 },
-		                 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")),
-		                 sync_tensorboard=True)
+		                 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")))
 
 		log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
 		logger = logging.getLogger("%s" % game_level)
