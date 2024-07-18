@@ -129,7 +129,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							 ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "time_penalties",
 							  "score"])
 	
-	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int,
+	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
 				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
 				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False):
 
@@ -142,7 +142,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		self._collect_all = pick_all
-		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', require_facing, True, agent_centered,
+		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 						 False, use_render, render_mode, joint_obs)
 		self._start_time = time.time()
 	
@@ -221,9 +221,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
 										   Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
 	
-	def setup_env(self, data_dir: Union[Path, str]) -> None:
+	def setup_env(self) -> None:
 		
-		config_filepath = Path(data_dir) / 'configs' / 'layouts' / (self._room_layout + '.yaml')
+		config_filepath = Path(self._data_dir) / 'configs' / 'layouts' / (self._room_layout + '.yaml')
 		with open(config_filepath) as config_file:
 			config_data = yaml.safe_load(config_file)
 		field_data = config_data['field']

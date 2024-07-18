@@ -255,7 +255,7 @@ class BaseToxicEnv(Env):
 	action_space: MultiDiscrete
 	observation_space: gymnasium.spaces.Tuple
 	
-	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str,
+	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str, data_dir: Path,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, use_render: bool = False,
 				 render_mode: List[str] = None, joint_obs: bool = False):
 		
@@ -281,6 +281,7 @@ class BaseToxicEnv(Env):
 		self._joint_obs = joint_obs
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
+		self._data_dir = data_dir
 		self.setup_env()
 		
 		self.action_space = self._get_action_space()
@@ -402,7 +403,7 @@ class BaseToxicEnv(Env):
 		
 		return field
 	
-	def setup_env(self, data_dir: Union[Path, str]) -> None:
+	def setup_env(self) -> None:
 		raise NotImplementedError('The environment setup has to be specified in each version of the environment')
 	
 	@staticmethod
