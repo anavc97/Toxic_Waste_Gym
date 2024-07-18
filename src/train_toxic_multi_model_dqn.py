@@ -452,6 +452,8 @@ def main():
 	parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 	parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 	parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
+	parser.add_argument('--data-dir', dest='data_dir', type=str, default='',
+						help='Directory to retrieve data regarding configs and model performances, if left blank using default location')
 	parser.add_argument('--checkpoint-file', dest='checkpoint_file', type=str, required=False, default='', help='File with data from previous training checkpoint')
 	parser.add_argument('--buffer-smart-add', dest='buffer_smart_add', action='store_true',
 						help='Flag denoting the use of smart sample add to experience replay buffer instead of first-in first-out')
