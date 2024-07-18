@@ -13,7 +13,7 @@ USE_SHELL = False
 N_AGENTS = 2
 ARCHITECTURE = "v3"
 BUFFER = 200000
-GAMMA = 0.95
+GAMMA = 0.9
 TENSORBOARD_DATA = [str(log_dir), 50, 25, '.log']
 USE_DUELING = True
 USE_DDQN = True
@@ -42,7 +42,7 @@ PRECOMP_FRAC = 0.33
 
 # Environment params
 # GAME_LEVEL = ['level_one', 'level_two']
-GAME_LEVEL = ['cramped_room']
+GAME_LEVELS = ['cramped_room']
 STEPS_EPISODE = 400
 WARMUP_STEPS = STEPS_EPISODE * 2
 FIELD_LENGTH = 15
@@ -65,6 +65,7 @@ parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str
 parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
 parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
 parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
+parser.add_argument('--game-levels', dest='game_levels', type=str, nargs='+', default=GAME_LEVELS, help='List of levels to train model')
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
 parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
@@ -86,6 +87,7 @@ curriculum_path = input_args.curriculum_model
 data_logs = input_args.data_logs
 eps_type = input_args.eps_type
 eps_decay = input_args.eps_decay
+game_levels = input_args.game_levels
 logs_dir = input_args.logs_dir
 models_dir = input_args.models_dir
 n_iterations = input_args.max_iterations
@@ -102,7 +104,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d --tensorboardDetails %s %d %d %s"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  # DQN parameters
 		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  # Train parameters
-		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
+		   ' '.join(game_levels), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
 		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
