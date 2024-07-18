@@ -654,15 +654,15 @@ def main():
 			logger.info('#######################################')
 			logger.info('Level %s setup' % game_level)
 			if env_version == 1:
-				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, facing,
+				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
 				                      args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
 			else:
-				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, facing,
+				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
 				                      centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
-			
+
 			obs, *_ = env.reset(seed=TRAIN_RNG_SEED)
 			agents_id = [agent.name for agent in env.players]
-			
+
 			heuristic_agents = []
 			for player in env.players:
 				if env_version == 1:
@@ -673,7 +673,7 @@ def main():
 					heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
 					                                    dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), TRAIN_RNG_SEED, env.field, env_version,
 					                                    env.door_pos, agent_type=player.agent_type))
-			
+
 			logger.info('Train setup')
 			waste_idx = []
 			for obj in env.objects:
