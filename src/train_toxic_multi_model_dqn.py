@@ -494,8 +494,7 @@ def main():
 	use_cnn = args.use_cnn
 	use_tensorboard = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
-	tensorboard_details = args.tensorboard_details
-	
+
 	# Train args
 	n_iterations = args.n_iterations
 	batch_size = args.batch_size
@@ -554,18 +553,8 @@ def main():
 	data_dir = Path(args.data_dir) if args.data_dir != '' else home_dir / 'data'
 	models_dir = Path(args.models_dir) / 'models' if args.models_dir != '' else home_dir / 'models'
 	configs_dir = data_dir / 'configs'
-	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(TRAIN_RNG_SEED)
-	
-	if chkpt_file != '' and args.restart_train:
-		with open(chkpt_file, 'r') as j_file:
-			chkpt_data = json.load(j_file)
-	else:
-		chkpt_data = {}
-		for level in game_levels:
-			chkpt_data[level] = {'iteration': 0, 'temp': anneal_temp}
-		chkpt_file = str(models_dir / ('v%d_train_checkpoint_data.json' % env_version))
-	
+
 	if use_curriculum:
 		try:
 			assert curriculum_models is not None
@@ -586,6 +575,16 @@ def main():
 		problem_type = "all_balls"
 	else:
 		problem_type = "full_problem"
+	model_suffix = get_model_suffix()
+
+	if chkpt_file != '' and args.restart_train:
+		with open(chkpt_file, 'r') as j_file:
+			chkpt_data = json.load(j_file)
+	else:
+		chkpt_data = {}
+		for level in game_levels:
+			chkpt_data[level] = {'iteration': 0, 'temp': anneal_temp}
+		chkpt_file = str(models_dir / ('v%d%s_train_checkpoint_data.json' % (env_version, model_suffix)))
 
 	with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
 		train_performances = yaml.safe_load(train_file)
@@ -640,6 +639,7 @@ def main():
 		file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
 		file_handler.setLevel(logging.INFO)
 		logger.addHandler(file_handler)
+		model_path = models_dir / now.strftime("%Y%m%d-%H%M%S")
 		Path.mkdir(model_path, parents=True, exist_ok=True)
 		Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
 		try:
@@ -682,20 +682,18 @@ def main():
 				model.waste_order = waste_order
 			
 			logger.info('Creating DQN and starting train')
-			tensorboard_details[0] = tensorboard_details[0] + '/astro_disposal_' + game_level + '_' + now.strftime("%Y%m%d-%H%M%S")
-			tensorboard_details += ['astro_' + game_level]
 			start_it = chkpt_data[game_level]['iteration']
 			start_temp = chkpt_data[game_level]['temp']
 			
 			if use_vdn:
 				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
 				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
+				                          use_tracker=use_tensorboard, tracker=run, use_v2=(env_version == 2),
 				                          cnn_properties=cnn_properties)
 			else:
 				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
 				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tensorboard, tensorboard_data=tensorboard_details, use_v2=(env_version == 2),
+				                          use_tracker=use_tensorboard, tracker=run, use_v2=(env_version == 2),
 				                          cnn_properties=cnn_properties)
 			if env_version == 1:
 				train_astro_model(agents_id, env, multi_agt_model, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
@@ -709,8 +707,7 @@ def main():
 				                     curriculum_model=curriculum_models, only_move=only_movement)
 	
 			logger.info('Saving model and history list')
-			Path.mkdir(model_path, parents=True, exist_ok=True)
-			multi_agt_model.save_models(game_level, model_path, logger)
+			multi_agt_model.save_models(game_level + model_suffix, model_path, logger)
 
 			####################
 			## Testing Model ##
@@ -783,9 +780,8 @@ def main():
 
 			if (tests_passed / N_TESTS) > train_acc[game_level][problem_type]:
 				logger.info('Updating best model for current loc')
-				Path.mkdir(model_path.parent.absolute() / 'best', parents=True, exist_ok=True)
-				model_suffix = get_model_suffix()
-				multi_agt_model.save_models(game_level + model_suffix, model_path.parent.absolute() / 'best', logger)
+				Path.mkdir(models_dir.parent.absolute() / 'best', parents=True, exist_ok=True)
+				multi_agt_model.save_models(game_level + model_suffix, models_dir.parent.absolute() / 'best', logger)
 				train_acc[game_level][problem_type] = tests_passed / N_TESTS
 
 			logger.info('Updating best training performances record')
