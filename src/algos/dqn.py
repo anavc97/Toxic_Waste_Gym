@@ -12,7 +12,7 @@ import logging
 from src.algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
-from typing import Callable, List, Union, Tuple, Optional
+from typing import Callable, List, Union, Tuple
 from pathlib import Path
 from termcolor import colored
 from functools import partial
@@ -158,7 +158,6 @@ class DQNetwork(object):
     #############################
     ##       CLASS UTILS       ##
     #############################
-
     def init_network_states(self, rng_seed: int, obs: Union[np.ndarray, Tuple], optim_learn_rate: float, file_path: Union[str, Path] = ''):
         key = jax.random.PRNGKey(rng_seed)
         key, q_key = jax.random.split(key, 2)

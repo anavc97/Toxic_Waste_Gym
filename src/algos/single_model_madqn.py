@@ -582,7 +582,7 @@ class CentralizedMADQN(object):
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
 					rewards = data.rewards.sum(axis=1).reshape((-1, 1))
 					dones = data.dones
-					# print('update_dqn_models: ', obs_conv.shape, obs_array.shape, actions.shape, next_obs_conv.shape, next_obs_array.shape, rewards.shape, dones.shape)
+					print('update_dqn_models: ', obs_conv.shape, obs_array.shape, actions.shape, next_obs_conv.shape, next_obs_array.shape, rewards.shape, dones.shape)
 					self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
 				
