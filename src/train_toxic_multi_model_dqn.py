@@ -631,7 +631,7 @@ def main():
 				                 "target_frequency":     target_freq,
 				                 "architecture":         architecture
 		                 },
-		                 name=('multi_model%s_%s' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")),
+		                 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")),
 		                 sync_tensorboard=True)
 
 		log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))

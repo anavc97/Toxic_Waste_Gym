@@ -223,7 +223,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def setup_env(self) -> None:
 		
-		config_filepath = Path(self._data_dir) / 'configs' / 'layouts' / (self._room_layout + '.yaml')
+		config_filepath = Path(self._data_dir) if isinstance(self._data_dir, str) else self._data_dir / 'configs' / 'layouts' / (self._room_layout + '.yaml')
 		with open(config_filepath) as config_file:
 			config_data = yaml.safe_load(config_file)
 		field_data = config_data['field']
