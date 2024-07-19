@@ -71,8 +71,12 @@ parser.add_argument('--iterations', dest='max_iterations', type=int, required=Fa
 parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
 parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 parser.add_argument('--online-lr', dest='online_lr', type=float, default=ONLINE_LR, help='Learning rate for the online model.')
-parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
+parser.add_argument('--pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
+parser.add_argument('--train-only-green', dest='only_green', action='store_true', help='Flag denoting train only picking green balls')
+parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', action='store_true', help='Flag denoting train only picking green and yellow balls')
+parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
 parser.add_argument('--target-lr', dest='target_lr', type=float, default=TARGET_LR, help='Learning rate for the target model.')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 
@@ -91,12 +95,16 @@ game_levels = input_args.game_levels
 logs_dir = input_args.logs_dir
 models_dir = input_args.models_dir
 n_iterations = input_args.max_iterations
+online_lr = input_args.online_lr
+pick_all = input_args.has_pick_all
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
-online_lr = input_args.online_lr
 target_lr = input_args.target_lr
-train_only_movement = input_args.only_movement
 temp_decay = input_args.temp_decay
+train_only_movement = input_args.only_movement
+train_only_green = input_args.only_green
+train_only_green_yellow = input_args.only_green_yellow
+train_all_balls = input_args.use_all_balls
 use_curriculum_learning = input_args.curriculum_learning
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
@@ -113,7 +121,8 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
 		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) +
-		 (" --anneal-decay %f" % temp_decay) + (" --data-dir %s" % data_dir if data_dir != '' else ""))
+		 (" --anneal-decay %f" % temp_decay) + (" --data-dir %s" % data_dir if data_dir != '' else "") + (" --has-pick-all" if pick_all else "") +
+		 (" --train-only-green" if train_only_green else "") + (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else ""))
 commamd = "python " + str(src_dir / 'train_toxic_multi_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
