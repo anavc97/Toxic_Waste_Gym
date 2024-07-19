@@ -64,12 +64,16 @@ parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str
 parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
 parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
 parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
+parser.add_argument('--pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
 parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
 parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
-parser.add_argument('--only-movement', dest='only_movement', action='store_true', help='Flag denoting the training of only moving in the environment')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
+parser.add_argument('--train-only-green', dest='only_green', action='store_true', help='Flag denoting train only picking green balls')
+parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', action='store_true', help='Flag denoting train only picking green and yellow balls')
+parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 
 
@@ -86,9 +90,13 @@ eps_decay = input_args.eps_decay
 logs_dir = input_args.logs_dir
 models_dir = input_args.models_dir
 n_iterations = input_args.max_iterations
+pick_all = input_args.has_pick_all
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
 train_only_movement = input_args.only_movement
+train_only_green = input_args.only_green
+train_only_green_yellow = input_args.only_green_yellow
+train_all_balls = input_args.use_all_balls
 temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 
@@ -107,7 +115,9 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
-		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) + (" --anneal-decay %f" % temp_decay))
+		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) +
+		 (" --has-pick-all" if pick_all else "") + (" --anneal-decay %f" % temp_decay) + (" --train-only-green" if train_only_green else "") +
+		 (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else ""))
 commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
