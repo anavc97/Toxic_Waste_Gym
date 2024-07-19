@@ -398,7 +398,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		if it % checkpoint_freq == 0:
 			for a_idx in range(n_agents):
 				dqn_model = multi_agt_model.agent_dqns[agents_ids[a_idx]]
-				dqn_model.save_model('%s-v2_l-%s-checkpoint' % (agents_ids[a_idx], game_level), model_path, logger)
+				dqn_model.save_model('%s-v2_lvl_%s_%s_checkpoint' % (agents_ids[a_idx], game_level, problem_type), model_path, logger)
 			with open(chkpt_file, 'w') as j_file:
 				chkt_data[game_level] = {'iteration': it, 'temp': temp}
 				json.dump(chkt_data, j_file)
@@ -592,15 +592,6 @@ def main():
 		problem_type = "full_problem"
 	model_suffix = get_model_suffix()
 
-	if chkpt_file != '' and args.restart_train:
-		with open(chkpt_file, 'r') as j_file:
-			chkpt_data = json.load(j_file)
-	else:
-		chkpt_data = {}
-		for level in game_levels:
-			chkpt_data[level] = {'iteration': 0, 'temp': anneal_temp}
-		chkpt_file = str(models_dir / ('v%d%s_train_checkpoint_data.json' % (env_version, model_suffix)))
-
 	with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
 		train_performances = yaml.safe_load(train_file)
 		train_acc = dict([[level, train_performances[level]] for level in game_levels])
@@ -625,6 +616,15 @@ def main():
 
 	for game_level in game_levels:
 		if train_acc[game_level][problem_type] < 0.9:
+			if chkpt_file != '' and args.restart_train:
+				with open(chkpt_file, 'r') as j_file:
+					chkpt_data = json.load(j_file)
+			else:
+				chkpt_data = {}
+				for level in game_levels:
+					chkpt_data[level] = {'iteration': 0, 'temp': anneal_temp}
+				chkpt_file = str(models_dir / ('v%d_%s_%s_train_checkpoint_data.json' % (env_version, game_level, model_suffix)))
+			
 			run = wandb.init(project='astro-toxic-waste', entity='miguel-faria',
 							 config={
 									 "agent_type":           "independent%s_agents" % ("_vdn" if use_vdn else ""),
@@ -729,7 +729,7 @@ def main():
 										 curriculum_models=starting_models, only_move=only_movement)
 		
 				logger.info('Saving model and history list')
-				multi_agt_model.save_models(game_level + model_suffix, model_path, logger)
+				multi_agt_model.save_models(game_level, model_path / problem_type, logger)
 	
 				####################
 				## Testing Model ##
@@ -803,7 +803,7 @@ def main():
 				if (tests_passed / N_TESTS) > train_acc[game_level][problem_type]:
 					logger.info('Updating best model for current loc')
 					Path.mkdir(models_dir / 'best', parents=True, exist_ok=True)
-					multi_agt_model.save_models(game_level + model_suffix, models_dir / 'best', logger)
+					multi_agt_model.save_models(game_level, models_dir / 'best' / problem_type, logger)
 					train_acc[game_level][problem_type] = tests_passed / N_TESTS
 	
 				logger.info('Updating best training performances record')
