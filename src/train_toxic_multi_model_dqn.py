@@ -624,198 +624,198 @@ def main():
 			logging.root.removeHandler(handler)
 
 	for game_level in game_levels:
-		
-		run = wandb.init(project='astro-toxic-waste', entity='miguel-faria',
-		                 config={
-				                 "agent_type":           "independent%s_agents" % ("_vdn" if use_vdn else ""),
-				                 "env_version":          "v1" if env_version == 1 else "v2",
-				                 "agents":               n_agents,
-				                 "online_learing_rate":  learn_rate,
-				                 "target_learning_rate": target_update_rate,
-				                 "discount":             gamma,
-				                 "eps_decay_type":       eps_type,
-				                 "eps_decay":            eps_decay,
-				                 "iterations":           n_iterations,
-				                 "buffer_size":          buffer_size,
-				                 "buffer_add":           "smart" if args.buffer_smart_add else "plain",
-				                 "buffer_add_method":    args.buffer_method if args.buffer_smart_add else "fifo",
-				                 "batch_size":           batch_size,
-				                 "online_frequency":     train_freq,
-				                 "target_frequency":     target_freq,
-				                 "architecture":         architecture,
-								 "problem":					problem_type
-		                 },
-		                 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")))
-
-		log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
-		logger = logging.getLogger("%s" % game_level)
-		logger.setLevel(logging.INFO)
-		file_handler = logging.FileHandler(log_dir / (log_filename + '.log'))
-		file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
-		file_handler.setLevel(logging.INFO)
-		logger.addHandler(file_handler)
-		model_path = models_dir / now.strftime("%Y%m%d-%H%M%S")
-		Path.mkdir(model_path, parents=True, exist_ok=True)
-		Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
-		try:
-			with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
-				objects = yaml.safe_load(config_file)['objects']
-				n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
-			
-			logger.info('#######################################')
-			logger.info('Starting Astro Waste Disposal DQN Train')
-			logger.info('#######################################')
-			logger.info('Level %s setup' % game_level)
-			if env_version == 1:
-				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-				                      args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
-			else:
-				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-				                      centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
-
-			obs, *_ = env.reset(seed=TRAIN_RNG_SEED)
-			agents_id = [agent.name for agent in env.players]
-
-			heuristic_agents = []
-			for player in env.players:
-				if env_version == 1:
-					heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
-					                                    dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), TRAIN_RNG_SEED, env.field, env_version,
-					                                    agent_type=player.agent_type))
-				else:
-					heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
-					                                    dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), TRAIN_RNG_SEED, env.field, env_version,
-					                                    env.door_pos, agent_type=player.agent_type))
-
-			logger.info('Train setup')
-			waste_idx = []
-			for obj in env.objects:
-				waste_idx.append(env.objects.index(obj))
-			waste_seqs = list(permutations(waste_idx))
-			waste_order = list(rng_gen.choice(np.array(waste_seqs)))
-			for model in heuristic_agents:
-				model.waste_order = waste_order
-			
-			logger.info('Creating DQN and starting train')
-			start_it = chkpt_data[game_level]['iteration']
-			start_temp = chkpt_data[game_level]['temp']
-			
-			if use_vdn:
-				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
-				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
-				                          cnn_properties=cnn_properties)
-			else:
-				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
-				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
-				                          cnn_properties=cnn_properties)
-			if use_curriculum:
-				if len(curriculum_models) == 1:
-					starting_models = [fname for fname in Path(curriculum_models[0]).iterdir() if str(fname).find(game_level) != -1]
-				else:
-					starting_models = curriculum_models[game_levels.index(game_level)]
-			else:
-				starting_models = None
-			if env_version == 1:
-				train_astro_model(agents_id, env, multi_agt_model, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
-				                  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, eps_decay, warmup, target_freq,
-				                  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
-			else:
-				train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_order, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
-									 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
-									 chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
-									 greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,
-									 curriculum_models=starting_models, only_move=only_movement)
+		if train_acc[game_level][problem_type] < 0.9:
+			run = wandb.init(project='astro-toxic-waste', entity='miguel-faria',
+							 config={
+									 "agent_type":           "independent%s_agents" % ("_vdn" if use_vdn else ""),
+									 "env_version":          "v1" if env_version == 1 else "v2",
+									 "agents":               n_agents,
+									 "online_learing_rate":  learn_rate,
+									 "target_learning_rate": target_update_rate,
+									 "discount":             gamma,
+									 "eps_decay_type":       eps_type,
+									 "eps_decay":            eps_decay,
+									 "iterations":           n_iterations,
+									 "buffer_size":          buffer_size,
+									 "buffer_add":           "smart" if args.buffer_smart_add else "plain",
+									 "buffer_add_method":    args.buffer_method if args.buffer_smart_add else "fifo",
+									 "batch_size":           batch_size,
+									 "online_frequency":     train_freq,
+									 "target_frequency":     target_freq,
+									 "architecture":         architecture,
+									 "problem":					problem_type
+							 },
+							 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")))
 	
-			logger.info('Saving model and history list')
-			multi_agt_model.save_models(game_level + model_suffix, model_path, logger)
-
-			####################
-			## Testing Model ##
-			####################
-			logger.info('Testing for level: %s' % game_level)
-			if env_version == 1:
-				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-				                      args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
-				action_enum = Actions
-			else:
-				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-				                      centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
-				action_enum = ActionsV2
-
-			tests_passed = 0
-			env.seed(TEST_RNG_SEED)
-			np.random.seed(TEST_RNG_SEED)
-			rng_gen = np.random.default_rng(TEST_RNG_SEED)
-			agent_ids = [agent.name for agent in env.players]
-			n_actions = env.action_space[0].n
-			for i in range(N_TESTS):
-
-				obs, *_ = env.reset(seed=TEST_RNG_SEED)
-				epoch = 0
-				agent_reward = [0] * n_agents
-				game_over = False
-				finished = False
-				timeout = False
-				while not game_over:
-
-					actions = []
-					for a_idx in range(n_agents):
-						a_id = agent_ids[a_idx]
-						dqn_model = multi_agt_model.agent_dqns[a_id]
-						model_obs = get_model_obs(obs[a_idx])
-						q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1])[0]
-
-						if greedy_actions:
-							action = q_values.argmax(axis=-1)
-						else:
-							pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
-							pol = pol / pol.sum()
-							action = rng_gen.choice(range(n_actions), p=pol)
-						actions += [int(jax.device_get(action))]
-
-					logger.info(env.get_env_log() + 'Actions: ' + str([action_enum(act).name for act in actions]) + '\n')
-					next_obs, rewards, finished, timeout, infos = env.step(actions)
-					agent_reward = [agent_reward[idx] + rewards[idx] for idx in range(n_agents)]
-					obs = next_obs
-
-					if finished or timeout:
-						game_over = True
-						env.food_spawn_pos = None
-						env.food_spawn = 0
-
-					sys.stdout.flush()
-					epoch += 1
-
-				if finished:
-					tests_passed += 1
-					logger.info('Test %d finished in success' % (i + 1))
-					logger.info('Number of epochs: %d' % epoch)
-					logger.info('Accumulated reward:\n\t' + '\n\t'.join(['- agent %d: %.2f' % (idx + 1, agent_reward[idx]) for idx in range(n_agents)]))
-					logger.info('Average reward:\n\t' + '\n\t'.join(['- agent %d: %.2f' % (idx + 1, agent_reward[idx] / epoch) for idx in range(n_agents)]))
-				if timeout:
-					logger.info('Test %d timed out' % (i + 1))
-
-			env.close()
-			logger.info('Passed %d tests out of %d for level %s' % (tests_passed, N_TESTS, game_level))
-
-			if (tests_passed / N_TESTS) > train_acc[game_level][problem_type]:
-				logger.info('Updating best model for current loc')
-				Path.mkdir(models_dir.parent.absolute() / 'best', parents=True, exist_ok=True)
-				multi_agt_model.save_models(game_level + model_suffix, models_dir.parent.absolute() / 'best', logger)
-				train_acc[game_level][problem_type] = tests_passed / N_TESTS
-
-			logger.info('Updating best training performances record')
-			with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
-				performance_data = yaml.safe_load(train_file)
-				performance_data[game_level] = train_acc[game_level]
-				train_file.seek(0)
-				sorted_data = dict([[sorted_key, performance_data[sorted_key]] for sorted_key in sorted(list(performance_data.keys()))])
-				yaml.safe_dump(sorted_data, train_file)
-
-			run.finish()
-			gc.collect()
+			log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
+			logger = logging.getLogger("%s" % game_level)
+			logger.setLevel(logging.INFO)
+			file_handler = logging.FileHandler(log_dir / (log_filename + '.log'))
+			file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
+			file_handler.setLevel(logging.INFO)
+			logger.addHandler(file_handler)
+			model_path = models_dir / now.strftime("%Y%m%d-%H%M%S")
+			Path.mkdir(model_path, parents=True, exist_ok=True)
+			Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
+			try:
+				with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
+					objects = yaml.safe_load(config_file)['objects']
+					n_objects = len(objects['unspecified']) if env_version == 1 else sum([len(objects[key]['ids']) for key in objects.keys() if key != 'unspecified'])
+				
+				logger.info('#######################################')
+				logger.info('Starting Astro Waste Disposal DQN Train')
+				logger.info('#######################################')
+				logger.info('Level %s setup' % game_level)
+				if env_version == 1:
+					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
+										  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
+				else:
+					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
+										  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
+	
+				obs, *_ = env.reset(seed=TRAIN_RNG_SEED)
+				agents_id = [agent.name for agent in env.players]
+	
+				heuristic_agents = []
+				for player in env.players:
+					if env_version == 1:
+						heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
+															dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), TRAIN_RNG_SEED, env.field, env_version,
+															agent_type=player.agent_type))
+					else:
+						heuristic_agents.append(GreedyAgent(player.position, player.orientation, player.name,
+															dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), TRAIN_RNG_SEED, env.field, env_version,
+															env.door_pos, agent_type=player.agent_type))
+	
+				logger.info('Train setup')
+				waste_idx = []
+				for obj in env.objects:
+					waste_idx.append(env.objects.index(obj))
+				waste_seqs = list(permutations(waste_idx))
+				waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+				for model in heuristic_agents:
+					model.waste_order = waste_order
+				
+				logger.info('Creating DQN and starting train')
+				start_it = chkpt_data[game_level]['iteration']
+				start_temp = chkpt_data[game_level]['temp']
+				
+				if use_vdn:
+					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
+											  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
+											  use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
+											  cnn_properties=cnn_properties)
+				else:
+					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
+											  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
+											  use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
+											  cnn_properties=cnn_properties)
+				if use_curriculum:
+					if len(curriculum_models) == 1:
+						starting_models = [fname for fname in Path(curriculum_models[0]).iterdir() if str(fname).find(game_level) != -1]
+					else:
+						starting_models = curriculum_models[game_levels.index(game_level)]
+				else:
+					starting_models = None
+				if env_version == 1:
+					train_astro_model(agents_id, env, multi_agt_model, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
+									  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, eps_decay, warmup, target_freq,
+									  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
+				else:
+					train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_order, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
+										 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
+										 chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
+										 greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,
+										 curriculum_models=starting_models, only_move=only_movement)
+		
+				logger.info('Saving model and history list')
+				multi_agt_model.save_models(game_level + model_suffix, model_path, logger)
+	
+				####################
+				## Testing Model ##
+				####################
+				logger.info('Testing for level: %s' % game_level)
+				if env_version == 1:
+					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
+										  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
+					action_enum = Actions
+				else:
+					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
+										  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
+					action_enum = ActionsV2
+	
+				tests_passed = 0
+				env.seed(TEST_RNG_SEED)
+				np.random.seed(TEST_RNG_SEED)
+				rng_gen = np.random.default_rng(TEST_RNG_SEED)
+				agent_ids = [agent.name for agent in env.players]
+				n_actions = env.action_space[0].n
+				for i in range(N_TESTS):
+	
+					obs, *_ = env.reset(seed=TEST_RNG_SEED)
+					epoch = 0
+					agent_reward = [0] * n_agents
+					game_over = False
+					finished = False
+					timeout = False
+					while not game_over:
+	
+						actions = []
+						for a_idx in range(n_agents):
+							a_id = agent_ids[a_idx]
+							dqn_model = multi_agt_model.agent_dqns[a_id]
+							model_obs = get_model_obs(obs[a_idx])
+							q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1])[0]
+	
+							if greedy_actions:
+								action = q_values.argmax(axis=-1)
+							else:
+								pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
+								pol = pol / pol.sum()
+								action = rng_gen.choice(range(n_actions), p=pol)
+							actions += [int(jax.device_get(action))]
+	
+						logger.info(env.get_env_log() + 'Actions: ' + str([action_enum(act).name for act in actions]) + '\n')
+						next_obs, rewards, finished, timeout, infos = env.step(actions)
+						agent_reward = [agent_reward[idx] + rewards[idx] for idx in range(n_agents)]
+						obs = next_obs
+	
+						if finished or timeout:
+							game_over = True
+							env.food_spawn_pos = None
+							env.food_spawn = 0
+	
+						sys.stdout.flush()
+						epoch += 1
+	
+					if finished:
+						tests_passed += 1
+						logger.info('Test %d finished in success' % (i + 1))
+						logger.info('Number of epochs: %d' % epoch)
+						logger.info('Accumulated reward:\n\t' + '\n\t'.join(['- agent %d: %.2f' % (idx + 1, agent_reward[idx]) for idx in range(n_agents)]))
+						logger.info('Average reward:\n\t' + '\n\t'.join(['- agent %d: %.2f' % (idx + 1, agent_reward[idx] / epoch) for idx in range(n_agents)]))
+					if timeout:
+						logger.info('Test %d timed out' % (i + 1))
+	
+				env.close()
+				logger.info('Passed %d tests out of %d for level %s' % (tests_passed, N_TESTS, game_level))
+	
+				if (tests_passed / N_TESTS) > train_acc[game_level][problem_type]:
+					logger.info('Updating best model for current loc')
+					Path.mkdir(models_dir / 'best', parents=True, exist_ok=True)
+					multi_agt_model.save_models(game_level + model_suffix, models_dir / 'best', logger)
+					train_acc[game_level][problem_type] = tests_passed / N_TESTS
+	
+				logger.info('Updating best training performances record')
+				with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
+					performance_data = yaml.safe_load(train_file)
+					performance_data[game_level] = train_acc[game_level]
+					train_file.seek(0)
+					sorted_data = dict([[sorted_key, performance_data[sorted_key]] for sorted_key in sorted(list(performance_data.keys()))])
+					yaml.safe_dump(sorted_data, train_file)
+	
+				run.finish()
+				gc.collect()
 
 		except KeyboardInterrupt as ks:
 			logger.info('Caught keyboard interrupt, cleaning up and closing.')
