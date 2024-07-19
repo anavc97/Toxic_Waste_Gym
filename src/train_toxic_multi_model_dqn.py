@@ -242,7 +242,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 						 logger: logging.Logger, model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, warmup: int = 0,
 						 start_it: int = 0, start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000,
 						 greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False,
-						 only_move: bool = True, curriculum_model: List[Union[str, Path]] = None) -> List:
+						 only_move: bool = True, curriculum_models: List[Union[str, Path]] = None) -> List:
 
 	def prepare_problem():
 		if problem_type == "only_movement":
@@ -272,13 +272,14 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		command_thread.start()
 	
 	obs, *_ = waste_env.reset()
-	if curriculum_model is not None:
-		assert len(curriculum_model) == n_agents
+	if curriculum_models is not None:
+		assert len(curriculum_models) == n_agents
 		for a_idx in range(n_agents):
 			a_id = agents_ids[a_idx]
 			dqn_model = multi_agt_model.agent_dqns[a_id]
 			model_obs = get_model_obs(obs[a_idx])
-			dqn_model.init_network_states(rng_seed, (model_obs[0], model_obs[1]), optim_learn_rate, curriculum_model[a_idx])
+			model = [fname for fname in curriculum_models if str(fname).find(agents_ids[a_idx]) != -1][0]
+			dqn_model.init_network_states(rng_seed, (model_obs[0], model_obs[1]), optim_learn_rate, model)
 	else:
 		for a_idx in range(n_agents):
 			a_id = agents_ids[a_idx]
@@ -479,7 +480,7 @@ def main():
 						help='Method of deciding how to add new experience samples when replay buffer is full')
 	parser.add_argument('--use-curriculum', dest='use_curriculum', action='store_true',
 						help='Flag that signals training using previously trained models as a starting model')
-	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, nargs='+', default='', help='Path to model to use as a starting model to improve.')
+	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, nargs='+', default='', help='Path or list of paths to directory with models to use as a starting model.')
 	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
 	parser.add_argument('--train-only-green', dest='only_green', action='store_true', help='Flag denoting train only picking green balls')
 	parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', action='store_true', help='Flag denoting train only picking green and yellow balls')
@@ -578,12 +579,11 @@ def main():
 	if use_curriculum:
 		try:
 			assert curriculum_models is not None
-			assert all([curriculum_model != '' for curriculum_model in curriculum_models])
+			assert ((len(curriculum_models) == len(game_levels) and all([curriculum_model != '' for curriculum_model in curriculum_models])) or
+					(len(curriculum_models) == 1 and Path(curriculum_models[0]).is_dir()))
 		except AssertionError:
-			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point')
+			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point for all game levels to train')
 			return
-	else:
-		curriculum_models = None
 
 	if only_movement:
 		problem_type = "only_movement"
@@ -629,7 +629,7 @@ def main():
 			logging.root.removeHandler(handler)
 
 	for game_level in game_levels:
-
+		
 		run = wandb.init(project='astro-toxic-waste', entity='miguel-faria',
 		                 config={
 				                 "agent_type":           "independent%s_agents" % ("_vdn" if use_vdn else ""),
@@ -715,16 +715,23 @@ def main():
 				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
 				                          use_tracker=use_tensorboard, tracker=run, use_v2=(env_version == 2),
 				                          cnn_properties=cnn_properties)
+			if use_curriculum:
+				if len(curriculum_models) == 1:
+					starting_models = [fname for fname in Path(curriculum_models[0]).iterdir() if str(fname).find(game_level) != -1]
+				else:
+					starting_models = curriculum_models[game_levels.index(game_level)]
+			else:
+				starting_models = None
 			if env_version == 1:
 				train_astro_model(agents_id, env, multi_agt_model, heuristic_agents, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size,
 				                  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, eps_decay, warmup, target_freq,
 				                  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
 			else:
 				train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_order, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
-				                     target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
-				                     chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
-				                     greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,
-				                     curriculum_model=curriculum_models, only_move=only_movement)
+									 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
+									 chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
+									 greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,
+									 curriculum_models=starting_models, only_move=only_movement)
 	
 			logger.info('Saving model and history list')
 			multi_agt_model.save_models(game_level + model_suffix, model_path, logger)
@@ -734,11 +741,11 @@ def main():
 			####################
 			logger.info('Testing for level: %s' % game_level)
 			if env_version == 1:
-				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, facing,
+				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
 				                      args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
 				action_enum = Actions
 			else:
-				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, facing,
+				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
 				                      centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
 				action_enum = ActionsV2
 
