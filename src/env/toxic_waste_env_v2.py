@@ -95,6 +95,10 @@ class WasteStateV2(WasteState):
 	def was_picked(self, new_val: bool) -> None:
 		self._was_picked = new_val
 	
+	@points.setter
+	def points(self, new_val: float) -> None:
+		self._points = new_val
+	
 	def deepcopy(self):
 		new_obj = WasteStateV2(self._position, self._id, self._points, self._time_penalty, identified=self._identified)
 		new_obj.hold_state = self._hold_state
@@ -144,6 +148,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._collect_all = pick_all
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 						 False, use_render, render_mode, joint_obs)
+		self._reward_space = {'move': MOVE_REWARD, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+							  'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
 		self._start_time = time.time()
 	
 	###########################
@@ -165,6 +171,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def door_pos(self) -> Tuple:
 		return self._door_pos
 	
+	def set_waste_color_pts(self, color: int, pts: float) -> None:
+		for waste in self._objects:
+			if waste.waste_type == color:
+				waste.points = pts
+
 	#######################
 	### UTILITY METHODS ###
 	#######################
@@ -495,8 +506,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		slip_agents, agent_bonus = self.execute_transitions(actions)
 		finished = self.is_game_finished()
-		# rewards = np.array([player.reward for player in self._players])
-		rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])
+		rewards = np.array([player.reward for player in self._players])
+		# rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])
 		timeout = self.is_game_timedout()
 		return self.make_obs(), rewards, finished, timeout, {'agents_slipped': slip_agents}
 	
@@ -506,7 +517,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		old_positions = []
 		bonus_pts = [0] * self.n_players
 		for player in self._players:
-			player.reward = MOVE_REWARD
+			player.reward = self._reward_space['move']
 			old_positions += [player.position]
 		
 		# Process action list
@@ -554,12 +565,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							adjacent_agent.hold_object(place_obj)
 							agents_disposed_waste.append(acting_player)
 							agents_disposed_waste.append(adjacent_agent)
-							waste_disposed[acting_player.id] = max(place_obj.points, 0)
-							waste_disposed[adjacent_agent.id] = DELIVER_WASTE
-							if self._is_train:
-								self._score += max(place_obj.points, 0)
-							else:
-								self._score += place_obj.points
+							waste_disposed[acting_player.id] = place_obj.points
+							waste_disposed[adjacent_agent.id] = self._reward_space['deliver']
+							self._score += place_obj.points
 					else:
 						# Drop object to the field
 						dropped_obj = acting_player.held_objects[0]
@@ -581,8 +589,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								pick_obj.identified = True
 								acting_player.hold_object(pick_obj)
 								if not pick_obj.was_picked:
-									acting_player.reward += PICK_REWARD
-									bonus_pts[agent_idx] += PICK_REWARD
+									acting_player.reward += self._reward_space['pick']
+									bonus_pts[agent_idx] += self._reward_space['pick']
 									pick_obj.was_picked = True
 								# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
@@ -590,8 +598,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
 				object_facing = self.get_object_facing(acting_player)
 				if object_facing is not None and not object_facing.identified:
-					acting_player.reward = IDENTIFY_REWARD
-					bonus_pts[agent_idx] += IDENTIFY_REWARD
+					acting_player.reward = self._reward_space['identify']
+					bonus_pts[agent_idx] += self._reward_space['identify']
 					object_facing.identified = True
 		
 		# Handle movement and collisions
@@ -619,7 +627,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			ball_pos = [obj.position for obj in self.objects]
 			if idx == AgentType.HUMAN and moving_player.is_holding_object():
 				self._time_penalties += sum([obj.time_penalty for obj in moving_player.held_objects])	# When the agent moves holding waste apply time penalty
-				self._players[AgentType.ROBOT].reward = HOLD_REWARD
+				self._players[AgentType.ROBOT].reward = self._reward_space['hold']
 			if old_pos != next_pos and next_pos not in ball_pos:
 				moving_player.position = next_pos
 				if moving_player.is_holding_object():
@@ -629,10 +637,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		if self.is_game_finished():
 			# Game finished reward
-			for player in self._players:
-				player.reward += ROOM_CLEAN * self._score
 			time_left = self.get_time_left()
 			self._score += (time_left / self._max_time) * self._score
+			for player in self._players:
+				player.reward += self._reward_space['finish'] * self._score
 		else:
 			for player in self._players:
 				if player in agents_disposed_waste:
@@ -646,7 +654,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							 (player.agent_type == AgentType.ROBOT and facing_agent.agent_type == AgentType.HUMAN and facing_agent.is_holding_object()))):
 						# if players have to face each other, reward only given when they are facing
 						if (self.require_facing and self.are_facing(player, facing_agent)) or not self.require_facing:
-							player.reward += ADJ_REWARD
-							bonus_pts[self._players.index(player)] += ADJ_REWARD
+							player.reward += self._reward_space['adjacent']
+							bonus_pts[self._players.index(player)] += self._reward_space['adjacent']
 		
 		return slip_agents, bonus_pts

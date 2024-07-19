@@ -7,7 +7,7 @@ from enum import IntEnum, Enum
 from gymnasium.utils import seeding
 from gymnasium.spaces import Box, MultiDiscrete
 from gymnasium import Env
-from typing import List, Tuple, Any, Union
+from typing import List, Tuple, Any, Dict
 from copy import deepcopy
 from termcolor import colored
 from collections import namedtuple
@@ -254,6 +254,7 @@ class BaseToxicEnv(Env):
 	
 	action_space: MultiDiscrete
 	observation_space: gymnasium.spaces.Tuple
+	_reward_space: Dict[str, float]
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str, data_dir: Path,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, use_render: bool = False,
@@ -282,6 +283,7 @@ class BaseToxicEnv(Env):
 		self._agent_centered_obs = agent_centered
 		self._use_encoding = use_encoding
 		self._data_dir = data_dir
+		self._reward_space = {}
 		self.setup_env()
 		
 		self.action_space = self._get_action_space()
@@ -363,6 +365,10 @@ class BaseToxicEnv(Env):
 	def use_joint_obs(self) -> bool:
 		return self._joint_obs
 	
+	@property
+	def reward_space(self) -> Dict[str, float]:
+	    return self._reward_space
+	
 	@layout.setter
 	def layout(self, new_layout: str) -> None:
 		self._room_layout = new_layout
@@ -370,6 +376,10 @@ class BaseToxicEnv(Env):
 	@use_render.setter
 	def use_render(self, new_val: bool) -> None:
 		self._use_render = new_val
+	
+	@reward_space.setter
+	def reward_space(self, new_space: Dict[str, float]) -> None:
+		self._reward_space = new_space
 	
 	def seed(self, seed=None):
 		self._np_random, seed = seeding.np_random(seed)
@@ -382,6 +392,9 @@ class BaseToxicEnv(Env):
 			for idx in range(len(self.observation_space)):
 				self.observation_space[idx].seed(seed)
 		return [seed]
+	
+	def set_reward_value(self, reward_type: str, reward_value: float) -> None:
+		self._reward_space[reward_type] = reward_value
 	
 	#######################
 	### UTILITY METHODS ###

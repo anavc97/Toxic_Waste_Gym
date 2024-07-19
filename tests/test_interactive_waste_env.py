@@ -3,10 +3,11 @@ import numpy as np
 
 from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2
 from typing import List, Tuple
+from pathlib import Path
 
 RNG_SEED = 12072023
 N_CYCLES = 100
-ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT}
+ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT, 'z': Actions.IDENTIFY}
 np.set_printoptions(precision=3, linewidth=2000, threshold=1000)
 
 
@@ -46,8 +47,10 @@ def main():
 	centered_obs = False
 	use_render = True
 	render_mode = ['human']
+	data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
 	
-	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode, use_render, slip=has_slip, is_train=True)
+	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode, use_render,
+						  slip=has_slip, is_train=True, pick_all=True)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())
@@ -61,8 +64,18 @@ def main():
 		print('\n'.join(['Player %s at (%d, %d) with orientation (%d, %d)' % (env.players[idx].name, *env.players[idx].position, *env.players[idx].orientation)
 			   for idx in range(n_players)]))
 		for idx in range(n_players):
-			action = input('%s action: ' % env.players[idx].name)
-			actions += [int(ACTION_MAP[action])]
+			valid_action = False
+			while not valid_action:
+				human_input = input("Action for agent %s:\t" % env.players[idx].name)
+				try:
+					action = int(ACTION_MAP[human_input])
+					if action < len(ACTION_MAP):
+						valid_action = True
+						actions.append(action)
+					else:
+						print('Action ID must be between 0 and %d, you gave ID %d' % (len(ACTION_MAP), action))
+				except KeyError as e:
+					print('Key error caught: %s' % str(e))
 		print(' '.join([Actions(action).name for action in actions]))
 		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)

@@ -32,6 +32,7 @@ class ToxicWasteEnvV1(BaseToxicEnv):
 		
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v1', data_dir, require_facing, layer_obs, agent_centered,
 						 use_encoding, use_render, render_mode, joint_obs)
+		self._reward_space = {'move': MOVE_REWARD, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD}
 		self._slip = slip
 		self._slip_prob = 0.0
 	
