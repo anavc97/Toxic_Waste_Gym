@@ -569,7 +569,7 @@ def main():
 	home_dir = Path(__file__).parent.absolute().parent.absolute()
 	log_dir = Path(args.logs_dir) if args.logs_dir != '' else home_dir / 'logs'
 	data_dir = Path(args.data_dir) if args.data_dir != '' else home_dir / 'data'
-	models_dir = Path(args.models_dir) / 'models' if args.models_dir != '' else home_dir / 'models'
+	models_dir = Path(args.models_dir) if args.models_dir != '' else home_dir / 'models'
 	configs_dir = data_dir / 'configs'
 	rng_gen = np.random.default_rng(TRAIN_RNG_SEED)
 
