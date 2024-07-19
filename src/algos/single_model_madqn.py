@@ -532,7 +532,7 @@ class CentralizedMADQN(object):
 				step_reward = sum(rewards) / self._num_agents
 				episode_rewards += step_reward
 				if self._use_tracker:
-					self._madqn.summary_writer.add_scalar("charts/reward", step_reward, epoch + start_record_epoch)
+					self._perform_tracker.log({"charts/reward": step_reward}, step=(epoch + start_record_epoch))
 				obs = next_obs
 				
 				# update Q-network and target network
@@ -552,7 +552,7 @@ class CentralizedMADQN(object):
 								"charts/performance/episodic_length":      episode_len,
 								"charts/control/iteration":                it,
 								"charts/control/epsilon":                  eps,
-						}, step=(it + start_record_it))
+						}, step=(epoch + start_record_epoch))
 					obs, *_ = env.reset()
 					done = True
 					history += [episode_history]

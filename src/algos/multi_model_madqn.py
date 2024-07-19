@@ -184,8 +184,8 @@ class MultiAgentDQN(object):
 						q_values = agent_dqn.q_network.apply(agent_dqn.online_state.params, obs[a_idx])
 						action = q_values.argmax(axis=-1)
 						action = jax.device_get(action)
-						if self._agent_dqns[a_id].use_summary and epoch % tensorboard_frequency == 0:
-							self._agent_dqns[a_id].summary_writer.add_scalar("charts/episodic_q_vals", float(q_values[int(action)]), epoch + start_record_epoch)
+						if self.use_tracker:
+							self.performance_tracker.log(data={"%s-charts/episodic_q_vals" % a_id: float(q_values[int(action)])})
 						actions += [action]
 					actions = np.array(actions)
 				next_obs, rewards, terminated, timeout, infos = env.step(actions)
@@ -206,8 +206,8 @@ class MultiAgentDQN(object):
 				for a_idx in range(self._num_agents):
 					a_id = self._agent_ids[a_idx]
 					episode_rewards[a_idx] += rewards[a_idx]
-					if self._agent_dqns[a_id].use_summary:
-						self._agent_dqns[a_id].summary_writer.add_scalar("charts/reward", rewards[a_idx], epoch + start_record_epoch)
+					if self.use_tracker:
+						self.performance_tracker.log(data={"%s-charts/performance/reward" % a_id: rewards[a_idx]})
 				obs = next_obs
 				
 				# update Q-network and target network
@@ -328,7 +328,7 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)}, step=epoch)
+								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)})
 					else:
 						for a_idx in range(self._num_agents):
 							a_id = self._agent_ids[a_idx]
@@ -357,7 +357,7 @@ class MultiAgentDQN(object):
 							
 							#  update tensorboard
 							if agent_dqn.use_summary and epoch % tensorboard_frequency == 0:
-								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)}, step=epoch)
+								self._perform_tracker.log(data={"%s-charts/losses/td_loss" % self._agent_ids[a_idx]: float(loss)})
 
 					else:
 						for a_idx in range(self._num_agents):

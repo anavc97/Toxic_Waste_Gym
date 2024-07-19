@@ -18,8 +18,9 @@ from wandb.wandb_run import Run
 class SingleAgentDQN(object):
 	
 	_agent_dqn: DQNetwork
-	_write_tensorboard: bool
 	_replay_buffer: ReplayBuffer
+	_perform_tracker: Run
+	_use_tracker: bool
 	_use_v2: bool
 
 	def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, action_space: Space,
@@ -27,11 +28,11 @@ class SingleAgentDQN(object):
 	             handle_timeout: bool = False, use_tensorboard: bool = False, tracker: Optional[Run] = None, cnn_properties: List[int] = None,
 	             use_v2: bool = False):
 		
-		self._write_tensorboard = use_tensorboard
+		self._use_tracker = use_tensorboard
+		if use_tensorboard:
+			self._perform_tracker = tracker
 		self._use_v2 = use_v2
-		now = datetime.now()
-		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard,
-									tracker, cnn_properties)
+		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard, cnn_properties)
 		self._replay_buffer = ReplayBuffer(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
 										   handle_timeout_termination=handle_timeout)
 	
@@ -43,8 +44,8 @@ class SingleAgentDQN(object):
 		return self._agent_dqn
 	
 	@property
-	def write_tensorboard(self) -> bool:
-		return self._write_tensorboard
+	def use_tracker(self) -> bool:
+		return self._use_tracker
 	
 	@property
 	def replay_buffer(self) -> ReplayBuffer:
@@ -108,10 +109,12 @@ class SingleAgentDQN(object):
 					obs, _ = env.reset()
 					done = True
 					history += [episode_history]
-					if self._write_tensorboard:
-						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_return", episode_rewards, epoch)
-						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-						self._agent_dqn.performance_tracker.add_scalar("charts/epsilon", eps, epoch)
+					if self._use_tracker:
+						self._perform_tracker.log({
+								"charts/episodic_return": episode_rewards,
+								"charts/episodic_length": epoch - episode_start,
+								"charts/epsilon": eps
+						}, epoch)
 						print("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
 		
 		return history
@@ -171,10 +174,12 @@ class SingleAgentDQN(object):
 					obs = env.render()
 					done = True
 					history += [episode_history]
-					if self._write_tensorboard:
-						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_return", episode_rewards, epoch)
-						self._agent_dqn.performance_tracker.add_scalar("charts/episodic_length", epoch - episode_start, epoch)
-						self._agent_dqn.performance_tracker.add_scalar("charts/epsilon", eps, epoch)
+					if self._use_tracker:
+						self._perform_tracker.log({
+								"charts/episodic_return": episode_rewards,
+								"charts/episodic_length": epoch - episode_start,
+								"charts/epsilon":         eps
+						}, epoch)
 						logger.debug("Episode over:\tReward: %f\tLength: %d" % (episode_rewards, epoch - episode_start))
 		
 		return history

@@ -343,7 +343,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			for a_idx in range(n_agents):
 				episode_rewards[a_idx] += rewards[a_idx]
 				if multi_agt_model.use_tracker:
-					multi_agt_model.performance_tracker.log(data={"%s-charts/performance/reward" % agents_ids[a_idx]: rewards[a_idx]}, step=epoch)
+					multi_agt_model.performance_tracker.log(data={"%s-charts/performance/reward" % agents_ids[a_idx]: rewards[a_idx]})
 			
 			if terminated:
 				finished = np.ones(n_agents)
@@ -376,14 +376,12 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 								"%s-charts/performance/overtime_avg_return" % agents_ids[a_idx]: np.mean(avg_episode_reward[a_idx]),
 								"%s-charts/performance/episode_length" % agents_ids[a_idx]: episode_len,
 								"%s-charts/performance/overtime_avg_episode_len" % agents_ids[a_idx]: np.mean(avg_episode_len),
-								},
-								step=(it + start_record_it))
+						})
 					multi_agt_model.performance_tracker.log(data={
 							"charts/control/epsilon": eps,
 							"charts/control/anneal_temp": temp,
 							"charts/control/iteration": it,
-					},
-							step=(it + start_record_it))
+					})
 				obs, *_ = waste_env.reset()
 				episode_rewards = [0] * n_agents
 				episode_q_vals = [0] * n_agents
