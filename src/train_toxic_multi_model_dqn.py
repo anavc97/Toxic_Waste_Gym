@@ -439,9 +439,6 @@ def main():
 	parser.add_argument('--dueling', dest='dueling_dqn', action='store_true', help='Flag that signals the use of a Dueling DQN architecture')
 	parser.add_argument('--tensorboard', dest='use_tensorboard', action='store_true',
 						help='Flag the signals the use of a tensorboard summary writer. Expects argument --tensorboardDetails to be present')
-	parser.add_argument('--tensorboardDetails', dest='tensorboard_details', nargs='+', required=False, default=None,
-						help='List with the details for the tensorboard summary writer: <log_dirname: str>, <queue_size :int>, <flush_time: int>, <suffix: str>'
-							 ' Use only in combination with --tensorboard option')
 	
 	# Train parameters
 	# parser.add_argument('--cycles', dest='n_cycles', type=int, required=True,
@@ -513,7 +510,7 @@ def main():
 	use_ddqn = args.use_ddqn
 	use_vdn = args.use_vdn
 	use_cnn = args.use_cnn
-	use_tensorboard = args.use_tensorboard
+	use_tracker = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
 
 	# Train args
@@ -708,12 +705,12 @@ def main():
 			if use_vdn:
 				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
 				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tensorboard, tracker=run, use_v2=(env_version == 2),
+				                          use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
 				                          cnn_properties=cnn_properties)
 			else:
 				multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
 				                          env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
-				                          use_tracker=use_tensorboard, tracker=run, use_v2=(env_version == 2),
+				                          use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
 				                          cnn_properties=cnn_properties)
 			if use_curriculum:
 				if len(curriculum_models) == 1:
