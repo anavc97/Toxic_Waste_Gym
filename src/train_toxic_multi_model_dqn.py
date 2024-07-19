@@ -817,20 +817,20 @@ def main():
 				run.finish()
 				gc.collect()
 
-		except KeyboardInterrupt as ks:
-			logger.info('Caught keyboard interrupt, cleaning up and closing.')
-			run.finish()
-			logger.info('Updating best training performances record')
-			with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
-				performance_data = yaml.safe_load(train_file)
-				performance_data[game_level] = train_acc[game_level]
-				train_file.seek(0)
-				sorted_data = dict([[sorted_key, performance_data[sorted_key]] for sorted_key in sorted(list(performance_data.keys()))])
-				yaml.safe_dump(sorted_data, train_file)
-		
-		except Exception as e:
-			logger.error("Caught an unexpected exception while training level %s: %s\n%s" % (game_level, str(e), traceback.format_exc()))
-			run.finish()
+			except KeyboardInterrupt as ks:
+				logger.info('Caught keyboard interrupt, cleaning up and closing.')
+				run.finish()
+				logger.info('Updating best training performances record')
+				with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
+					performance_data = yaml.safe_load(train_file)
+					performance_data[game_level] = train_acc[game_level]
+					train_file.seek(0)
+					sorted_data = dict([[sorted_key, performance_data[sorted_key]] for sorted_key in sorted(list(performance_data.keys()))])
+					yaml.safe_dump(sorted_data, train_file)
+			
+			except Exception as e:
+				logger.error("Caught an unexpected exception while training level %s: %s\n%s" % (game_level, str(e), traceback.format_exc()))
+				run.finish()
 	
 
 if __name__ == '__main__':
