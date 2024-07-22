@@ -21,12 +21,12 @@ fi
 
 export LD_LIBRARY_PATH="/usr/lib/cuda/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/lib/cuda/bin:$PATH"
-source "$HOME"/miniconda3/bin/activate deep_rl_env
-
 if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
-  python "$script_path"/run_train_toxic_multi_model.py --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste/models --data-dir /mnt/data-artemis/miguelfaria/toxic_waste/data --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 800 --eps-type log --eps-decay 0.1 --buffer-size 1000 --batch-size 32 --game-levels cramped_room level_one level_two # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
+  source "$HOME"/miniconda3/bin/activate deep_rl_env
+  python "$script_path"/run_train_toxic_multi_model.py --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste/models --data-dir /mnt/data-artemis/miguelfaria/toxic_waste/data --buffer-method uniform --initial-temp 1.0 --train-only-green --iterations 2000 --eps-type log --eps-decay 0.1 --buffer-size 5000 --batch-size 32 --game-levels cramped_room level_one level_two --curriculum-learning --curriculum-model-path /mnt/data-artemis/miguelfaria/toxic_waste/models/best/only_movement --pick-all # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
 else
-  python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 10 --eps-type linear --eps-decay 0.2 --buffer-size 10000
+  source "$HOME"/miniconda3/bin/activate drl_env
+  python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --train-only-green --iterations 2000 --eps-type log --eps-decay 0.1 --buffer-size 5000 --batch-size 32 --game-levels cramped_room level_one level_two --curriculum-learning --curriculum-model-path /home/miguel-faria/Documents/research/toxic_waste/models/best/only_movement/ --pick-all
 fi
 
 source "$HOME"/miniconda3/bin/deactivate

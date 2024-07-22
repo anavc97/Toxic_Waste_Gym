@@ -81,9 +81,6 @@ def main():
 		state, rewards, dones, _, info = env.step(actions)
 		next_v2_obs = get_model_obs(state)
 		print(next_v2_obs[0].shape)
-		for layer in state[0]['conv']:
-			print(layer)
-			print('\n')
 		print(env.objects)
 		print(rewards, dones)
 		print(env.objects)

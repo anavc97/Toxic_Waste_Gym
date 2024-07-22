@@ -237,12 +237,12 @@ def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_m
 	return history
 
 
-def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgentDQN, heuristic_models: List[GreedyAgent], waste_order: List, problem_type: str, num_iterations: int,
-						 max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str, rng_seed: int,
-						 logger: logging.Logger, model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99, warmup: int = 0,
-						 start_it: int = 0, start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000,
-						 greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False,
-						 only_move: bool = True, curriculum_models: List[Union[str, Path]] = None) -> List:
+def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgentDQN, heuristic_models: List[GreedyAgent], waste_sequences: List, problem_type: str,
+                         num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str,
+                         rng_seed: int, logger: logging.Logger, model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99,
+                         warmup: int = 0, start_it: int = 0, start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10,
+                         summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False,
+                         anneal_cool: float = 0.9, restart: bool = False, only_move: bool = True, curriculum_models: List[Union[str, Path]] = None) -> List:
 
 	def prepare_problem():
 		if problem_type == "only_movement":
@@ -264,6 +264,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 	history = []
 	decision_rng_gen = np.random.default_rng(rng_seed)
 	anneal_rng_gen = np.random.default_rng(rng_seed + 1)
+	waste_rng_gen = np.random.default_rng(rng_seed + 2)
 	n_agents = waste_env.n_players
 	agents_ids = [p.name for p in waste_env.players]
 	if interactive:
@@ -286,6 +287,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			dqn_model = multi_agt_model.agent_dqns[a_id]
 			model_obs = get_model_obs(obs[a_idx])
 			dqn_model.init_network_states(rng_seed, (model_obs[0], model_obs[1]), optim_learn_rate)
+
 	if restart:
 		warm_anneal_count = RESTART_WARMUP
 	
@@ -317,6 +319,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			# interact with environment
 			if anneal:
 				actions = heuristic_execution(waste_env, heuristic_models, only_move)
+
 			else:
 				if eps_type == 'epoch':
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
@@ -332,9 +335,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				# rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
 				
 			if debug_mode:
-				logger.info('Environment current state')
+				logger.info('Environment state after actions: %s' % str([ActionsV2(act).name for act in actions]))
 				logger.info(waste_env.get_env_log())
-				logger.info('Player actions: %s' % str([ActionsV2(act).name for act in actions]))
 				logger.info('Player rewards: %s' % str(rewards))
 			
 			if waste_env.use_render:
@@ -372,7 +374,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 								"%s-charts/performance/avg_episode_q_vals" % agents_ids[a_idx]: episode_q_vals[a_idx] / episode_len,
 								"%s-charts/performance/overtime_avg_q_vals" % agents_ids[a_idx]: np.mean(avg_episode_q_vals[a_idx]),
 								"%s-charts/performance/episode_return" % agents_ids[a_idx]: episode_rewards[a_idx],
-								"%s-charts/performance/avg_episode_eturn" % agents_ids[a_idx]: episode_rewards[a_idx] / episode_len,
+								"%s-charts/performance/avg_episode_return" % agents_ids[a_idx]: episode_rewards[a_idx] / episode_len,
 								"%s-charts/performance/overtime_avg_return" % agents_ids[a_idx]: np.mean(avg_episode_reward[a_idx]),
 								"%s-charts/performance/episode_length" % agents_ids[a_idx]: episode_len,
 								"%s-charts/performance/overtime_avg_episode_len" % agents_ids[a_idx]: np.mean(avg_episode_len),
@@ -388,7 +390,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in heuristic_models]
+				next_sequence = list(waste_rng_gen.choice(np.array(waste_sequences)))
+				[model.reset(next_sequence, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in heuristic_models]
 				if warmup_anneal:
 					warm_anneal_count -= 1
 					warmup_anneal = warm_anneal_count > 0
@@ -690,7 +693,17 @@ def main():
 				logger.info('Train setup')
 				waste_idx = []
 				for obj in env.objects:
-					waste_idx.append(env.objects.index(obj))
+					if env_version == 2:
+						if problem_type == "only_green":
+							if obj.waste_type == WasteType.GREEN:
+								waste_idx.append(env.objects.index(obj))
+						elif problem_type == "green_yellow":
+							if obj.waste_type != WasteType.RED:
+								waste_idx.append(env.objects.index(obj))
+						else:
+							waste_idx.append(env.objects.index(obj))
+					else:
+						waste_idx.append(env.objects.index(obj))
 				waste_seqs = list(permutations(waste_idx))
 				waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 				for model in heuristic_agents:
@@ -722,7 +735,7 @@ def main():
 									  learn_rate, target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, eps_decay, warmup, target_freq,
 									  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
 				else:
-					train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_order, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
+					train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_seqs, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
 										 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
 										 chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
 										 greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,

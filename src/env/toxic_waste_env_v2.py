@@ -170,7 +170,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	@property
 	def door_pos(self) -> Tuple:
 		return self._door_pos
-	
+
+	@property
+	def has_pick_all(self) -> bool:
+		return self._collect_all
+
 	def set_waste_color_pts(self, color: int, pts: float) -> None:
 		for waste in self._objects:
 			if waste.waste_type == color:

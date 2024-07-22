@@ -6,6 +6,7 @@ from src.env.toxic_waste_env_base import PlayerState
 from src.env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2, Actions
 from src.env.astro_greedy_agent import GreedyAgent
 from itertools import permutations
+from pathlib import Path
 
 
 RNG_SEED = 18102023
@@ -27,15 +28,17 @@ def main():
 	use_render = True
 	rng_gen = np.random.default_rng(RNG_SEED)
 	agent_models = []
-	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs,
-						  slip=has_slip, is_train=True, use_render=use_render)
+	data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
+	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, data_dir, centered_obs,
+	                      slip=has_slip, is_train=True, use_render=use_render, pick_all=True)
+
 	state, *_ = env.reset(seed=RNG_SEED)
 	waste_idx = []
 	for obj in env.objects:
 		waste_idx.append(env.objects.index(obj))
 	waste_seqs = list(permutations(waste_idx))
-	waste_order = list(np.random.default_rng().choice(np.array(waste_seqs)))
-	# waste_order = list(rng_gen.choice(np.array(waste_seqs)))
+	# waste_order = list(np.random.default_rng().choice(np.array(waste_seqs)))
+	waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 	for player in env.players:
 		agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
 										dict([(idx, env.objects[idx].position) for idx in range(len(env.objects))]), RNG_SEED, env.field, 2,
@@ -51,6 +54,7 @@ def main():
 		done = False
 		print('Iteration: %d' % (i + 1))
 		epoch = 0
+		print(agent_models[0].waste_order)
 		while not done:
 			print('Epoch %d' % (epoch + 1))
 			actions = []
@@ -70,11 +74,11 @@ def main():
 			if finished or timeout:
 				done = True
 				env.reset()
-				[model.reset(waste_order, dict([(idx, env.objects[idx].position) for idx in range(env.n_objects)])) for model in agent_models]
+				[model.reset(waste_order, dict([(idx, env.objects[idx].position) for idx in range(env.n_objects)]), env.has_pick_all) for model in agent_models]
 				if finished:
 					successes += 1
-		input()
-				
+			input()
+
 	print('Finished %f of attempts' % (successes / N_CYCLES))
 	
 
