@@ -16,7 +16,7 @@ from copy import deepcopy
 from itertools import product
 
 
-MOVE_REWARD = 0.0
+MOVE_PENALTY = -1.0
 HOLD_REWARD = -0.1
 DELIVER_WASTE = 1
 ROOM_CLEAN = 2
@@ -49,6 +49,14 @@ class WasteType(IntEnum):
 	GREEN = 1
 	YELLOW = 2
 	RED = 3
+
+
+class ProblemType(IntEnum):
+	ONLY_MOVE = 1
+	ONLY_GREEN = 2
+	GREEN_YELLOW = 3
+	BALLS_ONLY = 4
+	FULL = 5
 
 
 class WasteStateV2(WasteState):
@@ -135,7 +143,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
 				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False):
+				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
 
 		self._dict_obs = dict_obs
 		self._is_train = is_train
@@ -146,10 +154,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		self._collect_all = pick_all
+		self._problem_type = problem_type
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 						 False, use_render, render_mode, joint_obs)
-		self._reward_space = {'move': MOVE_REWARD, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
-							  'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
+		if self._problem_type == ProblemType.ONLY_MOVE:
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 0.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
+		elif self._problem_type == ProblemType.FULL:
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+			                      'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
+		else:
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+								  'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': 0.0}
 		self._start_time = time.time()
 	
 	###########################
@@ -174,6 +189,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	@property
 	def has_pick_all(self) -> bool:
 		return self._collect_all
+
+	@property
+	def problem_type(self) -> int:
+		return self._problem_type
 
 	def set_waste_color_pts(self, color: int, pts: float) -> None:
 		for waste in self._objects:
@@ -269,17 +288,20 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.DOOR
 					self._door_pos = (row, col)
 				elif cell_val == 'G':
-					self.add_object((row, col), objects_data['green']['ids'][n_green], objects_data['green']['points'],
+					points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']
+					self.add_object((row, col), objects_data['green']['ids'][n_green], points,
 									objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
 					self._field[row, col] = CellEntity.COUNTER
 					n_green += 1
 				elif cell_val == 'R':
-					self.add_object((row, col), objects_data['red']['ids'][n_red], objects_data['red']['points'],
+					points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']
+					self.add_object((row, col), objects_data['red']['ids'][n_red], points,
 									objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 					self._field[row, col] = CellEntity.COUNTER
 					n_red += 1
 				elif cell_val == 'Y':
-					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], objects_data['yellow']['points'],
+					points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']
+					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], points,
 									objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
 					self._field[row, col] = CellEntity.COUNTER
 					n_yellow += 1
@@ -295,7 +317,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
 		if self._collect_all:
 			remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
-			return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
+			if self._problem_type == ProblemType.ONLY_GREEN:
+				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
+			else:
+				return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
 		else:
 			return player_at_door
 	
@@ -510,7 +535,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		slip_agents, agent_bonus = self.execute_transitions(actions)
 		finished = self.is_game_finished()
-		rewards = np.array([player.reward for player in self._players])
+		if self._problem_type == ProblemType.ONLY_MOVE:
+			rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+		else:
+			rewards = np.array([player.reward for player in self._players])
 		# rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])
 		timeout = self.is_game_timedout()
 		return self.make_obs(), rewards, finished, timeout, {'agents_slipped': slip_agents}
@@ -648,10 +676,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		else:
 			for player in self._players:
 				if player in agents_disposed_waste:
-				# Disposal reward
+					# Disposal reward
 					player.reward += waste_disposed[player.id]
 				else:
-				# Adjacency reward
+					# Adjacency reward
 					facing_agent = self.get_agent_facing(player)
 					if (facing_agent is not None and
 							((player.agent_type == AgentType.HUMAN and facing_agent.agent_type == AgentType.ROBOT and player.is_holding_object()) or

@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 import numpy as np
 
-from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2
+from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2, ProblemType
 from typing import List, Tuple
 from pathlib import Path
 
@@ -50,7 +50,7 @@ def main():
 	data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
 	
 	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode, use_render,
-						  slip=has_slip, is_train=True, pick_all=True)
+						  slip=has_slip, is_train=True, pick_all=True, problem_type=ProblemType.ONLY_GREEN)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())
@@ -91,6 +91,7 @@ def main():
 			env.render()
 
 	env.close()
+
 
 if __name__ == '__main__':
 	main()

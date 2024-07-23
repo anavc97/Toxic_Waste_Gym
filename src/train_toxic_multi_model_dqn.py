@@ -20,7 +20,7 @@ from algos.dqn import EPS_TYPE, DQNetwork
 from algos.multi_model_madqn import MultiAgentDQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
 from env.toxic_waste_env_base import Actions
-from env.toxic_waste_env_v2 import ToxicWasteEnvV2, WasteType
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, WasteType, ProblemType
 from env.toxic_waste_env_v2 import Actions as ActionsV2
 from env.astro_greedy_agent import GreedyAgent
 from pathlib import Path
@@ -244,23 +244,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
                          summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False,
                          anneal_cool: float = 0.9, restart: bool = False, only_move: bool = True, curriculum_models: List[Union[str, Path]] = None) -> List:
 
-	def prepare_problem():
-		if problem_type == "only_movement":
-			waste_env.set_waste_color_pts(WasteType.GREEN, 0)
-			waste_env.set_waste_color_pts(WasteType.YELLOW, 0)
-			waste_env.set_waste_color_pts(WasteType.RED, 0)
-			waste_env.reward_space = {'move': -1.0, 'deliver': 0.0, 'finish': 0.0, 'hold': 0.0,
-									  'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
-		elif problem_type == "only_green":
-			waste_env.set_waste_color_pts(WasteType.YELLOW, 0)
-			waste_env.set_waste_color_pts(WasteType.RED, 0)
-			waste_env.set_reward_value('identify', 0.0)
-		elif problem_type == "green_yellow":
-			waste_env.set_waste_color_pts(WasteType.RED, 0)
-			waste_env.set_reward_value('identify', 0.0)
-		elif problem_type == "all_balls":
-			waste_env.set_reward_value('identify', 0.0)
-
 	history = []
 	decision_rng_gen = np.random.default_rng(rng_seed)
 	anneal_rng_gen = np.random.default_rng(rng_seed + 1)
@@ -314,7 +297,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		episode_history = []
 		done = False
 		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
-		prepare_problem()
 		while not done:
 			# interact with environment
 			if anneal:
@@ -330,10 +312,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
-			if problem_type == "only_movement":
-				rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
-				# rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
-				
 			if debug_mode:
 				logger.info('Environment state after actions: %s' % str([ActionsV2(act).name for act in actions]))
 				logger.info(waste_env.get_env_log())
@@ -585,14 +563,19 @@ def main():
 
 	if only_movement:
 		problem_type = "only_movement"
+		problem_code = ProblemType.ONLY_MOVE
 	elif only_green:
 		problem_type = "only_green"
+		problem_code = ProblemType.ONLY_GREEN
 	elif only_green_yellow:
 		problem_type = "green_yellow"
+		problem_code = ProblemType.GREEN_YELLOW
 	elif use_all_balls:
 		problem_type = "all_balls"
+		problem_code = ProblemType.BALLS_ONLY
 	else:
 		problem_type = "full_problem"
+		problem_code = ProblemType.FULL
 	model_suffix = get_model_suffix()
 
 	with open(data_dir / 'performances' / 'train_multi_model_performances.yaml', mode='r+', encoding='utf-8') as train_file:
@@ -670,11 +653,11 @@ def main():
 				logger.info('#######################################')
 				logger.info('Level %s setup' % game_level)
 				if env_version == 1:
-					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-										  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
+					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing, args.use_layers, centered_obs,
+					                      use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
 				else:
-					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-										  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
+					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing, centered_obs, args.render_mode,
+					                      slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all, problem_type=problem_code)
 	
 				obs, *_ = env.reset(seed=TRAIN_RNG_SEED)
 				agents_id = [agent.name for agent in env.players]
@@ -749,12 +732,12 @@ def main():
 				####################
 				logger.info('Testing for level: %s' % game_level)
 				if env_version == 1:
-					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-										  args.use_layers, centered_obs, use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
+					env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing, args.use_layers, centered_obs,
+					                      use_encoding, args.render_mode, slip=has_slip, use_render=use_render)
 					action_enum = Actions
 				else:
-					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing,
-										  centered_obs, args.render_mode, slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all)
+					env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, TRAIN_RNG_SEED, data_dir, facing, centered_obs, args.render_mode,
+					                      slip=has_slip, is_train=True, use_render=use_render, pick_all=args.has_pick_all, problem_type=problem_code)
 					action_enum = ActionsV2
 	
 				tests_passed = 0
