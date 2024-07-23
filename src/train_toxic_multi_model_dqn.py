@@ -631,7 +631,8 @@ def main():
 									 "architecture":         architecture,
 									 "problem":					problem_type
 							 },
-							 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")))
+							 name=('multi_model%s_%s_' % ("_vdn" if use_vdn else "", game_level) + now.strftime("%Y%m%d-%H%M%S")),
+							 dir=log_dir)
 	
 			log_filename = ('train_astro_disposal_multi_model_%s' % game_level + '_' + now.strftime("%Y%m%d-%H%M%S"))
 			logger = logging.getLogger("%s" % game_level)
