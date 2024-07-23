@@ -160,10 +160,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		if self._problem_type == ProblemType.ONLY_MOVE:
 			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 0.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
 		elif self._problem_type == ProblemType.FULL:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN * max_steps, 'hold': HOLD_REWARD,
 			                      'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
 		else:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN * max_steps, 'hold': HOLD_REWARD,
 								  'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': 0.0}
 		self._start_time = time.time()
 	
