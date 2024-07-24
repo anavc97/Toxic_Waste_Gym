@@ -205,7 +205,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def add_object(self, position: Tuple, obj_id: str = 'ball', points: int = 1, time_penalty: float = 1, waste_type: int = WasteType.GREEN) -> bool:
 		
 		if self._n_objects < self._max_objects:
-			self._objects.append(WasteStateV2(position, obj_id, points=points, time_penalty=time_penalty, identified=False, waste_type=waste_type))
+			is_identified = False if self._problem_type == ProblemType.FULL else True
+			self._objects.append(WasteStateV2(position, obj_id, points=points, time_penalty=time_penalty, identified=is_identified, waste_type=waste_type))
 			self._n_objects += 1
 			return True
 		else:

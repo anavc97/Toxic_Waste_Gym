@@ -211,7 +211,19 @@ class GreedyAgent(object):
 		else:
 			if self._nxt_waste_idx < 0:
 				self._nxt_waste_idx = self._waste_order.pop(0)
-
+				# if self._version == 1:
+				# else:
+				# 	identified_objs = [i for i in range(len(objs)) if objs[i].identified]
+				# 	n_id_objs = len(identified_objs)
+				# 	if n_id_objs < 1:
+				# 		remain_waste = [i for i in range(len(objs)) if objs[i].hold_state != WasteStatus.DISPOSED]
+				# 		self._nxt_waste_idx = self._rng_gen.choice(remain_waste)
+				# 		self._waste_order.remove(self._nxt_waste_idx)
+				# 	elif n_id_objs == len(objs):
+				# 		pass
+				# 	else:
+				# 		pass
+				
 			if self._status == HumanStatus.HANDS_FREE:
 				nxt_waste = self._waste_pos[self._nxt_waste_idx]
 				found_waste = False
@@ -356,12 +368,17 @@ class GreedyAgent(object):
 		robots = [agent for agent in obs.players if agent.agent_type == AgentType.ROBOT]
 		humans = [agent for agent in obs.players if agent.agent_type == AgentType.HUMAN]
 		objs = obs.objects
-		if problem_type == 'only_green':
-			n_waste_left = sum([not obj.was_picked and obj.waste_type == WasteType.GREEN for obj in objs])
-		elif problem_type == 'green_yellow':
-			n_waste_left = sum([not obj.was_picked and (obj.waste_type == WasteType.GREEN or obj.waste_type == WasteType.YELLOW) for obj in objs])
-		else:
-			n_waste_left = sum([not obj.was_picked for obj in objs])
+		n_waste_left = 0
+		for obj in objs:
+			if problem_type == 'only_green':
+				if obj.waste_type == WasteType.GREEN and obj.hold_state != WasteStatus.DISPOSED:
+					n_waste_left += 1
+			elif problem_type == 'green_yellow':
+				if obj.hold_state != WasteStatus.DISPOSED and (obj.waste_type == WasteType.GREEN or obj.waste_type == WasteType.YELLOW):
+					n_waste_left += 1
+			else:
+				if obj.hold_state != WasteStatus.DISPOSED:
+					n_waste_left += 1
 		self._pos = self_agent.position
 		self._orientation = self_agent.orientation
 		self._status = HumanStatus.WASTE_PICKED if self_agent.is_holding_object() else HumanStatus.HANDS_FREE

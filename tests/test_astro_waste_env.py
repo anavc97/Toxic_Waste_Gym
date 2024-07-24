@@ -3,7 +3,7 @@
 import numpy as np
 
 from src.env.toxic_waste_env_base import PlayerState
-from src.env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2, Actions
+from src.env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2, Actions, ProblemType, WasteType
 from src.env.astro_greedy_agent import GreedyAgent
 from itertools import permutations
 from pathlib import Path
@@ -29,15 +29,26 @@ def main():
 	rng_gen = np.random.default_rng(RNG_SEED)
 	agent_models = []
 	data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
+	env_version = 2
+	problem_type = 'full_problem'
 	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, data_dir, centered_obs,
-	                      slip=has_slip, is_train=True, use_render=use_render, pick_all=True)
+	                      slip=has_slip, is_train=True, use_render=use_render, pick_all=True, problem_type=ProblemType.FULL)
 
 	state, *_ = env.reset(seed=RNG_SEED)
 	waste_idx = []
 	for obj in env.objects:
-		waste_idx.append(env.objects.index(obj))
+		if env_version == 2:
+			if problem_type == "only_green":
+				if obj.waste_type == WasteType.GREEN:
+					waste_idx.append(env.objects.index(obj))
+			elif problem_type == "green_yellow":
+				if obj.waste_type != WasteType.RED:
+					waste_idx.append(env.objects.index(obj))
+			else:
+				waste_idx.append(env.objects.index(obj))
+		else:
+			waste_idx.append(env.objects.index(obj))
 	waste_seqs = list(permutations(waste_idx))
-	# waste_order = list(np.random.default_rng().choice(np.array(waste_seqs)))
 	waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 	for player in env.players:
 		agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
@@ -60,7 +71,7 @@ def main():
 			actions = []
 			for idx in range(n_players):
 				# action = rng_gen.choice(len(Actions))
-				action = agent_models[idx].act(env.create_observation())
+				action = agent_models[idx].act(env.create_observation(), problem_type=='only_move', problem_type)
 				print('Player %s at (%d, %d) with orientation (%d, %d) and chose action %s with plan %s' % (env.players[idx].name, *env.players[idx].position,
 																											*env.players[idx].orientation, Actions(action).name,
 																											agent_models[idx].plan))
@@ -74,6 +85,7 @@ def main():
 			if finished or timeout:
 				done = True
 				env.reset()
+				waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 				[model.reset(waste_order, dict([(idx, env.objects[idx].position) for idx in range(env.n_objects)]), env.has_pick_all) for model in agent_models]
 				if finished:
 					successes += 1
