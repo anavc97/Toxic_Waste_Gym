@@ -17,12 +17,12 @@ from itertools import product
 
 
 MOVE_PENALTY = -1.0
-HOLD_REWARD = -0.1
-DELIVER_WASTE = 1
+HOLD_REWARD = 0.0
+DELIVER_WASTE = 0.0
 ROOM_CLEAN = 2
-PICK_REWARD = 0.001
-ADJ_REWARD = 0.1
-IDENTIFY_REWARD = 0.01
+PICK_REWARD = 0.0
+ADJ_REWARD = 0.0
+IDENTIFY_REWARD = 0.0
 
 
 class Actions(IntEnum):
@@ -598,7 +598,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							adjacent_agent.hold_object(place_obj)
 							agents_disposed_waste.append(acting_player)
 							agents_disposed_waste.append(adjacent_agent)
-							waste_disposed[acting_player.id] = place_obj.points
+							# waste_disposed[acting_player.id] = place_obj.points
+							waste_disposed[acting_player.id] = self._reward_space['deliver']
 							waste_disposed[adjacent_agent.id] = self._reward_space['deliver']
 							self._score += place_obj.points
 					else:
