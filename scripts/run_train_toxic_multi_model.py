@@ -79,6 +79,7 @@ parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', actio
 parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
 parser.add_argument('--target-lr', dest='target_lr', type=float, default=TARGET_LR, help='Learning rate for the target model.')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
+parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
 
 
 input_args = parser.parse_args()
@@ -106,12 +107,13 @@ train_only_green = input_args.only_green
 train_only_green_yellow = input_args.only_green_yellow
 train_all_balls = input_args.use_all_balls
 use_curriculum_learning = input_args.curriculum_learning
+warmup = input_args.warmup
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  # DQN parameters
-		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  # Train parameters
+		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  # Train parameters
 		   ' '.join(game_levels), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
 		  ))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +

@@ -75,6 +75,7 @@ parser.add_argument('--train-only-green', dest='only_green', action='store_true'
 parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', action='store_true', help='Flag denoting train only picking green and yellow balls')
 parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
+parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
 
 
 input_args = parser.parse_args()
@@ -99,6 +100,7 @@ train_only_green_yellow = input_args.only_green_yellow
 train_all_balls = input_args.use_all_balls
 temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
+warmup = input_args.warmup
 
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
@@ -106,7 +108,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
 		"--tensorboardDetails %s %d %d %s"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  																						# DQN parameters
-		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, WARMUP_STEPS, CYCLE_EPS,  	# Train parameters
+		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  		# Train parameters
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  															# Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
