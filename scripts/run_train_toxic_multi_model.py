@@ -24,7 +24,7 @@ USE_VDN = True
 # Train params
 N_ITERATIONS = 20000
 BATCH_SIZE = 32
-TRAIN_FREQ = 1
+ONLINE_FREQ = 1
 TARGET_FREQ = 10
 # ALPHA = 0.003566448247686571
 ONLINE_LR = 0.001
@@ -113,7 +113,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  # DQN parameters
-		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  # Train parameters
+		   n_iterations, batch_size, ONLINE_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  # Train parameters
 		   ' '.join(game_levels), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
 		  ))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
