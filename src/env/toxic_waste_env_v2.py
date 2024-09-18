@@ -1,20 +1,20 @@
 #! /usr/bin/env python
 
-import numpy as np
-import yaml
-import gymnasium
 import time
-
-from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
-from pathlib import Path
-from enum import IntEnum, Enum
-from gymnasium.spaces import Discrete, Box, MultiDiscrete
-from typing import List, Tuple, Any, Union
-from termcolor import colored
 from collections import namedtuple
 from copy import deepcopy
+from enum import Enum, IntEnum
 from itertools import product
+from pathlib import Path
+from typing import Any, List, Tuple, Union
 
+import gymnasium
+import numpy as np
+import yaml
+from gymnasium.spaces import Box, MultiDiscrete
+from termcolor import colored
+
+from src.env.toxic_waste_env_base import AgentType, BaseToxicEnv, CellEntity, HoldState, PlayerState, WasteState
 
 MOVE_PENALTY = -1.0
 HOLD_REWARD = 0.0
@@ -67,7 +67,7 @@ class WasteStateV2(WasteState):
 	_waste_type: int
 	
 	def __init__(self, position: Tuple[int, int], obj_id: str, points: float = 1, time_penalty: float = 0.0, hold_state: int = HoldState.FREE.value,
-				 waste_type: int = WasteType.GREEN, holding_player: 'PlayerState' = None, identified: bool = False):
+	             waste_type: int = WasteType.GREEN, holding_player: 'PlayerState' = None, identified: bool = False):
 		super().__init__(position, obj_id, hold_state, holding_player)
 		self._points = points
 		self._time_penalty = time_penalty
@@ -117,11 +117,11 @@ class WasteStateV2(WasteState):
 	
 	def __repr__(self):
 		return ("%s@(%d, %d), held_status: %s, identified? %r" %
-				(self._id, self._position[0], self._position[1], HoldState(self._hold_state).name, self._identified))
+		        (self._id, self._position[0], self._position[1], HoldState(self._hold_state).name, self._identified))
 	
 	def to_dict(self):
 		return {"name": self._id, "position": self._position, "hold_state": self._hold_state, "identified": self._identified, "type": self._waste_type,
-				"holding_player": self._holding_player.id if self._holding_player else None}
+		        "holding_player": self._holding_player.id if self._holding_player else None}
 	
 	@classmethod
 	def from_dict(cls, obj_dict):
@@ -138,13 +138,13 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	scoring and time remaining. Also, to help with identifying different wastes, the autonomous agent has access to an extra action of identification of waste.
 	"""
 	Observation = namedtuple("Observation",
-							 ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "time_penalties",
-							  "score"])
+	                         ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "time_penalties",
+	                          "score"])
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
-				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
-
+	             require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
+	             is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
+		
 		self._dict_obs = dict_obs
 		self._is_train = is_train
 		self._slip = slip
@@ -156,15 +156,15 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._collect_all = pick_all
 		self._problem_type = problem_type
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
-						 False, use_render, render_mode, joint_obs)
+		                 False, use_render, render_mode, joint_obs)
 		if self._problem_type == ProblemType.ONLY_MOVE:
 			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 0.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
 		elif self._problem_type == ProblemType.FULL:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN * max_steps, 'hold': HOLD_REWARD,
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
 			                      'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
 		else:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN * max_steps, 'hold': HOLD_REWARD,
-								  'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': 0.0}
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': HOLD_REWARD,
+			                      'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': 0.0}
 		self._start_time = time.time()
 	
 	###########################
@@ -185,20 +185,20 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	@property
 	def door_pos(self) -> Tuple:
 		return self._door_pos
-
+	
 	@property
 	def has_pick_all(self) -> bool:
 		return self._collect_all
-
+	
 	@property
 	def problem_type(self) -> int:
 		return self._problem_type
-
+	
 	def set_waste_color_pts(self, color: int, pts: float) -> None:
 		for waste in self._objects:
 			if waste.waste_type == color:
 				waste.points = pts
-
+	
 	#######################
 	### UTILITY METHODS ###
 	#######################
@@ -215,16 +215,16 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def _get_action_space(self) -> MultiDiscrete:
 		return MultiDiscrete([len(Actions)] * self._n_players)
-		
+	
 	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict]:
 		
 		# grid observation space
 		if self._agent_centered_obs:
 			grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
-			
+		
 		else:
 			grid_shape = (self._rows, self._cols)
-			
+		
 		# agents layer: agent levels
 		robots_min = np.zeros(grid_shape, dtype=np.int32)
 		robots_max = np.ones(grid_shape, dtype=np.int32)
@@ -251,10 +251,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		if self._dict_obs:
 			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
-										  'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
+			                              'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
 		else:
 			return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
-										   Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
+			                               Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
 	
 	def setup_env(self) -> None:
 		
@@ -291,25 +291,25 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				elif cell_val == 'G':
 					points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']
 					self.add_object((row, col), objects_data['green']['ids'][n_green], points,
-									objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
+					                objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
 					self._field[row, col] = CellEntity.COUNTER
 					n_green += 1
 				elif cell_val == 'R':
 					points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']
 					self.add_object((row, col), objects_data['red']['ids'][n_red], points,
-									objects_data['red']['time_penalty'], waste_type=WasteType.RED)
+					                objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 					self._field[row, col] = CellEntity.COUNTER
 					n_red += 1
 				elif cell_val == 'Y':
 					points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']
 					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], points,
-									objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
+					                objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
 					self._field[row, col] = CellEntity.COUNTER
 					n_yellow += 1
 				elif cell_val.isdigit():
 					nxt_player_data = players_data[self._n_players]
 					self.add_player((row, col), tuple(nxt_player_data['orientation']), nxt_player_data['id'], nxt_player_data['name'],
-									AgentType[nxt_player_data['type'].upper()].value)
+					                AgentType[nxt_player_data['type'].upper()].value)
 				else:
 					print(colored("[SETUP_ENV] Cell value %s not recognized, considering empty cell" % cell_val, 'yellow'))
 					continue
@@ -336,7 +336,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		n_wrong_moves = len(wrong_moves)
 		moves_prob = np.array([1 - self._slip_prob] + [self._slip_prob / n_wrong_moves] * n_wrong_moves)
 		possible_positions = ([next_position] + [(max(min(wrong_move[0] + agent_pos[0], self._rows), 0), max(min(wrong_move[1] + agent_pos[1], self.cols), 0))
-												 for wrong_move in wrong_moves])
+		                                         for wrong_move in wrong_moves])
 		return possible_positions[self._np_random.choice(range(len(possible_positions)), p=moves_prob)]
 	
 	def get_time_left(self) -> float:
@@ -357,32 +357,32 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	####################
 	def create_observation(self) -> Observation:
 		return self.Observation(field=self.field,
-								players=self.players,
-								objects=self.objects,
-								game_finished=self.is_game_finished(),
-								game_timeout=self.is_game_timedout(),
-								sight=self._agent_sight,
-								current_step=self._current_step,
-								time_left=self.get_time_left(),
-								time_penalties=self._time_penalties,
-								score=self._score)
-
+		                        players=self.players,
+		                        objects=self.objects,
+		                        game_finished=self.is_game_finished(),
+		                        game_timeout=self.is_game_timedout(),
+		                        sight=self._agent_sight,
+		                        current_step=self._current_step,
+		                        time_left=self.get_time_left(),
+		                        time_penalties=self._time_penalties,
+		                        score=self._score)
+	
 	def get_env_log(self) -> str:
-
+		
 		env_log = 'Environment state:\nPlayer states:\n'
 		for player in self._players:
 			env_log += '\t- ' + str(player) + '\n'
-
+		
 		env_log += 'Object states:\n'
 		for obj in self._objects:
 			if obj.hold_state != HoldState.HELD:
 				env_log += '\t- ' + str(obj) + '\n'
-
+		
 		env_log += 'Current timestep: %d\nGame is finished: %r\n' % (self._current_step, self.is_game_finished())
 		env_log += 'Game has timed out: %r\nTime left: %f' % (self.is_game_timedout(), self.get_time_left())
-
+		
 		return env_log
-
+	
 	def get_full_env_log(self) -> str:
 		
 		env_log = 'Environment state:\nPlayer states:\n'
@@ -393,7 +393,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		for obj in self._objects:
 			if obj.hold_state != HoldState.HELD:
 				env_log += '\t- ' + str(obj) + '\n'
-
+		
 		field = self._field.copy()
 		for player in self._players:
 			field[player.position[0], player.position[1]] = CellEntity.AGENT
@@ -426,7 +426,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				else:
 					robot_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				occupancy_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 0
-				
+			
 			for obj in self._objects:
 				pos = obj.position
 				balls_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
@@ -450,11 +450,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			if self._dict_obs:
 				return [{'conv': obs[:, a.position[0]:a.position[0] + padding, a.position[1]:a.position[1] + padding], 'array': np.array(time_left)}
-						for a in self._players]
+				        for a in self._players]
 			else:
 				return np.array([np.array([obs[:, a.position[0]:a.position[0] + padding, a.position[1]:a.position[1] + padding], np.array(time_left)],
-										  dtype=object)
-								 for a in self._players])
+				                          dtype=object)
+				                 for a in self._players])
 		
 		else:
 			layers_size = (self._rows, self._cols)
@@ -499,16 +499,16 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
 				else:
 					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
-							 'array': np.array(time_left)}
-							for idx in range(self._n_players)]
+					         'array': np.array(time_left)}
+					        for idx in range(self._n_players)]
 			else:
 				if self._joint_obs:
 					return np.array([np.stack([robot_layer, human_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
 				else:
 					return np.array([np.array([np.stack([robot_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
-										   np.array(time_left)],
-										  dtype=object)
-								 for idx in range(self._n_players)])
+					                           np.array(time_left)],
+					                          dtype=object)
+					                 for idx in range(self._n_players)])
 	
 	def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[np.ndarray, dict[str, Any]]:
 		
@@ -527,7 +527,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				row, col = self._np_random.choice(valid_pos)
 				p.position = tuple([row, col])
 				valid_pos.remove(tuple([row, col]))
-				
+		
 		self._start_time = time.time()
 		
 		return obs, info
@@ -565,9 +565,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			if act != Actions.INTERACT and act != Actions.STAY and act != Actions.IDENTIFY:
 				acting_player.orientation = act_direction
 			next_pos = (max(min(acting_player.position[0] + act_direction[0], self._rows), 0),
-						max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
+			            max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
 			if not (self._field[next_pos] == CellEntity.DOOR or self._field[next_pos] == CellEntity.EMPTY or
-					self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
+			        self._field[next_pos] == CellEntity.TOXIC or self._field[next_pos] == CellEntity.ICE):
 				new_positions.append(acting_player.position)
 			elif self._slip and self._field[acting_player.position] == CellEntity.ICE:
 				new_positions.append(self.move_ice(acting_player, next_pos))
@@ -626,7 +626,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 									acting_player.reward += self._reward_space['pick']
 									bonus_pts[agent_idx] += self._reward_space['pick']
 									pick_obj.was_picked = True
-								# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
+						# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
 			# IDENTIFY action only has impact by robot agents
 			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
@@ -671,8 +671,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		if self.is_game_finished():
 			# Game finished reward
-			time_left = self.get_time_left()
-			self._score += (time_left / self._max_time) * self._score
+			time_left = self.get_time_left() if not self._is_train else (self.max_steps - self._current_step)
+			max_time = self._max_time if not self._is_train else self.max_steps
+			self._score += (time_left / max_time) * self._score
 			for player in self._players:
 				player.reward += self._reward_space['finish'] * self._score
 		else:
