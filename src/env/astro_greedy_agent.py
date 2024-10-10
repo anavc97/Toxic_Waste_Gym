@@ -197,33 +197,30 @@ class GreedyAgent(object):
 		self._waste_pos = objs_pos.copy()
 		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
-	def act_human(self, robot_agents: List, objs: List, n_waste_left: int, only_movement: bool = False) -> int:
+	def act_human(self, robot_agents: List, objs: List, n_waste_left: int, only_movement: bool = False, problem_type: str = 'full') -> int:
 	
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
+		# print('Problem type: ', problem_type)
 		# print('Agent HUMAN has plan ' + self._plan)
 
-		if only_movement or n_waste_left <= 0:
+		if (only_movement or n_waste_left <= 0 or
+				(problem_type == 'pick_one' and any([obj.hold_state == WasteStatus.DISPOSED for obj in objs]))):
 			self._plan = 'exit'
 			nxt_waste = self._door_pos
 			return int(self.move_to_position(nxt_waste))
-		
+
+		elif problem_type == 'move_catch' and any([obj.was_picked for obj in objs]):
+			if self._status == HumanStatus.HANDS_FREE:
+				self._plan = 'exit'
+				nxt_waste = self._door_pos
+				return int(self.move_to_position(nxt_waste))
+			else:
+				return int(Actions.INTERACT)
 		else:
 			if self._nxt_waste_idx < 0:
 				self._nxt_waste_idx = self._waste_order.pop(0)
-				# if self._version == 1:
-				# else:
-				# 	identified_objs = [i for i in range(len(objs)) if objs[i].identified]
-				# 	n_id_objs = len(identified_objs)
-				# 	if n_id_objs < 1:
-				# 		remain_waste = [i for i in range(len(objs)) if objs[i].hold_state != WasteStatus.DISPOSED]
-				# 		self._nxt_waste_idx = self._rng_gen.choice(remain_waste)
-				# 		self._waste_order.remove(self._nxt_waste_idx)
-				# 	elif n_id_objs == len(objs):
-				# 		pass
-				# 	else:
-				# 		pass
-				
+
 			if self._status == HumanStatus.HANDS_FREE:
 				nxt_waste = self._waste_pos[self._nxt_waste_idx]
 				found_waste = False
@@ -263,16 +260,19 @@ class GreedyAgent(object):
 						return int(self.move_to_position(nxt_waste))
 			
 			else:
-				self._waste_pos[self._nxt_waste_idx] = self._pos
-
-				if robot_pos == (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]):
-					if self.are_facing(self._orientation, robot_or):
-						return int(Actions.INTERACT)
-					else:
-						return int(Actions.STAY)
-				
+				if problem_type == 'move_catch':
+					return int(Actions.INTERACT)
 				else:
-					return int(self.move_to_position(robot_pos))
+					self._waste_pos[self._nxt_waste_idx] = self._pos
+
+					if robot_pos == (self._pos[0] + self._orientation[0], self._pos[1] + self._orientation[1]):
+						if self.are_facing(self._orientation, robot_or):
+							return int(Actions.INTERACT)
+						else:
+							return int(Actions.STAY)
+
+					else:
+						return int(self.move_to_position(robot_pos))
 	
 	def act_robot(self, robot_agents: List, human_agents: List, objs: List) -> int:
 		
@@ -385,7 +385,7 @@ class GreedyAgent(object):
 		if self._agent_type == AgentType.ROBOT:
 			return self.act_robot(robots, humans, objs)
 		else:
-			return self.act_human(robots, objs, n_waste_left, only_movement)
+			return self.act_human(robots, objs, n_waste_left, only_movement, problem_type)
 	
 	def expand_pos(self, start_node: PosNode, objective_pos: Tuple[int, int]) -> Tuple[int, int]:
 		

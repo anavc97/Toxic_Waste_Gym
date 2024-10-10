@@ -457,11 +457,8 @@ def main():
 	parser.add_argument('--use-curriculum', dest='use_curriculum', action='store_true',
 						help='Flag that signals training using previously trained models as a starting model')
 	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, nargs='+', default='', help='Path or list of paths to directory with models to use as a starting model.')
-	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
-	parser.add_argument('--train-only-green', dest='only_green', action='store_true', help='Flag denoting train only picking green balls')
-	parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', action='store_true', help='Flag denoting train only picking green and yellow balls')
-	parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
-	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
+	parser.add_argument('--problem-type', dest='problem_type', type=str, choices=['only_movement', 'move_catch', 'pick_one', 'only_green', 'green_yellow', 'all_balls', 'full'],
+	                    help='Different types of problem simplification')
 	parser.add_argument('--greedy-actions', dest='greedy_actions', action='store_true', help='Flag denoting use of greedy action selection')
 
 	# Environment parameters
@@ -512,21 +509,8 @@ def main():
 	chkpt_file = args.checkpoint_file
 	use_curriculum = args.use_curriculum
 	curriculum_models = args.curriculum_model
-	only_movement = args.only_movement
-	only_green = args.only_green
-	only_green_yellow = args.only_green_yellow
-	use_all_balls = args.use_all_balls
+	problem_type = args.problem_type
 	greedy_actions = args.greedy_actions
-
-	try:
-		assert (not (only_movement and only_green and only_green_yellow and use_all_balls) or       # full problem training
-		        (only_movement and not (only_green and only_green_yellow and use_all_balls)) or     # only moving training
-		        (only_green and not (only_movement and only_green_yellow and use_all_balls)) or     # picking only green balls training
-		        (only_green_yellow and not (only_movement and only_green and use_all_balls)) or     # picking only green and yellow balls training
-		        (use_all_balls and not (only_movement and only_green_yellow and only_green)))       # picking all balls without identification training
-	except AssertionError as err:
-		print('Attempt at using multiple learning simplifications: %s' % str(err))
-		return
 
 	# Astro environment args
 	env_version = args.env_version
@@ -561,20 +545,19 @@ def main():
 			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point for all game levels to train')
 			return
 
-	if only_movement:
-		problem_type = "only_movement"
+	if problem_type == "only_movement":
 		problem_code = ProblemType.ONLY_MOVE
-	elif only_green:
-		problem_type = "only_green"
+	elif problem_type == "move_catch":
+		problem_code = ProblemType.MOVE_CATCH
+	elif problem_type == "pick_one":
+		problem_code = ProblemType.PICK_ONE
+	elif problem_type == "only_green":
 		problem_code = ProblemType.ONLY_GREEN
-	elif only_green_yellow:
-		problem_type = "green_yellow"
+	elif problem_type == "green_yellow":
 		problem_code = ProblemType.GREEN_YELLOW
-	elif use_all_balls:
-		problem_type = "all_balls"
+	elif problem_type == "all_balls":
 		problem_code = ProblemType.BALLS_ONLY
 	else:
-		problem_type = "full_problem"
 		problem_code = ProblemType.FULL
 	model_suffix = get_model_suffix()
 

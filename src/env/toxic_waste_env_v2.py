@@ -9,7 +9,7 @@ from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, Was
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.spaces import Discrete, Box, MultiDiscrete
-from typing import List, Tuple, Any, Union
+from typing import List, Tuple, Any, Union, Optional
 from termcolor import colored
 from collections import namedtuple
 from copy import deepcopy
@@ -53,10 +53,12 @@ class WasteType(IntEnum):
 
 class ProblemType(IntEnum):
 	ONLY_MOVE = 1
-	ONLY_GREEN = 2
-	GREEN_YELLOW = 3
-	BALLS_ONLY = 4
-	FULL = 5
+	MOVE_CATCH = 2
+	PICK_ONE = 3
+	ONLY_GREEN = 4
+	GREEN_YELLOW = 5
+	BALLS_ONLY = 6
+	FULL = 7
 
 
 class WasteStateV2(WasteState):
@@ -116,12 +118,12 @@ class WasteStateV2(WasteState):
 		return isinstance(other, WasteStateV2) and self._id == other._id and self._position == other._position
 	
 	def __repr__(self):
-		return ("%s@(%d, %d), held_status: %s, identified? %r" %
-				(self._id, self._position[0], self._position[1], HoldState(self._hold_state).name, self._identified))
+		return ("%s@(%d, %d), held_status: %s, identified? %r, picked? %r" %
+				(self._id, self._position[0], self._position[1], HoldState(self._hold_state).name, self._identified, self._was_picked))
 	
 	def to_dict(self):
 		return {"name": self._id, "position": self._position, "hold_state": self._hold_state, "identified": self._identified, "type": self._waste_type,
-				"holding_player": self._holding_player.id if self._holding_player else None}
+				"holding_player": self._holding_player.id if self._holding_player else None, "picked": self._was_picked}
 	
 	@classmethod
 	def from_dict(cls, obj_dict):
@@ -140,7 +142,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	Observation = namedtuple("Observation",
 							 ["field", "players", "objects", "game_finished", "game_timeout", "sight", "current_step", "time_left", "time_penalties",
 							  "score"])
-	
+
+	_objects: List[WasteStateV2]
+
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
 				 require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
 				 is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
@@ -158,7 +162,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 						 False, use_render, render_mode, joint_obs)
 		if self._problem_type == ProblemType.ONLY_MOVE:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 0.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 1.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
+		elif self._problem_type == ProblemType.MOVE_CATCH:
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': ROOM_CLEAN, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
+		elif self._problem_type == ProblemType.PICK_ONE:
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN, 'hold': 0.0, 'pick': PICK_REWARD, 'adjacent': 0.0, 'identify': 0.0}
 		elif self._problem_type == ProblemType.FULL:
 			self._reward_space = {'move': MOVE_PENALTY, 'deliver': DELIVER_WASTE, 'finish': ROOM_CLEAN * max_steps, 'hold': HOLD_REWARD,
 			                      'pick': PICK_REWARD, 'adjacent': ADJ_REWARD, 'identify': IDENTIFY_REWARD}
@@ -202,7 +210,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	#######################
 	### UTILITY METHODS ###
 	#######################
-	def add_object(self, position: Tuple, obj_id: str = 'ball', points: int = 1, time_penalty: float = 1, waste_type: int = WasteType.GREEN) -> bool:
+	def add_object(self, position: Tuple[int, int], obj_id: str = 'ball', points: int = 1, time_penalty: float = 1, waste_type: int = WasteType.GREEN) -> bool:
 		
 		if self._n_objects < self._max_objects:
 			is_identified = False if self._problem_type == ProblemType.FULL else True
@@ -308,6 +316,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					n_yellow += 1
 				elif cell_val.isdigit():
 					nxt_player_data = players_data[self._n_players]
+					# noinspection PyTypeChecker
 					self.add_player((row, col), tuple(nxt_player_data['orientation']), nxt_player_data['id'], nxt_player_data['name'],
 									AgentType[nxt_player_data['type'].upper()].value)
 				else:
@@ -323,7 +332,12 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			else:
 				return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
 		else:
-			return player_at_door
+			if self._problem_type == ProblemType.MOVE_CATCH:
+				return player_at_door and any([ball.was_picked for ball in self.objects])
+			elif self._problem_type == ProblemType.PICK_ONE:
+				return player_at_door and any([ball.hold_state == HoldState.DISPOSED for ball in self.objects])
+			else:
+				return player_at_door
 	
 	def is_game_timedout(self) -> bool:
 		return self.get_time_left() <= 0 if not self._is_train else self._current_step >= self.max_steps
@@ -344,7 +358,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		curr_time = self._max_time - (time.time() - self._start_time)
 		return curr_time - self._time_penalties
 	
-	def get_object_facing(self, player: PlayerState) -> WasteStateV2:
+	def get_object_facing(self, player: PlayerState) -> Optional[WasteStateV2]:
 		facing_pos = (player.position[0] + player.orientation[0], player.position[1] + player.orientation[1])
 		for obj in self._objects:
 			if obj.position == facing_pos and obj.hold_state == HoldState.FREE:

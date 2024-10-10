@@ -7,7 +7,7 @@ from enum import IntEnum, Enum
 from gymnasium.utils import seeding
 from gymnasium.spaces import Box, MultiDiscrete
 from gymnasium import Env
-from typing import List, Tuple, Any, Dict
+from typing import List, Tuple, Any, Dict, Optional
 from copy import deepcopy
 from termcolor import colored
 from collections import namedtuple
@@ -172,7 +172,7 @@ class PlayerState(object):
 		return self._reward
 	
 	@property
-	def held_objects(self) -> List[WasteState]:
+	def held_objects(self) -> Optional[List[WasteState]]:
 		if self._held_object is not None:
 			return self._held_object.copy()
 		else:
@@ -255,6 +255,8 @@ class BaseToxicEnv(Env):
 	action_space: MultiDiscrete
 	observation_space: gymnasium.spaces.Tuple
 	_reward_space: Dict[str, float]
+	_objects: List[WasteState]
+	_players: List[PlayerState]
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, env_id: str, data_dir: Path,
 				 require_facing: bool = False, layer_obs: bool = False, agent_centered: bool = False, use_encoding: bool = False, use_render: bool = False,
@@ -367,7 +369,7 @@ class BaseToxicEnv(Env):
 	
 	@property
 	def reward_space(self) -> Dict[str, float]:
-	    return self._reward_space
+		return self._reward_space
 	
 	@layout.setter
 	def layout(self, new_layout: str) -> None:
@@ -460,7 +462,7 @@ class BaseToxicEnv(Env):
 		
 		return True
 	
-	def get_agent_facing(self, player: PlayerState) -> PlayerState:
+	def get_agent_facing(self, player: PlayerState) -> Optional[PlayerState]:
 		facing_pos = (player.position[0] + player.orientation[0], player.position[1] + player.orientation[1])
 		for agent in self._players:
 			if agent.position == facing_pos:
@@ -486,7 +488,7 @@ class BaseToxicEnv(Env):
 								sight=self._agent_sight,
 								current_step=self._current_step)
 	
-	def add_player(self, position: Tuple, orientation: Tuple = (-1, 0), agent_id: int = 0, agent_name: str = 'human', agent_type: int = AgentType.HUMAN,
+	def add_player(self, position: Tuple[int, int], orientation: Tuple[int, int] = (-1, 0), agent_id: int = 0, agent_name: str = 'human', agent_type: int = AgentType.HUMAN,
 				   held_objs: List[WasteState] = None) -> bool:
 		
 		if self._n_players < self._max_players:
@@ -497,7 +499,7 @@ class BaseToxicEnv(Env):
 			print(colored('[ADD_PLAYER] Max number players (%d) already reached, cannot add a new one.' % self._max_players, 'yellow'))
 			return False
 	
-	def add_object(self, position: Tuple, obj_id: str = 'ball') -> bool:
+	def add_object(self, position: Tuple[int, int], obj_id: str = 'ball') -> bool:
 		
 		if self._n_objects < self._max_objects:
 			self._objects.append(WasteState(position, obj_id))

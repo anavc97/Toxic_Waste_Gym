@@ -1,7 +1,9 @@
 #! /usr/bin/env python
 import numpy as np
+import random
 
 from src.env.toxic_waste_env_v2 import Actions, ToxicWasteEnvV2, ProblemType
+from src.env.astro_greedy_agent import GreedyAgent
 from typing import List, Tuple
 from pathlib import Path
 
@@ -9,16 +11,6 @@ RNG_SEED = 12072023
 N_CYCLES = 100
 ACTION_MAP = {'w': Actions.UP, 's': Actions.DOWN, 'a': Actions.LEFT, 'd': Actions.RIGHT, 'q': Actions.STAY, 'e': Actions.INTERACT, 'z': Actions.IDENTIFY}
 np.set_printoptions(precision=3, linewidth=2000, threshold=1000)
-
-
-def get_history_entry(obs: np.ndarray, actions: List[int], n_agents: int) -> List:
-	entry = []
-	for a_idx in range(n_agents):
-		state_str = ' '.join([str(int(x)) for x in obs[a_idx][0]])
-		action = actions[a_idx]
-		entry += [state_str, str(action)]
-	
-	return entry
 
 
 def get_model_obs(raw_obs) -> Tuple[np.ndarray, np.ndarray]:
@@ -40,20 +32,32 @@ def main():
 	layout = 'cramped_room'
 	n_players = 2
 	has_slip = False
-	n_objects = 4
+	n_objects = 3
 	max_episode_steps = 500
 	facing = True
 	layer_obs = True
 	centered_obs = False
 	use_render = True
 	render_mode = ['human']
+	problem_type = ProblemType.MOVE_CATCH
+	s_problem_type = 'move_catch'
+	only_movement = False
 	data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
 	
 	env = ToxicWasteEnvV2(field_size, layout, n_players, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode, use_render,
-						  slip=has_slip, is_train=True, pick_all=True, problem_type=ProblemType.ONLY_GREEN)
+						  slip=has_slip, is_train=True, pick_all=False, problem_type=problem_type)
 	env.seed(RNG_SEED)
 	obs, *_ = env.reset()
 	# print(env.get_filled_field())
+
+	waste_order = [0, 1, 2]
+	random.shuffle(waste_order)
+	print(waste_order)
+	greedy_agents = [GreedyAgent(player.position, player.orientation, player.name, dict([(idx, env.objects[idx].position) for idx in range(n_objects)]),
+	                             123456789, env.field, 2, env.door_pos, agent_type=player.agent_type) for player in env.players if player.name == 'human']
+	for model in greedy_agents:
+		model.waste_order = waste_order.copy()
+
 	env.render()
 	
 	for i in range(N_CYCLES):
@@ -63,31 +67,36 @@ def main():
 		actions = []
 		print('\n'.join(['Player %s at (%d, %d) with orientation (%d, %d)' % (env.players[idx].name, *env.players[idx].position, *env.players[idx].orientation)
 			   for idx in range(n_players)]))
+		greedy_count = 0
 		for idx in range(n_players):
-			valid_action = False
-			while not valid_action:
-				human_input = input("Action for agent %s:\t" % env.players[idx].name)
-				try:
-					action = int(ACTION_MAP[human_input])
-					if action < len(ACTION_MAP):
-						valid_action = True
-						actions.append(action)
-					else:
-						print('Action ID must be between 0 and %d, you gave ID %d' % (len(ACTION_MAP), action))
-				except KeyError as e:
-					print('Key error caught: %s' % str(e))
+			if env.players[idx].name != 'human':
+				valid_action = False
+				while not valid_action:
+					human_input = input("Action for agent %s:\t" % env.players[idx].name)
+					try:
+						action = int(ACTION_MAP[human_input])
+						if action < len(ACTION_MAP):
+							valid_action = True
+							actions.append(action)
+						else:
+							print('Action ID must be between 0 and %d, you gave ID %d' % (len(ACTION_MAP), action))
+					except KeyError as e:
+						print('Key error caught: %s' % str(e))
+			else:
+				actions.append(greedy_agents[greedy_count].act(env.create_observation(), only_movement, s_problem_type))
 		print(' '.join([Actions(action).name for action in actions]))
 		print(env.objects)
 		state, rewards, dones, _, info = env.step(actions)
-		next_v2_obs = get_model_obs(state)
-		print(next_v2_obs[0].shape)
-		print(env.objects)
-		print(rewards, dones)
 		print(env.objects)
 		# print(env.get_filled_field())
 		env.render()
 		if dones:
 			obs, *_ = env.reset()
+			greedy_agents = [GreedyAgent(player.position, player.orientation, player.name, dict([(idx, env.objects[idx].position) for idx in range(n_objects)]),
+			                             123456789, env.field, 2, env.door_pos, agent_type=player.agent_type) for player in env.players if player.name == 'human']
+			random.shuffle(waste_order)
+			for model in greedy_agents:
+				model.waste_order = waste_order
 			env.render()
 
 	env.close()
