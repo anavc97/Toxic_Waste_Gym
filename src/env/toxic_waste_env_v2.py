@@ -9,6 +9,7 @@ from gymnasium.spaces import Discrete, Box, MultiDiscrete
 from typing import List, Tuple, Any, Union, Optional
 from termcolor import colored
 from copy import deepcopy
+from collections import namedtuple
 
 MOVE_PENALTY = -1.0
 HOLD_REWARD = 0.0
