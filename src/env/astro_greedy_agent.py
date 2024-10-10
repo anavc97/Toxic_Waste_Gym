@@ -179,21 +179,17 @@ class GreedyAgent(object):
 		
 		return self._rng_gen.choice(closest_waste_idxs) if len(closest_waste_idxs) > 1 else closest_waste_idxs[0]
 	
-	def reset(self, waste_order: List[int], objs_pos: Dict[int, Tuple[int, int]], pick_all: bool = False) -> None:
+	def reset(self, waste_order: List[int], n_spawn_objs: int, objs_pos: Dict[int, Tuple[int, int]], pick_all: bool = False) -> None:
 		self._nxt_waste_idx = -1
 		self._status = HumanStatus.HANDS_FREE
 		if pick_all:
 			self._waste_order = waste_order.copy()
 		else:
-			n_wastes = self._rng_gen.integers(len(waste_order))
-			if n_wastes > 0:
-				ordering = []
-				waste_idxs = self._rng_gen.choice(np.arange(len(waste_order)), size=n_wastes)
-				for idx in waste_idxs:
-					ordering.append(waste_order[idx])
-				self._waste_order = ordering
+			if n_spawn_objs > 0:
+				self._waste_order = waste_order.copy()
 			else:
-				self._waste_order = [len(waste_order)]
+				self._waste_order = []
+		print(self._waste_order, waste_order)
 		self._waste_pos = objs_pos.copy()
 		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
@@ -201,8 +197,9 @@ class GreedyAgent(object):
 	
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
-		# print('Problem type: ', problem_type)
-		# print('Agent HUMAN has plan ' + self._plan)
+		print('Problem type: ', problem_type)
+		print('Agent HUMAN has plan ' + self._plan)
+		print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
 
 		if (only_movement or n_waste_left <= 0 or
 				(problem_type == 'pick_one' and any([obj.hold_state == WasteStatus.DISPOSED for obj in objs]))):
@@ -217,6 +214,7 @@ class GreedyAgent(object):
 				return int(self.move_to_position(nxt_waste))
 			else:
 				return int(Actions.INTERACT)
+
 		else:
 			if self._nxt_waste_idx < 0:
 				self._nxt_waste_idx = self._waste_order.pop(0)
@@ -262,6 +260,7 @@ class GreedyAgent(object):
 			else:
 				if problem_type == 'move_catch':
 					return int(Actions.INTERACT)
+
 				else:
 					self._waste_pos[self._nxt_waste_idx] = self._pos
 
@@ -370,7 +369,10 @@ class GreedyAgent(object):
 		objs = obs.objects
 		n_waste_left = 0
 		for obj in objs:
-			if problem_type == 'only_green':
+			if problem_type == 'move_catch':
+				if not obj.was_picked:
+					n_waste_left += 1
+			elif problem_type == 'only_green':
 				if obj.waste_type == WasteType.GREEN and obj.hold_state != WasteStatus.DISPOSED:
 					n_waste_left += 1
 			elif problem_type == 'green_yellow':

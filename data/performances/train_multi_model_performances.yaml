@@ -1,23 +1,31 @@
 cramped_room:
   all_balls: 0.0
+  move_catch: 0.0
+  pick_one: 0.0
   full_problem: 0.0
   green_yellow: 0.0
   only_green: 0.0
   only_movement: 0.0
 level_one:
   all_balls: 0.0
+  move_catch: 0.0
+  pick_one: 0.0
   full_problem: 0.0
   green_yellow: 0.0
   only_green: 0.0
   only_movement: 0.0
 level_three:
   all_balls: 0.0
+  move_catch: 0.0
+  pick_one: 0.0
   full_problem: 0.0
   green_yellow: 0.0
   only_green: 0.0
   only_movement: 0.0
 level_two:
   all_balls: 0.0
+  move_catch: 0.0
+  pick_one: 0.0
   full_problem: 0.0
   green_yellow: 0.0
   only_green: 0.0

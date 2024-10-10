@@ -37,7 +37,7 @@ CYCLE_EPS = 0.97
 EPS_TYPE = "log"
 USE_GPU = True
 DEBUG = True
-USE_RENDER = False
+USE_RENDER = True
 PRECOMP_FRAC = 0.33
 
 # Environment params

@@ -102,12 +102,12 @@ def model_execution(agent_ids: List[str], ma_model: MultiAgentDQN, eps: float, g
 	return actions
 
 
-def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agent_models: List[GreedyAgent], train_only_movement: bool = False) -> List[int]:
+def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], agent_models: List[GreedyAgent], poblem_type: str, train_only_movement: bool = False) -> List[int]:
 
 	actions = []
 	obs = waste_env.create_observation()
 	for model in agent_models:
-		actions.append(model.act(obs, train_only_movement))
+		actions.append(model.act(obs, train_only_movement, poblem_type))
 	
 	return actions
 
@@ -279,8 +279,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 	
 	start_time = time.time()
 	epoch = 0
-	start_record_it = cycle * num_iterations
-	start_record_epoch = cycle * max_timesteps
 	episode_start = epoch
 	warmup_anneal = restart
 	temp = start_temp
@@ -288,6 +286,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 	avg_episode_len = []
 	avg_episode_q_vals = [[]] * n_agents
 	avg_episode_reward = [[]] * n_agents
+	min_waste = 0 if (problem_type == 'full' or problem_type == 'all_balls') and not waste_env.has_pick_all else 1
 
 	for it in range(start_it, num_iterations):
 		episode_rewards = [0.0] * n_agents
@@ -300,7 +299,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		while not done:
 			# interact with environment
 			if anneal:
-				actions = heuristic_execution(waste_env, heuristic_models, only_move)
+				actions = heuristic_execution(waste_env, heuristic_models, problem_type, only_move)
 
 			else:
 				if eps_type == 'epoch':
@@ -341,6 +340,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			obs = next_obs
 			epoch += 1
 			if terminated or timeout:
+				print('Reset')
 				episode_len = epoch - episode_start
 				avg_episode_len.append(episode_len)
 				if multi_agt_model.use_tracker:
@@ -368,8 +368,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				next_sequence = list(waste_rng_gen.choice(np.array(waste_sequences)))
-				[model.reset(next_sequence, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in heuristic_models]
+				next_sequence = list(waste_rng_gen.choice(waste_rng_gen.choice(np.array(waste_sequences)), size=waste_rng_gen.integers(min_waste, waste_env.n_objects)))
+				print(next_sequence)
+				[model.reset(next_sequence, len(next_sequence), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in heuristic_models]
 				if warmup_anneal:
 					warm_anneal_count -= 1
 					warmup_anneal = warm_anneal_count > 0
@@ -384,8 +385,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				chkt_data[game_level] = {'iteration': it, 'temp': temp}
 				json.dump(chkt_data, j_file)
 	
-	if interactive:
-		stop_thread.set()
 	return history
 
 
@@ -393,13 +392,17 @@ def main():
 
 	def get_model_suffix() -> str:
 
-		if only_movement:
+		if problem_type == "only_movement":
 			return '_move'
-		elif only_green:
+		elif problem_type == "move_catch":
+			return '_move_catch'
+		elif problem_type == "pick_one":
+			return '_pick_one'
+		elif problem_type == "only_green":
 			return '_green'
-		elif only_green_yellow:
+		elif problem_type == "green_yellow":
 			return '_green_yellow'
-		elif use_all_balls:
+		elif problem_type == "all_balls":
 			return '_all_balls'
 		else:
 			return '_full'
@@ -459,6 +462,7 @@ def main():
 	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, nargs='+', default='', help='Path or list of paths to directory with models to use as a starting model.')
 	parser.add_argument('--problem-type', dest='problem_type', type=str, choices=['only_movement', 'move_catch', 'pick_one', 'only_green', 'green_yellow', 'all_balls', 'full'],
 	                    help='Different types of problem simplification')
+	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 	parser.add_argument('--greedy-actions', dest='greedy_actions', action='store_true', help='Flag denoting use of greedy action selection')
 
 	# Environment parameters
@@ -545,6 +549,7 @@ def main():
 			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point for all game levels to train')
 			return
 
+	only_movement = True if problem_type == "only_movement" else False
 	if problem_type == "only_movement":
 		problem_code = ProblemType.ONLY_MOVE
 	elif problem_type == "move_catch":
@@ -672,6 +677,7 @@ def main():
 					else:
 						waste_idx.append(env.objects.index(obj))
 				waste_seqs = list(permutations(waste_idx))
+				print(waste_seqs)
 				waste_order = list(rng_gen.choice(np.array(waste_seqs)))
 				for model in heuristic_agents:
 					model.waste_order = waste_order

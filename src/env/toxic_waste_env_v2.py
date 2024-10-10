@@ -1,15 +1,20 @@
 #! /usr/bin/env python
 
 import time
+import gymnasium
+import numpy as np
+import yaml
 
 from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
-from gymnasium.spaces import Discrete, Box, MultiDiscrete
+from gymnasium.spaces import Box, MultiDiscrete
 from typing import List, Tuple, Any, Union, Optional
 from termcolor import colored
 from copy import deepcopy
 from collections import namedtuple
+from itertools import product
+
 
 MOVE_PENALTY = -1.0
 HOLD_REWARD = 0.0
