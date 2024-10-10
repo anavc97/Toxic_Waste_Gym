@@ -6,11 +6,11 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:1        -> SARDINE
-# #SBATCH --gres=shard:4    -> GAIPS
+#SBATCH --gres=gpu:1        #-> SARDINE
+# #SBATCH --gres=shard:4    #-> GAIPS
 #SBATCH --time=48:00:00
 #SBATCH --mem=4G
-#SBATCH --qos=gpu-medium    -> ONLY FOR SARDINE COMMENT TO USE IN GAIPS
+#SBATCH --qos=gpu-medium    #-> ONLY FOR SARDINE COMMENT TO USE IN GAIPS
 #SBATCH --output="job-%x-%j.out"
 date;hostname;pwd
 
