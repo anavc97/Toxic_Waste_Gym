@@ -369,7 +369,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 				done = True
 				history += [episode_history]
 				next_sequence = list(waste_rng_gen.choice(waste_rng_gen.choice(np.array(waste_sequences)), size=waste_rng_gen.integers(min_waste, waste_env.n_objects)))
-				print(next_sequence)
 				[model.reset(next_sequence, len(next_sequence), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in heuristic_models]
 				if warmup_anneal:
 					warm_anneal_count -= 1

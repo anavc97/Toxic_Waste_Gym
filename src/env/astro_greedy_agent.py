@@ -189,7 +189,6 @@ class GreedyAgent(object):
 				self._waste_order = waste_order.copy()
 			else:
 				self._waste_order = []
-		print(self._waste_order, waste_order)
 		self._waste_pos = objs_pos.copy()
 		self._plan = 'none' if self._agent_type == AgentType.ROBOT else 'collect'
 	
