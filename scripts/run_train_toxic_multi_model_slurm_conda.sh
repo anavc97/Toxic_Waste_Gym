@@ -25,7 +25,7 @@ export PATH="/usr/lib/cuda/bin:$PATH"
 if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   source "$HOME"/miniconda3/bin/activate deep_rl_env
   python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --problem-type move_catch --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 5000 --batch-size 32 --game-levels cramped_room --curriculum-learning --curriculum-model-path /mnt/data-artemis/miguelfaria/toxic_waste/models/best/only_movement --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste/models --data-dir /mnt/data-artemis/miguelfaria/toxic_waste/data
-if [ "$HOSTNAME" = "nexus1" ] ; then
+elif [ "$HOSTNAME" = "nexus1" ] ; then
   source "$HOME"/miniconda3/bin/activate drl_env
   python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --problem-type move_catch --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 5000 --batch-size 32 --game-levels cramped_room --curriculum-learning --curriculum-model-path /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/models/best/only_movement --logs-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/logs --models-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/models --data-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/data
 else
@@ -35,5 +35,3 @@ fi
 
 source "$HOME"/miniconda3/bin/deactivate
 date
-
-
