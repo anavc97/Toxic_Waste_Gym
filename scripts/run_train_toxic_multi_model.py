@@ -65,6 +65,7 @@ parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str
 parser.add_argument('--data-dir', dest='data_dir', type=str, required=False, default='')
 parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
 parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
+parser.add_argument('--final-eps', dest='final_eps', type=float, required=False, default=FINAL_EPS, help='Minimum epsilon greedy.')
 parser.add_argument('--game-levels', dest='game_levels', type=str, nargs='+', default=GAME_LEVELS, help='List of levels to train model')
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
@@ -75,6 +76,7 @@ parser.add_argument('--pick-all', dest='has_pick_all', action='store_true', help
 parser.add_argument('--problem-type', dest='problem_type', type=str, choices=['only_movement', 'move_catch', 'pick_one', 'only_green', 'green_yellow', 'all_balls', 'full'],
                     default='full', help='Different types of problem simplification')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
+parser.add_argument('--start-eps', dest='start_eps', type=float, required=False, default=INIT_EPS, help='Starting value for exploration epsilon greedy.')
 parser.add_argument('--target-lr', dest='target_lr', type=float, default=TARGET_LR, help='Learning rate for the target model.')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
@@ -90,6 +92,7 @@ curriculum_path = input_args.curriculum_model
 data_dir = input_args.data_dir
 eps_type = input_args.eps_type
 eps_decay = input_args.eps_decay
+final_eps = input_args.final_eps
 game_levels = input_args.game_levels
 logs_dir = input_args.logs_dir
 models_dir = input_args.models_dir
@@ -99,6 +102,7 @@ pick_all = input_args.has_pick_all
 problem_type = input_args.problem_type
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
+start_eps = input_args.start_eps
 target_lr = input_args.target_lr
 temp_decay = input_args.temp_decay
 
@@ -109,7 +113,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  # DQN parameters
-		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  # Train parameters
+		   n_iterations, batch_size, TRAIN_FREQ, TARGET_FREQ, online_lr, target_lr, start_eps, final_eps, eps_decay, eps_type, warmup, CYCLE_EPS,  # Train parameters
 		   ' '.join(game_levels), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  # Environment parameters
 		  ))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
