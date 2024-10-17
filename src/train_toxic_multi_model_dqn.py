@@ -340,7 +340,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 			obs = next_obs
 			epoch += 1
 			if terminated or timeout:
-				print('Reset')
 				episode_len = epoch - episode_start
 				avg_episode_len.append(episode_len)
 				if multi_agt_model.use_tracker:
