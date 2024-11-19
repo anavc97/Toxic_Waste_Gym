@@ -3,8 +3,15 @@
 import numpy as np
 import yaml
 
+<<<<<<< Updated upstream:tests/test_astro_waste_env.py
 from src.env.toxic_waste_env_base import PlayerState, Actions
 from src.env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2
+=======
+from env.toxic_waste_env_base import PlayerState
+from env.toxic_waste_env_v2 import WasteStateV2, ToxicWasteEnvV2, Actions, ProblemType, WasteType
+from env.astro_greedy_agent import GreedyAgent
+from itertools import permutations
+>>>>>>> Stashed changes:src/tests/test_astro_waste_env.py
 from pathlib import Path
 
 
