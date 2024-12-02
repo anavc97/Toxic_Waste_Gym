@@ -378,7 +378,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 		if it % checkpoint_freq == 0:
 			for a_idx in range(n_agents):
 				dqn_model = multi_agt_model.agent_dqns[agents_ids[a_idx]]
-				dqn_model.save_model('%s-v2_lvl_%s_%s_checkpoint' % (agents_ids[a_idx], game_level, problem_type), model_path, logger)
+				dqn_model.save_model('%s-v2_lvl_%s_%s_it_%s_checkpoint' % (agents_ids[a_idx], game_level, problem_type, it), model_path, logger)
 			with open(chkpt_file, 'w') as j_file:
 				chkt_data[game_level] = {'iteration': it, 'temp': temp}
 				json.dump(chkt_data, j_file)
