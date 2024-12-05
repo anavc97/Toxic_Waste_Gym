@@ -11,6 +11,7 @@ using System.Diagnostics;
 using Newtonsoft.Json;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System.Diagnostics.Tracing;
 
 public class GameHandler : MonoBehaviour
 {   
@@ -46,6 +47,8 @@ public class GameHandler : MonoBehaviour
     public Dictionary<string, float> yellowBallMap = new Dictionary<string, float>(); //(Ball name, time held)
     public GameObject logManager;
     public LogManager logger;
+    public float? trustValue = null;
+    public bool trustSubmitted = false;
     private GameObject buttonObject;
     private int popUp_time_limit;
     private List<string> sceneList = new List<string>
@@ -138,7 +141,7 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-        UnityEngine.Debug.Log("Game Over: " + gameOver);
+        UnityEngine.Debug.Log("Trust Value: " + trustValue);
         if(heldBall != null && heldBall.name.Split('_')[0] == "yellow" ) //Check if held ball is yellow
         {
             updatePopUp(heldBall,2);
@@ -197,11 +200,13 @@ public class GameHandler : MonoBehaviour
             popUp_time = 0;
         }
 
-        if(gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 8)
+        if((gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 20) || trustSubmitted)
         {   
             int currentIndex = sceneList.IndexOf(SceneManager.GetActiveScene().name);  
             SceneManager.LoadScene(sceneList[currentIndex+1]);
             UnityEngine.Debug.Log("Loading scene: " + sceneList[currentIndex+1]);
+            additionalData = ConstructData();
+            logger.WriteLog(additionalData);
            
         }
     }
@@ -262,6 +267,7 @@ public class GameHandler : MonoBehaviour
         data["players"] = players;
         data["objects"] = objects;
         data["score"] = scoreScript.scoreValue;
+        data["trustValue"] = trustValue;
         data["timeleft"] = timerScript.timeRemaining;
         data["layout"] = SceneManager.GetActiveScene().name;
 

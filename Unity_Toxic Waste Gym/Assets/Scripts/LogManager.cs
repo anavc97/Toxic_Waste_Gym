@@ -32,9 +32,9 @@ public class LogManager : MonoBehaviour
     private void Start()
     {   
         DontDestroyOnLoad(gameObject);
-        SOCKETS_IP = "146.193.224.2";
-        SERVER_PORT = 2000;
-        NGROK = 2;
+        SOCKETS_IP = "127.0.0.1";
+        SERVER_PORT = 8000;
+        NGROK = 0;
     }
 
     void Update()
