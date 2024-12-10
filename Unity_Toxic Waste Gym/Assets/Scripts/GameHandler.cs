@@ -47,12 +47,10 @@ public class GameHandler : MonoBehaviour
     public Dictionary<string, float> yellowBallMap = new Dictionary<string, float>(); //(Ball name, time held)
     public GameObject logManager;
     public LogManager logger;
-    public float? trustValue = null;
     public bool trustSubmitted = false;
-    private GameObject buttonObject;
     private int popUp_time_limit;
-    private List<string> sceneList = new List<string>
-            {"level_zero","level_one", "level_two", "level_three"};
+    public List<string> sceneList = new List<string> {"level_zero","level_one", "level_two", "level_three"};
+    public string[] lastIDList = null;
     private Dictionary<string, object> additionalData = new Dictionary<string, object>();
 
     public Dictionary<string, int> TypeConverter = new Dictionary<string, int>{
@@ -62,6 +60,7 @@ public class GameHandler : MonoBehaviour
         };
     
     private bool ball_idd;
+
     void Awake()
     {        
         //DontDestroyOnLoad(gameObject);
@@ -86,6 +85,7 @@ public class GameHandler : MonoBehaviour
         astroPlayer = GameObject.Find("astro");
         gameRunning = true;
         balls = GameObject.FindGameObjectsWithTag("Ball");
+        lastIDList = new string[balls.Length];
         scoreScript.scoreValue = 0;
         popUp_time_limit = 200;
         ball_idd = false;
@@ -141,7 +141,7 @@ public class GameHandler : MonoBehaviour
 
     void Update()
     {   
-        UnityEngine.Debug.Log("Trust Value: " + trustValue);
+    
         if(heldBall != null && heldBall.name.Split('_')[0] == "yellow" ) //Check if held ball is yellow
         {
             updatePopUp(heldBall,2);
@@ -163,28 +163,28 @@ public class GameHandler : MonoBehaviour
             int bonusPoints = (int) Math.Max(0,timerScript.timeRemaining/10);
             if(SceneManager.GetActiveScene().name == "level_zero")
             {   
-                gameOverText.GetComponent<TextMeshProUGUI>().text = "Tutorial complete! From now on, points will start counting to the end reward.\n Get ready for the first level...";
+                gameOverText.GetComponent<TextMeshProUGUI>().text = "Tutorial complete! From now on, points will start counting to the end reward.\nPlease answer the following questions:";
                 gameOverStopWatch.Start();
             }
             else if(SceneManager.GetActiveScene().name == "level_one")
             {
-                if(!timerScript.timeIsRunning){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 36 points acquired from balls.\nNo bonus points added for time left.\nLoading next level...";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 36 points acquired from balls.\n" + bonusPoints + " bonus points added for time left." + "\nLoading next level...";}
+                if(!timerScript.timeIsRunning){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 36 points acquired from balls.\nNo bonus points added for time left.\nPlease answer the following questions:";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 36 points acquired from balls.\n" + bonusPoints + " bonus points added for time left." + "\nPlease answer the following questions:";}
                 update_Score(bonusPoints);
                 gameOverStopWatch.Start();
             }
             else if(SceneManager.GetActiveScene().name == "level_two")
             {   
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 33 points acquired from balls.\nNo bonus points added for time left.\nLoading next level...";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 33 points acquired from balls.\n" + bonusPoints + " bonus points added for time left." + "\nLoading next level...";}
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 33 points acquired from balls.\nNo bonus points added for time left.\nPlease answer the following questions:";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 33 points acquired from balls.\n" + bonusPoints + " bonus points added for time left." + "\nPlease answer the following questions:";}
                 update_Score(bonusPoints);
                 gameOverStopWatch.Start();
             }
             else if(SceneManager.GetActiveScene().name == "level_three")
             {   
                 GameObject gameOverText2 = panel.transform.Find("GameOver2").gameObject;
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\nNo bonus points added for time left.";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\n" + bonusPoints + " bonus points added for time left.";
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\nNo bonus points added for time left.\nPlease answer the following questions:";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\n" + bonusPoints + " bonus points added for time left.\nPlease answer the following questions:";
                      update_Score(bonusPoints);
                     if(logger.NGROK == 1){gameOverText2.GetComponent<TextMeshProUGUI>().text=  "Game Concluded! Final Score: " + scoreScript.globalScore + "\n End of game code: TX965U";}
                     else if(logger.NGROK == 2){gameOverText2.GetComponent<TextMeshProUGUI>().text=  "Game Concluded! Final Score: " + scoreScript.globalScore + "\n End of game code: VSWN20";}}
@@ -253,9 +253,11 @@ public class GameHandler : MonoBehaviour
             }
             if(GetHoldStatus(ball) == 1){ballData["position"] = new int[] { (int)humanPlayer.transform.position.x, (int)humanPlayer.transform.position.y };}
 
-            ballData["identified"] = (ball.tag=="IDdBall");
+            ballData["identified"] = (ball.tag=="IDdBall" || (ballInteraction.BallsIdentified.Contains(ball.name)));
             string type = ball.name.Split('_')[0];
             ballData["type"] = TypeConverter[type.ToLower()];
+            int index = Array.IndexOf(balls, ball);
+            ballData["lastID"] = lastIDList[index];
             if(ball.name == b_held){ballData["holding_player"] = "human";}
             objects.Add(ballData);
             if(ball.tag == "CollectedBall"){b_disposed.Add(ball.name);}
@@ -267,7 +269,6 @@ public class GameHandler : MonoBehaviour
         data["players"] = players;
         data["objects"] = objects;
         data["score"] = scoreScript.scoreValue;
-        data["trustValue"] = trustValue;
         data["timeleft"] = timerScript.timeRemaining;
         data["layout"] = SceneManager.GetActiveScene().name;
 

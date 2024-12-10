@@ -5,12 +5,15 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro; // If using TextMeshPro
 
-public class ChangeTrustValue : MonoBehaviour
+public class UpdateManipulationCheck : MonoBehaviour
 {
+
     [SerializeField] public Slider slider;
     [SerializeField] public TextMeshProUGUI valueText; // If using TextMeshPro
     public LogManager logger;
     public GameHandler gameHandler;
+
+    private List<string> TextList= new List<string>{"Very Badly","Badly", "Okay", "Well", "Very Well"};
     // Start is called before the first frame update
     void Start()
     {
@@ -26,17 +29,16 @@ public class ChangeTrustValue : MonoBehaviour
     }
     public void UpdateValueText()
     {
-        valueText.text = slider.value.ToString("0");
+        int ind = (int)slider.value-1;
+        valueText.text = TextList[ind];
     }
 
-    public void UpdateTrust()
+    public void UpdateManCheck()
     {
         int ind = gameHandler.sceneList.IndexOf(SceneManager.GetActiveScene().name);
         UnityEngine.Debug.Log("List index: " + ind);
-        UnityEngine.Debug.Log("value before: " + logger.trustValueList[ind]);
-        logger.trustValueList[ind] = slider.value;
-        UnityEngine.Debug.Log("value after: " + logger.trustValueList[ind]);
-        gameHandler.trustSubmitted = true;
+        UnityEngine.Debug.Log("value before: " + logger.manCheckList[ind]);
+        logger.manCheckList[ind] = slider.value;
+        UnityEngine.Debug.Log("value after: " + logger.manCheckList[ind]);
     }
-
 }

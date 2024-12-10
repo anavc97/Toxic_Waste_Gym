@@ -26,24 +26,36 @@ public class LogManager : MonoBehaviour
     public GameObject TotTimer;
 
     public Dictionary<string, object> OldData = null;
+    public List<float?> trustValueList = new List<float?> {null,null,null};
+    public List<float?> manCheckList = new List<float?> {null,null,null};
 
+    public bool ProlificIDCheck = false;
 
     // Initialize the log file path
     private void Start()
     {   
         DontDestroyOnLoad(gameObject);
-        SOCKETS_IP = "127.0.0.1";
-        SERVER_PORT = 8000;
-        NGROK = 0;
+        SOCKETS_IP = "146.193.224.2";
+        SERVER_PORT = 2000;
+        NGROK = 2;
     }
 
     void Update()
     {
-
+        foreach(var trust in trustValueList)
+        {
+            UnityEngine.Debug.Log("Trust Values: " + trust);
+        }
+        foreach(var check in manCheckList)
+        {
+            UnityEngine.Debug.Log("Man Check Values: " + check);
+        }
     }
     // Method to write a log entry with a given log ID and additional data
     public void WriteLog(Dictionary<string, object> additionalData)
     {   
+        additionalData["trustValues"] = trustValueList;
+        additionalData["ManCheckValues"] = manCheckList;
         additionalData["id"] = logID;
         additionalData["time"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         TotTimer = GameObject.Find("Tutorial Timer"); 
@@ -69,7 +81,7 @@ public class LogManager : MonoBehaviour
 
     public void defineLogID(string id)
     {
-        if(id.Length != 24)
+        if(id.Length != 24 && ProlificIDCheck)
         {
             StartCoroutine(PopErrorMessage());
         }

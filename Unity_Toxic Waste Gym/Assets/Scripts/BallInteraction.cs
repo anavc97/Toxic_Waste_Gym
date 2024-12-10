@@ -6,6 +6,7 @@ using TMPro;
 using Unity.Collections.LowLevel.Unsafe;
 using JetBrains.Annotations;
 using Unity.VisualScripting;
+using System;
 
 public class BallInteraction : MonoBehaviour
 {
@@ -18,14 +19,15 @@ public class BallInteraction : MonoBehaviour
     public List<string> BallsIdentified = new List<string>();
     public float Id_time;
     GameObject astroPlayer;
-
+    public GameHandler gameHandler;
     private int currentChatNumber = 1;
 
     void Start()
     {
         historyChat = GameObject.Find("HistoryChat");
+        gameHandler = GameObject.Find("GameHandler").GetComponent<GameHandler>();
         allBalls = GameObject.FindGameObjectsWithTag("Ball");
-        astroPlayer = GameObject.Find("astro");    
+        astroPlayer = GameObject.Find("astro");  
     }
 
     void Update()
@@ -33,13 +35,13 @@ public class BallInteraction : MonoBehaviour
        Id_time = astroPlayer.GetComponent<ActionRenderingRobot>().Id_time;
     }
 
-    public IEnumerator StartIdAnimation(GameObject ball, int index, bool error)
+    public IEnumerator StartIdAnimation(GameObject targetBall, GameObject IDdBall, int index, bool error)
     {
-        if(BallsIdentified.Contains(ball.name)) //Check if ball had already been identified before
+        if(BallsIdentified.Contains(IDdBall.name)) //Check if ball had already been identified before
         {
             yield return 0;
         }
-        string type = ball.name.Split('_')[0];
+        string type = IDdBall.name.Split('_')[0];
         int nr=(currentChatNumber - 1) % 7 + 1;
         if ((currentChatNumber-1)%7 == 0)
         {
@@ -75,8 +77,9 @@ public class BallInteraction : MonoBehaviour
         else {
             text.GetComponent<TextMeshPro>().fontSize = 14;
             text.GetComponent<TextMeshPro>().text = $"Ball {index} is a {type} ball!";
-            ball.tag = "IDdBall";
-            BallsIdentified.Add(ball.name);}
+            targetBall.tag = "IDdBall";
+            BallsIdentified.Add(targetBall.name);}
+        gameHandler.lastIDList[index] = IDdBall.name;
         currentChatNumber += 1;
     }
 

@@ -276,7 +276,7 @@ public class ActionRenderingRobot : MonoBehaviour
         balls = GameObject.FindGameObjectsWithTag("Ball");
         if(balls.Length == 0){
           break;}
-        Coroutine co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall,Array.IndexOf(allBalls, targetBall), false));
+        Coroutine co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, targetBall,Array.IndexOf(allBalls, targetBall), false));
         targetLocked = false;
         closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
         if(closestDistance > 2){StopCoroutine(co);ballInteraction.CancelIdAnimation();continue;}
@@ -343,7 +343,7 @@ public class ActionRenderingRobot : MonoBehaviour
         HHoldBall = humanHoldingBall(allBalls);
         if(error){HHoldBall = !humanHoldingBall(allBalls);}
         GameObject randomBall = allGoodBalls[UnityEngine.Random.Range(0, balls.Length)];
-
+        GameObject targetBall = randomBall;
         if(Vector3.Distance(transform.position, randomBall.transform.position)<=2){randomBall = allGoodBalls[UnityEngine.Random.Range(0, balls.Length)];}
         GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
         
@@ -384,8 +384,7 @@ public class ActionRenderingRobot : MonoBehaviour
         int i = UnityEngine.Random.Range(0, allBalls.Length);
         GameObject wrongBall = allBalls[i];
         if(balls.Length == 0){break;}
-        Coroutine co = StartCoroutine(ballInteraction.StartIdAnimation(wrongBall,System.Array.IndexOf(allBalls, randomBall), wrongBall!=randomBall));
-
+        Coroutine co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, wrongBall,System.Array.IndexOf(allBalls, targetBall), wrongBall.name.Split('_')[0]!=targetBall.name.Split('_')[0]));
         closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
         if(closestDistance > 2){StopCoroutine(co);ballInteraction.CancelIdAnimation();continue;}
         
@@ -506,7 +505,7 @@ public class ActionRenderingRobot : MonoBehaviour
         int i = UnityEngine.Random.Range(0, allBalls.Length);
         GameObject wrongBall = allBalls[i];
         if(balls.Length == 0){break;}
-        StartCoroutine(ballInteraction.StartIdAnimation(wrongBall,System.Array.IndexOf(allBalls, targetBall), wrongBall!=targetBall));}
+        StartCoroutine(ballInteraction.StartIdAnimation(wrongBall, targetBall,System.Array.IndexOf(allBalls, targetBall), wrongBall!=targetBall));}
         
         targetLocked = false;
         
