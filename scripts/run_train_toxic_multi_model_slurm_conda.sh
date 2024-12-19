@@ -4,14 +4,15 @@
 #SBATCH --mail-user=miguel.faria@tecnico.ulisboa.pt
 #SBATCH --job-name=train_toxic_multi_model
 #SBATCH --ntasks=1
+#SBATCH --mincpus=1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:1        #-> SARDINE
-# #SBATCH --gres=shard:4    #-> GAIPS
-#SBATCH --time=48:00:00
-#SBATCH --mem=4G
-#SBATCH --qos=gpu-medium    #-> ONLY FOR SARDINE COMMENT TO USE IN GAIPS
-#SBATCH --output="job-%x-%j.out"
+## SBATCH --gres=gpu:1        #-> SARDINE
+#SBATCH --gres=shard:4    #-> GAIPS
+#SBATCH --time=4:00:00
+#SBATCH --mem=10G
+## SBATCH --qos=gpu-medium    #-> ONLY FOR SARDINE COMMENT TO USE IN GAIPS
+#SBATCH --output=/home/users/trustat/logs/"job-%x-%j.out"
 date;hostname;pwd
 
 if [ -n "${SLURM_JOB_ID:-}" ] ; then
@@ -25,7 +26,10 @@ export PATH="/usr/lib/cuda/bin:$PATH"
 if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   source "$HOME"/miniconda3/bin/activate deep_rl_env
   python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --problem-type move_catch --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 5000 --batch-size 32 --game-levels cramped_room --curriculum-learning --curriculum-model-path /mnt/data-artemis/miguelfaria/toxic_waste/models/best/only_movement --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste/models --data-dir /mnt/data-artemis/miguelfaria/toxic_waste/data
-elif [ "$HOSTNAME" = "nexus1" ] ; then
+elif [ "$HOSTNAME" = "ilu-server" ] ; then
+  source "$HOME"/miniconda/bin/activate astro_waste_env
+  python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 0.0 --problem-type only_green --iterations 6000 --eps-type log --eps-decay 0.12 --start-eps 0.5 --checkpoint-freq 1000 --buffer-size 2500 --batch-size 64 --online-lr 0.0005 --target-lr 0.075 --game-levels cramped_room --curriculum-learning --curriculum-model-path /home/trustat/project/toxic_waste/models/best/move_catch --logs-dir /home/trustat/project/toxic_waste/logs --models-dir /home/trustat/project/toxic_waste/models --data-dir /home/trustat/project/toxic_waste/data
+elif [ "$HOSTNAME" = "nexus1" ]; then
   source "$HOME"/miniconda3/bin/activate drl_env
   python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --problem-type move_catch --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 5000 --batch-size 32 --game-levels cramped_room --curriculum-learning --curriculum-model-path /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/models/best/only_movement --logs-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/logs --models-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/models --data-dir /home/users/miguelfaria/Documents/Projects/Toxic_Waste_Gym/data
 else
@@ -33,5 +37,5 @@ else
   python "$script_path"/run_train_toxic_multi_model.py --buffer-method uniform --initial-temp 1.0 --problem-type move_catch --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 5000 --batch-size 32 --game-levels cramped_room --curriculum-learning --curriculum-model-path /home/miguel-faria/Documents/research/toxic_waste/models/best/only_movement/
 fi
 
-source "$HOME"/miniconda3/bin/deactivate
+source "$HOME"/miniconda/bin/deactivate
 date

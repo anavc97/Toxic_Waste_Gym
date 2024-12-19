@@ -12,8 +12,8 @@ import logging
 from flax.training.train_state import TrainState
 from gymnasium.spaces import Space, Discrete
 from pathlib import Path
-from src.algos.dqn import DQNetwork, EPS_TYPE
-from src.utilities.buffers import ReplayBuffer, DictReplayBuffer
+from algos.dqn import DQNetwork, EPS_TYPE
+from utilities.buffers import ReplayBuffer, DictReplayBuffer
 from typing import List, Dict, Callable, Optional
 from datetime import datetime
 from functools import partial

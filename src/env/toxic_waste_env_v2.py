@@ -5,7 +5,7 @@ import gymnasium
 import numpy as np
 import yaml
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
+from env.toxic_waste_env_base import BaseToxicEnv, AgentType, HoldState, WasteState, PlayerState, CellEntity
 from pathlib import Path
 from enum import IntEnum, Enum
 from gymnasium.spaces import Box, MultiDiscrete

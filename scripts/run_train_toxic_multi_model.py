@@ -80,7 +80,8 @@ parser.add_argument('--start-eps', dest='start_eps', type=float, required=False,
 parser.add_argument('--target-lr', dest='target_lr', type=float, default=TARGET_LR, help='Learning rate for the target model.')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
-
+parser.add_argument('--checkpoint-freq', dest='checkpoint_freq', type=int, required=False, default=10,
+						help='Number of epochs between each model train checkpointing.')
 
 input_args = parser.parse_args()
 add_method = input_args.buffer_method
@@ -105,6 +106,7 @@ smart_add = input_args.buffer_smart_add
 start_eps = input_args.start_eps
 target_lr = input_args.target_lr
 temp_decay = input_args.temp_decay
+checkpoint_freq = input_args.checkpoint_freq
 
 use_curriculum_learning = input_args.curriculum_learning
 warmup = input_args.warmup
@@ -123,7 +125,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
 		 (" --buffer-method %s" % add_method) + (" --initial-temp %f" % anneal_init) + (" --anneal-decay %f" % temp_decay) + (" --data-dir %s" % data_dir if data_dir != '' else "") +
-		 (" --has-pick-all" if pick_all else "") + (" --problem-type %s" % problem_type))
+		 (" --has-pick-all" if pick_all else "") + (" --problem-type %s" % problem_type) + (" --checkpoint-freq %d" % checkpoint_freq))
 
 commamd = "python " + str(src_dir / 'train_toxic_multi_model_dqn.py') + args
 if not USE_SHELL:

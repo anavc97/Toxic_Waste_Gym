@@ -3,7 +3,7 @@
 import numpy as np
 import yaml
 
-from src.env.toxic_waste_env_base import BaseToxicEnv, PlayerState, Actions, ActionDirection, AgentType, CellEntity, HoldState
+from env.toxic_waste_env_base import BaseToxicEnv, PlayerState, Actions, ActionDirection, AgentType, CellEntity, HoldState
 from gymnasium.spaces import Box, MultiDiscrete
 from typing import List, Tuple, Any, Union
 from termcolor import colored
