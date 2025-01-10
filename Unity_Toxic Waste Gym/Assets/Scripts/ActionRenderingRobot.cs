@@ -182,8 +182,8 @@ public class ActionRenderingRobot : MonoBehaviour
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
       if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
       else{
-        //StartCoroutine(AstroAutomatic());
-        StartCoroutine(AstroBad());
+        StartCoroutine(AstroAutomatic());
+        //StartCoroutine(AstroBad());
         //StartCoroutine(AstroBadSimple());
       }
     }
@@ -208,6 +208,142 @@ public class ActionRenderingRobot : MonoBehaviour
       if(gameOverRobot){this.enabled = false;Debug.Log("GAME OVER ROBOT");}
     }
     
+    IEnumerator AstroTutorial()
+    { 
+      Id_time = 4f;
+      int count = 0;
+      yield return new WaitForSeconds(1f);
+      GameObject[] balls = GameObject.FindGameObjectsWithTag("Ball"); 
+      float distanceToHuman = Mathf.Infinity;
+      bool targetLocked = false;
+      Debug.Log("Started astro automatic");
+      while (balls.Length != 0)
+      { 
+        float closestDistance = Mathf.Infinity;
+        balls = GameObject.FindGameObjectsWithTag("Ball");
+        if(balls.Length == 0){
+          break;}
+        //GameObject randomBall = balls[UnityEngine.Random.Range(0, balls.Length)];
+        targetBall = null;
+
+        while (closestDistance > Math.Round(Mathf.Sqrt(2), 2) + 0.01 || closestDistance <= 1) //Mathf.Sqrt(2))
+        { 
+
+          balls = GameObject.FindGameObjectsWithTag("Ball");
+          if(balls.Length == 0){break;}
+          if(!targetLocked)
+          { 
+            // Choosing between closest ball to Astro and closest ball to Human
+            (GameObject closestBallAstro, float DistanceBallAstro) = FindClosestBall(balls, gameObject);
+            (GameObject closestBallHuman, float DistanceBallHuman) = FindClosestBall(balls, humanPlayer);
+
+            if (DistanceBallAstro <= DistanceBallHuman)
+            {
+              targetBall = closestBallAstro;
+            }
+            else
+            {
+              targetBall = closestBallHuman;
+            }
+            
+            targetLocked = true;
+          }
+          //Move towards human if human is holding a ball
+          while(humanHoldingBall(allBalls))
+          { 
+            if(distanceToHuman <= Math.Round(Mathf.Sqrt(2), 2) + 0.01)
+            {
+              yield return new WaitForSeconds(0.4f);
+              distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+              continue;
+            }
+            distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+            ObtainNextAction(humanPlayer.transform.position);
+            yield return new WaitForSeconds(0.4f);
+          }
+          
+          //Move towards target ball if human isn't holding a ball
+          Vector3 newTarget = targetBall.transform.position + new Vector3(1.0f,1.0f,0);
+          Debug.Log("NEXT TARGET: " + newTarget);
+          ObtainNextAction(newTarget);
+
+          closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
+          //moveOrRotateRobot(next_step, new Vector2(0,-1));
+          if(targetBall.tag == "CollectedBall"){break;}
+          yield return new WaitForSeconds(0.4f);
+        }
+
+        //Identify ball
+        balls = GameObject.FindGameObjectsWithTag("Ball");
+        if(balls.Length == 0){
+          break;}
+        Coroutine co = null;
+        
+        string type = targetBall.name.Split('_')[0];
+        if (type=="red"){  
+          count++;
+          Debug.Log("Count: " + count);
+          if (count == 2){
+            int i = UnityEngine.Random.Range(0, allBalls.Length);
+            GameObject wrongBall = allBalls[i];
+            co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, wrongBall,Array.IndexOf(allBalls, targetBall), wrongBall.name.Split('_')[0]!=targetBall.name.Split('_')[0]));
+            targetBall.tag = "CollectedBall";
+            count = 0;
+          }
+          else{
+          Debug.Log("Red: " + count);
+          co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, targetBall,Array.IndexOf(allBalls, targetBall), false));
+          }
+        }
+        else{
+          Debug.Log("Not red: " + count);
+          co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, targetBall,Array.IndexOf(allBalls, targetBall), false));
+        }
+        
+        targetLocked = false;
+        closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
+        if(closestDistance > 2){StopCoroutine(co);ballInteraction.CancelIdAnimation();continue;}
+        
+        yield return new WaitForSeconds(Id_time/3);
+        
+        closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
+        if(closestDistance > 2){StopCoroutine(co);ballInteraction.CancelIdAnimation();continue;}
+        
+        yield return new WaitForSeconds(Id_time/3);
+
+        closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
+        if(closestDistance > 2){StopCoroutine(co);ballInteraction.CancelIdAnimation();continue;}
+
+        yield return new WaitForSeconds(Id_time/3);
+      }
+
+      //When all balls identified robot still follows human when he's holding a ball
+      balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      while(balls.Length != 0)
+      {
+        distanceToHuman = Vector3.Distance(transform.position, humanPlayer.transform.position);
+        if(humanHoldingBall(balls) && distanceToHuman > Math.Round(Mathf.Sqrt(2), 2) + 0.01) //Move towards human
+        {
+          ObtainNextAction(humanPlayer.transform.position);
+        }
+        else if(!humanHoldingBall(balls)) //Move towards ball closest to human
+        {
+          Vector3 closestBall2Human = GetClosestBallPositionToHuman();
+          Vector3 NewTarget = closestBall2Human + new Vector3(1.0f,1.0f,0);
+          ObtainNextAction(NewTarget);
+          //ObtainNextAction(astroStation);
+        }
+        yield return new WaitForSeconds(0.4f);
+        balls = GameObject.FindGameObjectsWithTag("IDdBall");
+      }
+
+      //Return to base at the end
+      while(transform.position != astroStation)
+      {
+        ObtainNextAction(astroStation);
+        yield return new WaitForSeconds(0.4f);
+      }
+    } 
 
     IEnumerator AstroAutomatic()
     { 

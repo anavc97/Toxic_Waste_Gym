@@ -163,7 +163,7 @@ public class GameHandler : MonoBehaviour
             int bonusPoints = (int) Math.Max(0,timerScript.timeRemaining/10);
             if(SceneManager.GetActiveScene().name == "level_zero")
             {   
-                gameOverText.GetComponent<TextMeshProUGUI>().text = "Tutorial complete! From now on, points will start counting to the end reward.\nPlease answer the following questions:";
+                gameOverText.GetComponent<TextMeshProUGUI>().text = "The real game will begin soon! From now on, points will start counting to the end reward.\nPlease answer the following questions:";
                 gameOverStopWatch.Start();
             }
             else if(SceneManager.GetActiveScene().name == "level_one")
@@ -183,8 +183,8 @@ public class GameHandler : MonoBehaviour
             else if(SceneManager.GetActiveScene().name == "level_three")
             {   
                 GameObject gameOverText2 = panel.transform.Find("GameOver2").gameObject;
-                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\nNo bonus points added for time left.\nPlease answer the following questions:";}
-                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\n" + bonusPoints + " bonus points added for time left.\nPlease answer the following questions:";
+                if(timerScript.timeRemaining <= 0){gameOverText.GetComponent<TextMeshProUGUI>().text = "Time ended!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\nNo bonus points added for time left.";}
+                else{gameOverText.GetComponent<TextMeshProUGUI>().text = "Level exited!\n" + scoreScript.scoreValue + " out of 26 points acquired from balls.\n" + bonusPoints + " bonus points added for time left.";
                      update_Score(bonusPoints);
                     if(logger.NGROK == 1){gameOverText2.GetComponent<TextMeshProUGUI>().text=  "Game Concluded! Final Score: " + scoreScript.globalScore + "\n End of game code: TX965U";}
                     else if(logger.NGROK == 2){gameOverText2.GetComponent<TextMeshProUGUI>().text=  "Game Concluded! Final Score: " + scoreScript.globalScore + "\n End of game code: VSWN20";}}
@@ -200,7 +200,7 @@ public class GameHandler : MonoBehaviour
             popUp_time = 0;
         }
 
-        if((gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 20) || trustSubmitted)
+        if((gameOverStopWatch.IsRunning && gameOverStopWatch.Elapsed.Seconds >= 500) || trustSubmitted)
         {   
             int currentIndex = sceneList.IndexOf(SceneManager.GetActiveScene().name);  
             SceneManager.LoadScene(sceneList[currentIndex+1]);

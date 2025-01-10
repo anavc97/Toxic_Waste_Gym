@@ -24,6 +24,7 @@ public class GridLimits : MonoBehaviour
         else if(currentScene.name == "level_one"){defineGridLevelOne();}
         else if(currentScene.name == "level_two"){defineGridLevelTwo();}
         else if(currentScene.name == "level_three"){defineGridLevelThree();}
+        else if(currentScene.name == "tutorial_level"){defineGridTutorialLevel();}
 
         gridPosAvailable = new List<Vector3>();
 
@@ -156,6 +157,46 @@ public class GridLimits : MonoBehaviour
             "XX           XX" +
             "XXXXX     XXXXX" +
             "X             X" +
+            "XXXXXXXXXXXXXXX";
+
+        gridPositions = new List<Vector3>();
+
+        int width = 15; // Width of the grid
+        int height = 15; // Height of the grid
+
+        // Iterate over each character in the string
+        for (int y = height - 1; y >= 0; y--) // Starting from y = 14 to y = 0
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int index = (height - y - 1) * width + x; // Calculate the index in the string
+                char character = grid[index]; // Get the character at the index
+
+                if (character == 'X')
+                {
+                    // Add the position to the list
+                    gridPositions.Add(new Vector3(x, y, 0));
+                }
+            }
+        }
+    }
+    void defineGridTutorialLevel()
+    {
+        string grid = 
+            "XXXXXX   XXXXXX" +
+            "X           XXX" +
+            "X            XX" +
+            "X            XX" +
+            "X  XXXX       X" +
+            "X             X" +
+            "X       XX    X" +
+            "X      XX     X" +
+            "X             X" +
+            "X         XXXXX" +
+            "X             X" +
+            "XX            X" +
+            "XX            X" +
+            "XXX           X" +
             "XXXXXXXXXXXXXXX";
 
         gridPositions = new List<Vector3>();

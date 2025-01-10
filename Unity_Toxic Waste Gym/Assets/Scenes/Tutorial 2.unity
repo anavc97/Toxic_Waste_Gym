@@ -515,9 +515,12 @@ MonoBehaviour:
   Button: {fileID: 649330985}
   box_input: {fileID: 0}
   txt: {fileID: 0}
+  errorMessage: {fileID: 0}
   SOCKETS_IP: 127.0.0.1
   SERVER_PORT: 8000
   NGROK: 0
+  TotTimer: {fileID: 0}
+  ProlificIDCheck: 0
 --- !u!4 &104904220
 Transform:
   m_ObjectHideFlags: 0
@@ -1849,6 +1852,7 @@ GameObject:
   - component: {fileID: 649330989}
   - component: {fileID: 649330988}
   - component: {fileID: 649330987}
+  - component: {fileID: 649330990}
   m_Layer: 5
   m_Name: Button
   m_TagString: Untagged
@@ -1970,6 +1974,22 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 649330985}
   m_CullTransparentMesh: 1
+--- !u!114 &649330990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 649330985}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cc9397096173b7f38d76dd901409e80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 649330987}
+  buttonText: {fileID: 0}
+  normalTextColor: {r: 0.9529412, g: 0.8235294, b: 0, a: 1}
+  highlightedTextColor: {r: 0.9529412, g: 0.6666667, b: 0, a: 1}
 --- !u!1 &705156389
 GameObject:
   m_ObjectHideFlags: 0
@@ -4115,10 +4135,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
-  m_ReferenceResolution: {x: 800, y: 600}
+  m_ReferenceResolution: {x: 1360, y: 700}
   m_ScreenMatchMode: 0
   m_MatchWidthOrHeight: 0
   m_PhysicalUnit: 3

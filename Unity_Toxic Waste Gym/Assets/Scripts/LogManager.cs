@@ -37,7 +37,7 @@ public class LogManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SOCKETS_IP = "146.193.224.2";
         SERVER_PORT = 2000;
-        NGROK = 2;
+        NGROK = 1;
     }
 
     void Update()
@@ -106,8 +106,8 @@ public class LogManager : MonoBehaviour
     public IEnumerator SendPostRequest(string jsonString)
     {
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
-        if(NGROK == 1) {url = "https://fc60371c3133.ngrok.app";SERVER_PORT = 2000;}
-        if(NGROK == 2) {url = "https://c207358f97cc.ngrok.app";SERVER_PORT = 2100;}
+        if(NGROK == 1) {url = "https://c4c96f0191a7.ngrok.app";SERVER_PORT = 2000;}
+        if(NGROK == 2) {url = "https://113094bca628.ngrok.app";SERVER_PORT = 2100;}
         //if(NGROK == 3) {url = "https://7d515c71c6f4.ngrok.app";SERVER_PORT = 2200;}
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 

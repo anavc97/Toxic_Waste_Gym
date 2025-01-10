@@ -13,7 +13,7 @@ public class UpdateManipulationCheck : MonoBehaviour
     public LogManager logger;
     public GameHandler gameHandler;
 
-    private List<string> TextList= new List<string>{"Very Badly","Badly", "Okay", "Well", "Very Well"};
+    private List<string> TextList= new List<string>{"Very Badly","Badly", "Okay", "Well", "Very Well", "I'm not sure"};
     // Start is called before the first frame update
     void Start()
     {
