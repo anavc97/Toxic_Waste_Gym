@@ -9,7 +9,7 @@ import numpy as np
 import optax
 import logging
 
-from src.algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
+from algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
 from typing import Callable, List, Union, Tuple
