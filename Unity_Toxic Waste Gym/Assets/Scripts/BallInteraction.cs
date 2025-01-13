@@ -73,10 +73,10 @@ public class BallInteraction : MonoBehaviour
         if(type == "green"){text.GetComponent<TextMeshPro>().color = new Color32(18,154,14,255);}
         else if(type == "red"){text.GetComponent<TextMeshPro>().color = new Color32(184,28,3,255);}
         else {text.GetComponent<TextMeshPro>().color = new Color32(240,154,4,255);}
-        if(error){text.GetComponent<TextMeshPro>().fontSize = 11;text.GetComponent<TextMeshPro>().text = $"*bzz* Ball {index}...*bzz* {type} ball...";}
+        if(error){text.GetComponent<TextMeshPro>().fontSize = 11;text.GetComponent<TextMeshPro>().text = $"Ball {index} seems to be a {type} ball!";}
         else {
-            text.GetComponent<TextMeshPro>().fontSize = 14;
-            text.GetComponent<TextMeshPro>().text = $"Ball {index} is a {type} ball!";
+            text.GetComponent<TextMeshPro>().fontSize = 11;
+            text.GetComponent<TextMeshPro>().text = $"Ball {index} seems to be a {type} ball!";
             targetBall.tag = "IDdBall";
             BallsIdentified.Add(targetBall.name);}
         gameHandler.lastIDList[index] = IDdBall.name;

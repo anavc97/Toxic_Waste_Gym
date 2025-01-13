@@ -182,9 +182,10 @@ public class ActionRenderingRobot : MonoBehaviour
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
       if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
       else{
-        StartCoroutine(AstroAutomatic());
+        //StartCoroutine(AstroAutomatic());
         //StartCoroutine(AstroBad());
         //StartCoroutine(AstroBadSimple());
+        StartCoroutine(AstroTutorial());
       }
     }
 
@@ -282,10 +283,10 @@ public class ActionRenderingRobot : MonoBehaviour
         string type = targetBall.name.Split('_')[0];
         if (type=="red"){  
           count++;
-          Debug.Log("Count: " + count);
           if (count == 2){
+            Debug.Log("Wrong Red: " + count);
             int i = UnityEngine.Random.Range(0, allBalls.Length);
-            GameObject wrongBall = allBalls[i];
+            GameObject wrongBall = allBalls[2];
             co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, wrongBall,Array.IndexOf(allBalls, targetBall), wrongBall.name.Split('_')[0]!=targetBall.name.Split('_')[0]));
             targetBall.tag = "CollectedBall";
             count = 0;

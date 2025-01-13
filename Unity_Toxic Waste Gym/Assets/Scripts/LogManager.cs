@@ -35,9 +35,9 @@ public class LogManager : MonoBehaviour
     private void Start()
     {   
         DontDestroyOnLoad(gameObject);
-        SOCKETS_IP = "146.193.224.2";
+        SOCKETS_IP = "127.0.0.1";
         SERVER_PORT = 2000;
-        NGROK = 1;
+        NGROK = 3;
     }
 
     void Update()
@@ -86,7 +86,7 @@ public class LogManager : MonoBehaviour
             StartCoroutine(PopErrorMessage());
         }
         else
-        {   logID = id;
+        {   logID = id + "_" + DateTime.Now.ToString("yyyyMMddHHmmss");
             errorMessage.gameObject.SetActive(false);
             StartCoroutine(SendPostRequest(id));
             Button.SetActive(true);
