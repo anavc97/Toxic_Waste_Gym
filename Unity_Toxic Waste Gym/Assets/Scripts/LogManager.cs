@@ -26,8 +26,8 @@ public class LogManager : MonoBehaviour
     public GameObject TotTimer;
 
     public Dictionary<string, object> OldData = null;
-    public List<float?> trustValueList = new List<float?> {null,null,null};
-    public List<float?> manCheckList = new List<float?> {null,null,null};
+    public List<float?> trustValueList = new List<float?> {null,null,null,null};
+    public List<float?> manCheckList = new List<float?> {null,null,null,null};
 
     public bool ProlificIDCheck = false;
 
@@ -37,19 +37,19 @@ public class LogManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SOCKETS_IP = "127.0.0.1";
         SERVER_PORT = 2000;
-        NGROK = 3;
+        NGROK = 1;
     }
 
     void Update()
     {
-        foreach(var trust in trustValueList)
+        /*foreach(var trust in trustValueList)
         {
             UnityEngine.Debug.Log("Trust Values: " + trust);
         }
         foreach(var check in manCheckList)
         {
             UnityEngine.Debug.Log("Man Check Values: " + check);
-        }
+        }*/
     }
     // Method to write a log entry with a given log ID and additional data
     public void WriteLog(Dictionary<string, object> additionalData)
@@ -86,7 +86,7 @@ public class LogManager : MonoBehaviour
             StartCoroutine(PopErrorMessage());
         }
         else
-        {   logID = id + "_" + DateTime.Now.ToString("yyyyMMddHHmmss");
+        {   logID = id + "_" + DateTime.Now.ToString("MMddHHmmss");
             errorMessage.gameObject.SetActive(false);
             StartCoroutine(SendPostRequest(id));
             Button.SetActive(true);
@@ -106,8 +106,8 @@ public class LogManager : MonoBehaviour
     public IEnumerator SendPostRequest(string jsonString)
     {
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
-        if(NGROK == 1) {url = "https://c4c96f0191a7.ngrok.app";SERVER_PORT = 2000;}
-        if(NGROK == 2) {url = "https://113094bca628.ngrok.app";SERVER_PORT = 2100;}
+        if(NGROK == 1) {url = "https://08a3437cffe1.ngrok.app";SERVER_PORT = 2000;}
+        if(NGROK == 2) {url = "https://00146c6d4f59.ngrok.app";SERVER_PORT = 2100;}
         //if(NGROK == 3) {url = "https://7d515c71c6f4.ngrok.app";SERVER_PORT = 2200;}
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 

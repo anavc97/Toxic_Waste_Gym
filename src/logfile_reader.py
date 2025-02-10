@@ -74,6 +74,8 @@ dep_balls = []
 time_spent_player_good = {}
 positions_holding_ball_good = {}
 all_pos_holding_ball_good = {}
+ID_count = {}
+fake_ID_count = {}
 last_timestamp = None
 last_color = None
 player_count = 0
@@ -407,7 +409,7 @@ for logfile in files:
         # PROCESS SORTED DATA
         with open(output_logfile_path, 'r') as file:
             # Iterate through each line in the file
-
+            print("logfile: " + output_logfile_path)
             for line in file:
                 data = json.loads(line)
                 if a == 0: print(data['id'])
@@ -415,7 +417,7 @@ for logfile in files:
                 else: l = LAYOUTS[-1]
                 
                 if data['layout'] != l: 
-                    if args.plot and (l == "level_two"):
+                    if args.plot:# and (l == "level_two"):
                         print("Plotting now...")
 
                         # Create a figure and axis
@@ -601,6 +603,18 @@ for logfile in files:
                     "level_two": {},
                     "level_three": {}
                     } 
+                    ID_count[data['id']] = {
+                    "level_zero": {},
+                    "level_one": {},
+                    "level_two": {},
+                    "level_three": {}
+                    } 
+                    fake_ID_count[data['id']] = {
+                    "level_zero": {},
+                    "level_one": {},
+                    "level_two": {},
+                    "level_three": {}
+                    } 
 
                     
                 # Extract player positions
@@ -615,6 +629,7 @@ for logfile in files:
                     obj_pos = obj['position']
                     obj_hold_state = obj['hold_state']
                     obj_identified = obj['identified']
+                    last_id = obj["lastID"]
                     
                     # Store object positions based on their color
                     if obj_name not in object_positions.keys():
@@ -635,6 +650,21 @@ for logfile in files:
                     if obj_name not in object_identified_states:
                         object_identified_states[obj_name] = []
                     object_identified_states[obj_name].append(obj_identified)
+
+                    # Initialize counters for new objects
+                    if obj_name not in ID_count[data['id']][l]:
+                        ID_count[data['id']][l][obj_name] = []
+                    if obj_name not in fake_ID_count[data['id']][l]:
+                        fake_ID_count[data['id']][l][obj_name] = 0
+                    
+                    # Check if the ball was identified ("lastID" changed)
+                    if last_id is not None:
+                        if last_id not in ID_count[data['id']][l][obj_name]:
+                            ID_count[data['id']][l][obj_name].append(last_id)  # Track unique IDs
+
+                            # Check if the identification was fake ("identified" is still False)
+                            if not obj["identified"]:
+                                fake_ID_count[data['id']][l][obj_name] += 1
                 
                 # Extract score and timeleft
                 scores.append(data['score'])
@@ -690,7 +720,7 @@ for logfile in files:
         
         idd_balls[l] += nr_id_balls
 
-        if args.plot and l == "level_two":
+        if args.plot:# and l == "level_two":
             print("Plotting now...")
             # Create a figure and axis
             fig, ax = plt.subplots(figsize=(15, 15))
@@ -808,7 +838,7 @@ for logfile in files:
                 else: l = LAYOUTS[-1]
 
                 if data['layout'] != l: 
-                    if args.plot and l == "level_two":
+                    if args.plot:# and l == "level_two":
                         print("Plotting now...")
 
                         # Create a figure and axis
@@ -998,7 +1028,19 @@ for logfile in files:
                     "level_one": {},
                     "level_two": {},
                     "level_three": {}
+                    }
+                    ID_count[data['id']] = {
+                    "level_zero": {},
+                    "level_one": {},
+                    "level_two": {},
+                    "level_three": {}
                     } 
+                    fake_ID_count[data['id']] = {
+                    "level_zero": {},
+                    "level_one": {},
+                    "level_two": {},
+                    "level_three": {}
+                    }  
 
                 # Extract player positions
                 player_pos_human.append(data['players'][0]['position'])
@@ -1012,6 +1054,7 @@ for logfile in files:
                     obj_pos = obj['position']
                     obj_hold_state = obj['hold_state']
                     obj_identified = obj['identified']
+                    last_id = obj['lastID']
                     
                     # Store object positions based on their color
                     if obj_name not in object_positions.keys():
@@ -1032,6 +1075,21 @@ for logfile in files:
                     if obj_name not in object_identified_states:
                         object_identified_states[obj_name] = []
                     object_identified_states[obj_name].append(obj_identified)
+
+                    # Initialize counters for new objects
+                    if obj_name not in ID_count[data['id']][l]:
+                        ID_count[data['id']][l][obj_name] = []
+                    if obj_name not in fake_ID_count[data['id']][l]:
+                        fake_ID_count[data['id']][l][obj_name] = 0
+                    
+                    # Check if the ball was identified ("lastID" changed)
+                    if last_id is not None:
+                        if last_id not in ID_count[data['id']][l][obj_name]:
+                            ID_count[data['id']][l][obj_name].append(last_id)  # Track unique IDs
+
+                            # Check if the identification was fake ("identified" is still False)
+                            if not obj["identified"]:
+                                fake_ID_count[data['id']][l][obj_name] += 1
                 
                 # Extract score and timeleft
                 scores.append(data['score'])
@@ -1089,10 +1147,10 @@ for logfile in files:
         undep_balls_bad[data['id']][l].extend(undep_list)
         game_scores[data['id']][l].append(scores[-1])
 
-        check_false_identification(file)
+        #check_false_identification(file)
 
     
-    if args.plot and data['layout'] == "level_two":
+    if args.plot: #and data['layout'] == "level_two":
         print("Plotting now...")
         # Create a figure and axis
         fig, ax = plt.subplots(figsize=(15, 15))
@@ -1150,6 +1208,15 @@ plot_nr_positions_with_ball(all_pos_holding_ball_good, all_pos_holding_ball_bad)
 file = open('all_trajectories.pickle', 'wb')
 pickle.dump(all_trajectories, file)
 file.close()
+
+################################################################################################################
+
+input("STARTING PROCESSING OF FAKE/REAL BALL IDENTIFICATIONS.")
+
+############ PROCESSING FAKE/REAL BALL IDs ########################
+
+print("ID_count:", ID_count)
+print("fake_ID_count:", fake_ID_count)
 
 input("STARTING PROCESSING TIME GOOD")
 ############ PROCESSING TIME GOOD ########################

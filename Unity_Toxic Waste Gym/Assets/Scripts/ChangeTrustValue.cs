@@ -14,7 +14,7 @@ public class ChangeTrustValue : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        if(SceneManager.GetActiveScene().name == "level_three"){gameObject.SetActive(false);}  
+        //if(SceneManager.GetActiveScene().name == "level_three"){gameObject.SetActive(false);}  
         logger = GameObject.Find("LogManager").GetComponent<LogManager>();
         gameHandler = GameObject.Find("GameHandler").GetComponent<GameHandler>();
     }
@@ -32,10 +32,10 @@ public class ChangeTrustValue : MonoBehaviour
     public void UpdateTrust()
     {
         int ind = gameHandler.sceneList.IndexOf(SceneManager.GetActiveScene().name);
-        UnityEngine.Debug.Log("List index: " + ind);
-        UnityEngine.Debug.Log("value before: " + logger.trustValueList[ind]);
+        Debug.Log("List index: " + ind);
+        Debug.Log("trust value " + ind + "  before: " + logger.trustValueList[ind]);
         logger.trustValueList[ind] = slider.value;
-        UnityEngine.Debug.Log("value after: " + logger.trustValueList[ind]);
+        Debug.Log("trust value" + ind + " after: " + logger.trustValueList[ind]);
         gameHandler.trustSubmitted = true;
     }
 

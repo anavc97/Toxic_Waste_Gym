@@ -155,6 +155,7 @@ public class ActionRenderingRobot : MonoBehaviour
     public bool error = false;
     public float Id_time;
     GameObject[] allBalls;
+    public List<bool> IdAccuracyList = new List<bool>(){false,true,false,false,true,false,false,true};
 
     private GameObject targetBall;
     
@@ -182,10 +183,10 @@ public class ActionRenderingRobot : MonoBehaviour
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
       if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
       else{
-        //StartCoroutine(AstroAutomatic());
+        StartCoroutine(AstroAutomatic());
         //StartCoroutine(AstroBad());
         //StartCoroutine(AstroBadSimple());
-        StartCoroutine(AstroTutorial());
+        //StartCoroutine(AstroTutorial());
       }
     }
 
@@ -482,9 +483,9 @@ public class ActionRenderingRobot : MonoBehaviour
         GameObject randomBall = allGoodBalls[UnityEngine.Random.Range(0, balls.Length)];
         GameObject targetBall = randomBall;
         if(Vector3.Distance(transform.position, randomBall.transform.position)<=2){randomBall = allGoodBalls[UnityEngine.Random.Range(0, balls.Length)];}
-        GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
-        
-        while (closestDistance > Mathf.Sqrt(2)) //Mathf.Sqrt(2))
+        Debug.Log("target ball: " + targetBall.name);
+
+        while (closestDistance > Mathf.Sqrt(2))
         { 
           //Move towards human if human is holding a ball - with probability of failing for 5 seconds
           while(HHoldBall)
@@ -507,19 +508,32 @@ public class ActionRenderingRobot : MonoBehaviour
           if(balls.Length ==0){break;}
 
           //Go to random ball
-          Vector3 newTarget = randomBall.transform.position + new Vector3(1.0f,0,0);
+          Vector3 newTarget = targetBall.transform.position + new Vector3(1.0f,0,0);
           if(error){newTarget = newTarget + new Vector3(-3.0f,+2.0f,0);}
           ObtainNextAction(newTarget);
-          closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);
+          closestDistance = Vector3.Distance(transform.position, targetBall.transform.position);
+
           //moveOrRotateRobot(next_step, new Vector2(0,-1));
-          if(randomBall.tag == "CollectedBall"){break;}
+          if(targetBall.tag == "CollectedBall"){break;}
           yield return new WaitForSeconds(0.4f);
         }
         
         //Identify random ball
+        GameObject[] identifiedBalls = GameObject.FindGameObjectsWithTag("IDdBall");
+        int len = ballInteraction.IDAttempts;
+        if(len >= IdAccuracyList.Count){len = 0;}
         balls = GameObject.FindGameObjectsWithTag("Ball");
-        int i = UnityEngine.Random.Range(0, allBalls.Length);
-        GameObject wrongBall = allBalls[i];
+        GameObject wrongBall;
+        if(!IdAccuracyList[len]){
+          int i = UnityEngine.Random.Range(0, allBalls.Length);
+          wrongBall = allBalls[i];
+          while(wrongBall.name.Split('_')[0]==targetBall.name.Split('_')[0])
+          {
+              i = UnityEngine.Random.Range(0, allBalls.Length);
+             wrongBall = allBalls[i];
+          }
+        }
+        else{wrongBall = targetBall;}
         if(balls.Length == 0){break;}
         Coroutine co = StartCoroutine(ballInteraction.StartIdAnimation(targetBall, wrongBall,System.Array.IndexOf(allBalls, targetBall), wrongBall.name.Split('_')[0]!=targetBall.name.Split('_')[0]));
         closestDistance = Vector3.Distance(transform.position, randomBall.transform.position);

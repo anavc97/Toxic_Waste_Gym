@@ -20,6 +20,7 @@ public class BallInteraction : MonoBehaviour
     public float Id_time;
     GameObject astroPlayer;
     public GameHandler gameHandler;
+    public int IDAttempts = 0;
     private int currentChatNumber = 1;
 
     void Start()
@@ -73,11 +74,14 @@ public class BallInteraction : MonoBehaviour
         if(type == "green"){text.GetComponent<TextMeshPro>().color = new Color32(18,154,14,255);}
         else if(type == "red"){text.GetComponent<TextMeshPro>().color = new Color32(184,28,3,255);}
         else {text.GetComponent<TextMeshPro>().color = new Color32(240,154,4,255);}
-        if(error){text.GetComponent<TextMeshPro>().fontSize = 11;text.GetComponent<TextMeshPro>().text = $"Ball {index} seems to be a {type} ball!";}
+        if(error){
+            text.GetComponent<TextMeshPro>().fontSize = 11;text.GetComponent<TextMeshPro>().text = $"Ball {index} seems to be a {type} ball!";
+            IDAttempts += 1;}
         else {
             text.GetComponent<TextMeshPro>().fontSize = 11;
             text.GetComponent<TextMeshPro>().text = $"Ball {index} seems to be a {type} ball!";
             targetBall.tag = "IDdBall";
+            IDAttempts += 1;
             BallsIdentified.Add(targetBall.name);}
         gameHandler.lastIDList[index] = IDdBall.name;
         currentChatNumber += 1;

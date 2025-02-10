@@ -17,7 +17,7 @@ public class UpdateManipulationCheck : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        if(SceneManager.GetActiveScene().name == "level_three"){gameObject.SetActive(false);}  
+        //if(SceneManager.GetActiveScene().name == "level_three"){gameObject.SetActive(false);}  
         logger = GameObject.Find("LogManager").GetComponent<LogManager>();
         gameHandler = GameObject.Find("GameHandler").GetComponent<GameHandler>();
     }
@@ -36,9 +36,9 @@ public class UpdateManipulationCheck : MonoBehaviour
     public void UpdateManCheck()
     {
         int ind = gameHandler.sceneList.IndexOf(SceneManager.GetActiveScene().name);
-        UnityEngine.Debug.Log("List index: " + ind);
-        UnityEngine.Debug.Log("value before: " + logger.manCheckList[ind]);
+        Debug.Log("List index: " + ind);
+        Debug.Log("man value " + ind + "before: " + logger.manCheckList[ind]);
         logger.manCheckList[ind] = slider.value;
-        UnityEngine.Debug.Log("value after: " + logger.manCheckList[ind]);
+        Debug.Log("man value" + ind + " after: " + logger.manCheckList[ind]);
     }
 }
