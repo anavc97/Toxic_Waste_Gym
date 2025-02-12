@@ -159,10 +159,11 @@ public class ActionRenderingRobot : MonoBehaviour
 
     private GameObject targetBall;
     
+    public int action;
     void Awake()
     {
       animator = GetComponent<Animator>();
-
+      action = 10;
     }
 
     // Start is called before the first frame update
@@ -181,10 +182,12 @@ public class ActionRenderingRobot : MonoBehaviour
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
+      action = 10;  
+      //StartCoroutine(AstroRemote());
       if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
       else{
-        StartCoroutine(AstroAutomatic());
-        //StartCoroutine(AstroBad());
+        //StartCoroutine(AstroAutomatic());
+        StartCoroutine(AstroBad());
         //StartCoroutine(AstroBadSimple());
         //StartCoroutine(AstroTutorial());
       }
@@ -688,8 +691,34 @@ public class ActionRenderingRobot : MonoBehaviour
         ObtainNextAction(astroStation);
         yield return new WaitForSeconds(0.4f);
       }
+    }
+
+    IEnumerator AstroRemote()
+    { 
+      // 0 - up  1 - down 2 - left 3 - right 4 - interact
+      while (!gameOverRobot){
+        if(action != 10)
+        {
+          Debug.Log("Action changed: " + action);
+          PerformAction(action);
+          action = 10;
+          yield return new WaitForSeconds(0.5f);    
+        }
+        yield return new WaitForSeconds(0.5f);    
+      }
     } 
 
+    public void PerformAction(int action)
+    {
+      Vector3 targetPosition = new Vector3();
+      if(action == 0){targetPosition.x = transform.position.x; targetPosition.y = transform.position.y + 1;} //up
+      else if(action == 1){targetPosition.x = transform.position.x; targetPosition.y = transform.position.y - 1;} //down
+      else if(action == 2){targetPosition.x = transform.position.x - 1; targetPosition.y = transform.position.y;} //left
+      else if(action == 3){targetPosition.x = transform.position.x + 1; targetPosition.y = transform.position.y;} //right
+      else if(action == 4){Debug.Log("Astro tried to identify ball.");}
+      else{Debug.Log("Action " + action + "not recognized.");}
+      ObtainNextAction(targetPosition);
+    }
     //Obtain next step action according to target destination (move towards human or ball)
     public void ObtainNextAction(Vector3 targetPosition)
     {

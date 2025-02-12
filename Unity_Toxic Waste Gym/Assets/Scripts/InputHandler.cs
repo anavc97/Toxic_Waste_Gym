@@ -13,11 +13,14 @@ public class InputHandler : MonoBehaviour
     private float mov_y = 0;
     private int handleBall = 0;
     private GameHandler gameHandler;
+    private ActionRendering actionRender;
+    private int action_int;
 
 
     void Start()
     {
         gameHandler =  GameObject.Find("GameHandler").GetComponent<GameHandler>();
+        actionRender = GameObject.Find("human").GetComponent<ActionRendering>();
     }
 
     // Update is called once per frame
@@ -29,6 +32,8 @@ public class InputHandler : MonoBehaviour
         {
             if(Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.LeftArrow))
             {   
+                if(Input.GetKeyDown(KeyCode.LeftArrow)){action_int = 2;}
+                if(Input.GetKeyDown(KeyCode.RightArrow)){action_int = 3;}
                 mov_x = Input.GetAxisRaw("Horizontal");
                 actionExecuted = true;
                 if (!waiting)
@@ -38,6 +43,8 @@ public class InputHandler : MonoBehaviour
             }
             else if(Input.GetKeyDown(KeyCode.UpArrow) || Input.GetKeyDown(KeyCode.DownArrow))
             {   
+                if(Input.GetKeyDown(KeyCode.UpArrow)){action_int = 0;}
+                if(Input.GetKeyDown(KeyCode.DownArrow)){action_int = 1;}
                 mov_y = Input.GetAxisRaw("Vertical");
                 actionExecuted = true;
                 if (!waiting)
@@ -47,8 +54,10 @@ public class InputHandler : MonoBehaviour
             }
             else if(Input.GetKeyDown(KeyCode.Space))
             {   
+                action_int = 4;
                 handleBall = 1;
                 actionExecuted = true;
+                
                 if (!waiting)
                 {
                     StartCoroutine(Wait());
@@ -59,6 +68,7 @@ public class InputHandler : MonoBehaviour
             {   
                 actionExecuted = false;
                 gameHandler.performHumanAction(mov_x, mov_y, handleBall);
+                actionRender.SendActionData(action_int);
                 mov_x = 0;
                 mov_y = 0;
                 handleBall = 0;

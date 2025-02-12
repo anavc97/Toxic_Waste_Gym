@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Newtonsoft.Json;
 
 public class ActionRendering : MonoBehaviour
 {
@@ -15,7 +16,9 @@ public class ActionRendering : MonoBehaviour
     private BallInteraction ballInteraction;
     private GameObject astroPlayer;
     private List<Vector3> doorPositions = new List<Vector3>();
-
+    
+    public LogManager logger;
+    private string actionData;
     void Awake()
     {
       animator = GetComponent<Animator>();
@@ -31,6 +34,7 @@ public class ActionRendering : MonoBehaviour
       astroPlayer = GameObject.Find("astro");
       doorPositions = GameObject.Find("GameHandler").GetComponent<GameHandler>().doorPositions;
       this.GetComponent<SpriteRenderer>().enabled = true;
+      logger = GameObject.FindWithTag("Logger").GetComponent<LogManager>();
     }
 
     // Update is called once per frame
@@ -80,4 +84,13 @@ public class ActionRendering : MonoBehaviour
     }
 
     public bool getHasBall(){return hasBall;}
+    public void SendActionData(int action)
+    {
+        Dictionary<string, object> actionData = new Dictionary<string, object>();
+        actionData["human action"] = action;
+        string jsonData = JsonConvert.SerializeObject(actionData);
+        Debug.Log("Message: " + jsonData);
+        StartCoroutine(logger.SendActionRequest(jsonData));
+
+    }
 }
