@@ -18,9 +18,9 @@ from itertools import product
 
 MOVE_PENALTY = -1.0
 HOLD_REWARD = 0.0
-DELIVER_WASTE = 0.0
-ROOM_CLEAN = 2
-PICK_REWARD = 0.0
+DELIVER_WASTE = 4.0
+ROOM_CLEAN = 5
+PICK_REWARD = 2
 ADJ_REWARD = 0.0
 IDENTIFY_REWARD = 0.0
 
@@ -238,7 +238,17 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		robots_max = np.ones(grid_shape, dtype=np.int32)
 		humans_min = np.zeros(grid_shape, dtype=np.int32)
 		humans_max = np.ones(grid_shape, dtype=np.int32)
-		
+
+		#orientation layer
+		or_up_min = np.zeros(grid_shape, dtype=np.int32)
+		or_up_max = np.ones(grid_shape, dtype=np.int32)
+		or_down_min = np.zeros(grid_shape, dtype=np.int32)
+		or_down_max = np.ones(grid_shape, dtype=np.int32)
+		or_left_min = np.zeros(grid_shape, dtype=np.int32)
+		or_left_max = np.ones(grid_shape, dtype=np.int32)
+		or_right_min = np.zeros(grid_shape, dtype=np.int32)
+		or_right_max = np.ones(grid_shape, dtype=np.int32)
+
 		# waste layer: waste pos
 		balls_min = np.zeros(grid_shape, dtype=np.int32)
 		balls_max = np.ones(grid_shape, dtype=np.int32)
@@ -254,8 +264,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		occupancy_max = np.ones(grid_shape, dtype=np.int32)
 		
 		# total layer
-		min_obs = np.stack([robots_min, humans_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
-		max_obs = np.stack([robots_max, humans_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
+		min_obs = np.stack([robots_min, humans_min, or_up_min, or_down_min, or_left_min, or_right_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
+		max_obs = np.stack([robots_max, humans_max, or_up_max, or_down_max, or_left_max, or_right_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
 		
 		if self._dict_obs:
 			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
@@ -427,6 +437,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
 			red_layer = np.zeros(layers_size, dtype=np.int32)
+			up_layer = np.zeros(layers_size, dtype=np.int32)
+			down_layer = np.zeros(layers_size, dtype=np.int32)
+			left_layer = np.zeros(layers_size, dtype=np.int32)
+			right_layer = np.zeros(layers_size, dtype=np.int32)
 			occupancy_layer = np.ones(layers_size, dtype=np.int32)
 			occupancy_layer[:self._agent_sight, :] = 0
 			occupancy_layer[-self._agent_sight:, :] = 0
@@ -435,11 +449,21 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			for agent in self._players:
 				pos = agent.position
+				orient = agent.orientation
+				# position
 				if agent.agent_type == AgentType.HUMAN:
 					human_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				else:
 					robot_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				occupancy_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 0
+				
+				#orientation
+				if agent.orientation == (-1,0): up_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				elif agent.orientation == (1,0): down_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				elif agent.orientation == (0,-1): left_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+				elif agent.orientation == (0,1): right_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
+			 
+
 			
 			for obj in self._objects:
 				pos = obj.position
@@ -458,7 +482,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					if self._field[row, col] == CellEntity.COUNTER:
 						occupancy_layer[row + self._agent_sight, col + self._agent_sight] = 0
 			
-			obs = np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
+			obs = np.stack([robot_layer, human_layer, up_layer, down_layer, left_layer, right_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer])
 			padding = 2 * self._agent_sight + 1
 			time_left = self.get_time_left()
 			
@@ -531,7 +555,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		obs, info = super().reset(seed=seed, options=options)
-		
+
 		if self._is_train:
 			valid_pos = list(product(range(self.rows), range(self.cols)))
 			for pos in np.transpose(np.nonzero(self._field)):
@@ -551,7 +575,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		slip_agents, agent_bonus = self.execute_transitions(actions)
 		finished = self.is_game_finished()
 		if self._problem_type == ProblemType.ONLY_MOVE:
-			rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+			rewards = np.zeros(self.n_players) if finished else MOVE_PENALTY * np.ones(self.n_players)
 		else:
 			rewards = np.array([player.reward for player in self._players])
 		# rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])
@@ -639,7 +663,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								if not pick_obj.was_picked:
 									acting_player.reward += self._reward_space['pick']
 									bonus_pts[agent_idx] += self._reward_space['pick']
-									pick_obj.was_picked = True
+									pick_obj.was_picked = True	
 						# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
 			# IDENTIFY action only has impact by robot agents

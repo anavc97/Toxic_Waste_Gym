@@ -9,7 +9,7 @@ import numpy as np
 import optax
 import logging
 
-from src.algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
+from algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
 from flax.training.train_state import TrainState
 from typing import Callable, List, Union, Tuple
@@ -30,8 +30,9 @@ class DQNetwork(object):
     _use_ddqn: bool
     _cnn_layer: bool
     _use_v2: bool
+    training: bool
     
-    def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], gamma: float, dueling_dqn: bool = False,
+    def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], gamma: float, training: bool, dueling_dqn: bool = False,
                  use_ddqn: bool = False, cnn_layer: bool = False, use_tensorboard: bool = False, cnn_properties: List = None, use_v2: bool = True, n_obs: int = 1):
     
         """
@@ -80,7 +81,7 @@ class DQNetwork(object):
                     self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, layer_sizes=layer_sizes.copy(),
                                                         num_conv_layers=num_conv_layers, activation_function=act_function, cnn_size=cnn_size,
                                                         cnn_kernel=cnn_kernel, cnn_strides=cnn_strides, pool_window=pool_window,
-                                                        pool_strides=pool_strides, pool_padding=pool_padding)
+                                                        pool_strides=pool_strides, pool_padding=pool_padding, training=training)
             elif dueling_dqn:
                 self._q_network = CNNDuelingQNetwork(action_dim=action_dim, num_layers=num_layers, activation_function=act_function,
                                                      layer_sizes=layer_sizes.copy(), cnn_size=cnn_size, cnn_kernel=cnn_kernel, pool_window=pool_window)
@@ -197,8 +198,8 @@ class DQNetwork(object):
         return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
     
     def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
-        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None])  # get target network q values
-        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None])  # get online network's prescribed actions
+        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": jax.random.PRNGKey(42)})  # get target network q values
+        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": jax.random.PRNGKey(42)})  # get online network's prescribed actions
         online_acts = jnp.argmax(q_next_online, axis=1)
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
         # print('compute_v2_targets: ', q_next_target.shape, rewards.shape, dones.shape, (rewards + (1 - dones) * self._gamma * q_next_target).shape)
@@ -206,13 +207,13 @@ class DQNetwork(object):
     
     def mse_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                  next_q_value: Union[np.ndarray, jax.Array]):
-        q = self._q_network.apply(params, observations)  # get online model's q_values
+        q = self._q_network.apply(params, observations, rngs={"dropout": jax.random.PRNGKey(42)})  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
     
     def mse_loss_v2(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                      next_q_value: Union[np.ndarray, jax.Array]):
-        q = self._q_network.apply(params, observations[0], observations[1][:, None])  # get online model's q_values
+        q = self._q_network.apply(params, observations[0], observations[1][:, None],rngs={"dropout": jax.random.PRNGKey(42)})  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()]
         # print('mse_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
@@ -279,7 +280,7 @@ class DQNetwork(object):
         self._target_state_params = flax.core.freeze(update_target_state_params)
     
     def get_action(self, obs):
-        q_values = self._q_network.apply(self._q_network.variables, obs)
+        q_values = self._q_network.apply(self._q_network.variables, obs, rngs={"dropout": jax.random.PRNGKey(42)})
         actions = q_values.argmax()
         return jax.device_get(actions)
     

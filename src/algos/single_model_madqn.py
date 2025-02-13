@@ -33,7 +33,7 @@ class SingleModelMADQN(object):
 	_use_ddqn: bool
 	_use_v2: bool
 	
-	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float,
+	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, training: bool,
 	             action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_vdn: bool = False,
 	             use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tracker: bool = False, tracker: Optional[Run] = None,
 	             cnn_properties: List[int] = None):
@@ -76,7 +76,7 @@ class SingleModelMADQN(object):
 		self._use_vdn = use_vdn
 		self._use_ddqn = use_ddqn
 		self._use_v2 = use_v2
-		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
+		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, training, dueling_dqn, use_ddqn, use_cnn, use_tracker,
 		                            tracker, cnn_properties, use_v2)
 		has_dict_space = isinstance(observation_space, gymnasium.spaces.Dict)
 		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
@@ -323,7 +323,6 @@ class SingleModelMADQN(object):
 					if self._use_vdn:
 						q_state = self._agent_dqn.online_state
 						target_params = self._agent_dqn.target_params
-						
 						loss, q_pred, self._agent_dqn.online_state = self.compute_vdn_v2_loss(q_state, target_params, obs_conv, obs_array, actions,
 																							  next_obs_conv, next_obs_array, rewards, dones)
 						

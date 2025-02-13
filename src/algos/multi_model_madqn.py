@@ -19,6 +19,7 @@ from datetime import datetime
 from functools import partial
 from jax import jit
 from wandb.wandb_run import Run
+import time
 
 
 COEF = 1.0
@@ -37,7 +38,7 @@ class MultiAgentDQN(object):
 	_use_v2: bool
 	
 	def __init__(self, num_agents: int, agent_ids: List[str], action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int],
-	             buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False,
+	             buffer_size: int, gamma: float, training: bool, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False,
 	             use_vdn: bool = False, use_cnn: bool = False, handle_timeout: bool = False, use_tracker: bool = False, tracker: Optional[Run] = None,
 	             cnn_properties: List[int] = None, use_v2: bool = True):
 
@@ -84,7 +85,7 @@ class MultiAgentDQN(object):
 		self._replay_buffer = {}
 		for a_idx in range(self._num_agents):
 			agent_id = agent_ids[a_idx]
-			self._agent_dqns[agent_id] = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
+			self._agent_dqns[agent_id] = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, training, dueling_dqn, use_ddqn, use_cnn, use_tracker,
 			                                       cnn_properties)
 			has_dict_space = isinstance(observation_space[a_idx], gymnasium.spaces.Dict)
 			buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
@@ -132,7 +133,7 @@ class MultiAgentDQN(object):
 				   next_q_value: jnp.ndarray):
 		q = jnp.zeros((next_q_value.shape[0]))
 		for idx in range(self._num_agents):
-			qa = self._agent_dqns[self._agent_ids[idx]].q_network.apply(q_state[idx], observations_conv[idx], observations_arr[idx, :, None])
+			qa = self._agent_dqns[self._agent_ids[idx]].q_network.apply(q_state[idx], observations_conv[idx], observations_arr[idx, :, None], rngs={"dropout": jax.random.PRNGKey(42)})
 			q += qa[np.arange(qa.shape[0]), actions[idx].squeeze()]
 		q = q.reshape(-1, 1)
 		# print('l2_v2_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
@@ -274,6 +275,7 @@ class MultiAgentDQN(object):
 							 rewards: jnp.ndarray, dones: jnp.ndarray):
 		n_obs = len(observations_conv[0])
 		next_q_value = jnp.zeros(n_obs)
+		#training = True
 		for idx in range(self._num_agents):
 			# print('compute_vdn_v2_loss: ', next_observations_conv[idx].shape, next_observations_arr[idx].shape, rewards[idx].shape, dones[idx].shape)
 			next_q_value += self._agent_dqns[self._agent_ids[idx]].compute_v2_targets(dones[idx], next_observations_conv[idx], next_observations_arr[idx],
@@ -318,7 +320,6 @@ class MultiAgentDQN(object):
 					if self._use_vdn:
 						q_states = [self._agent_dqns[a_id].online_state for a_id in self._agent_ids]
 						target_params = [self._agent_dqns[a_id].target_params for a_id in self._agent_ids]
-						
 						loss, q_pred, q_states = self.compute_vdn_v2_loss(q_states, target_params, obs_conv, obs_array, actions, next_obs_conv, next_obs_array,
 																		  rewards, dones)
 						

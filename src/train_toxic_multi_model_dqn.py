@@ -88,7 +88,7 @@ def model_execution(agent_ids: List[str], ma_model: MultiAgentDQN, eps: float, g
 			a_id = agent_ids[a_idx]
 			dqn_model = ma_model.agent_dqns[a_id]
 			model_obs = get_model_obs(obs[a_idx])
-			q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1])[0]
+			q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1], rngs={"dropout": jax.random.PRNGKey(42)})[0]
 			
 			if greedy_actions:
 				action = q_values.argmax(axis=-1)
@@ -162,9 +162,9 @@ def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_m
 					a_id = agents_ids[a_idx]
 					dqn_model = astro_model.agent_dqns[a_id]
 					if dqn_model.cnn_layer:
-						q_values = dqn_model.q_network.apply(dqn_model.online_state.params, obs[a_idx].reshape((1, *obs[a_idx].shape)))[0]
+						q_values = dqn_model.q_network.apply(dqn_model.online_state.params, obs[a_idx].reshape((1, *obs[a_idx].shape)), rngs={"dropout": jax.random.PRNGKey(42)})[0]
 					else:
-						q_values = dqn_model.q_network.apply(dqn_model.online_state.params, obs[a_idx])
+						q_values = dqn_model.q_network.apply(dqn_model.online_state.params, obs[a_idx], rngs={"dropout": jax.random.PRNGKey(42)})
 					
 					if greedy_actions:
 						action = q_values.argmax(axis=-1)
@@ -239,7 +239,7 @@ def train_astro_model(agents_ids: List[str], waste_env: ToxicWasteEnvV2, astro_m
 
 def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgentDQN, heuristic_models: List[GreedyAgent], waste_sequences: List, problem_type: str,
                          num_iterations: int, max_timesteps: int, batch_size: int, optim_learn_rate: float, tau: float, initial_eps: float, final_eps: float, eps_type: str,
-                         rng_seed: int, logger: logging.Logger, model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, exploration_decay: float = 0.99,
+                         rng_seed: int, logger: logging.Logger, model_path: Path, game_level: str, chkpt_file: str, chkt_data: dict, training: bool, exploration_decay: float = 0.99,
                          warmup: int = 0, start_it: int = 0, start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10,
                          summary_frequency: int = 1000, greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False,
                          anneal_cool: float = 0.9, restart: bool = False, only_move: bool = True, curriculum_models: List[Union[str, Path]] = None) -> List:
@@ -276,6 +276,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, multi_agt_model: MultiAgent
 	
 	if waste_env.use_render:
 		waste_env.render()
+
+	logger.info("Model obs: " + str(model_obs[0].shape) + str(model_obs[1].shape))
 	
 	start_time = time.time()
 	epoch = 0
@@ -490,7 +492,6 @@ def main():
 	use_cnn = args.use_cnn
 	use_tracker = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
-
 	# Train args
 	n_iterations = args.n_iterations
 	batch_size = args.batch_size
@@ -526,6 +527,8 @@ def main():
 	render_mode = args.render_mode
 	use_render = args.use_render
 
+	training = True
+	
 	os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = args.fraction
 	if not use_gpu:
 		jax.default_device(jax.devices("cpu")[0])
@@ -627,9 +630,10 @@ def main():
 			file_handler.setFormatter(logging.Formatter('%(name)s %(asctime)s %(levelname)s:\t%(message)s'))
 			file_handler.setLevel(logging.INFO)
 			logger.addHandler(file_handler)
-			model_path = models_dir / now.strftime("%Y%m%d-%H%M%S")
+			model_path = models_dir / now.strftime("%Y%m%d-%H%M%S") / problem_type
+			checkpoint_path = model_path / 'checkpoints'
 			Path.mkdir(model_path, parents=True, exist_ok=True)
-			Path.mkdir(models_dir / 'checkpoints', parents=True, exist_ok=True)
+			Path.mkdir(checkpoint_path, parents=True, exist_ok=True)
 			try:
 				with open(configs_dir / 'layouts' / (game_level + '.yaml')) as config_file:
 					objects = yaml.safe_load(config_file)['objects']
@@ -685,15 +689,16 @@ def main():
 				start_temp = chkpt_data[game_level]['temp']
 				
 				if use_vdn:
-					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space,
+					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, training, env.action_space,
 											  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
 											  use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
 											  cnn_properties=cnn_properties)
 				else:
-					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, env.action_space[0],
+					multi_agt_model = MultiAgentDQN(n_agents, agents_id, env.action_space[0].n, n_layers, nn.relu, layer_sizes, buffer_size, gamma, training, env.action_space[0],
 											  env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_vdn, use_cnn, False,
 											  use_tracker=use_tracker, tracker=run, use_v2=(env_version == 2),
 											  cnn_properties=cnn_properties)
+			
 				if use_curriculum:
 					if len(curriculum_models) == 1:
 						starting_models = [fname for fname in Path(curriculum_models[0]).iterdir() if str(fname).find(game_level) != -1]
@@ -707,13 +712,13 @@ def main():
 									  train_freq, tensorboard_freq, debug_mode=debug, render=use_render)
 				else:
 					train_astro_model_v2(env, multi_agt_model, heuristic_agents, waste_seqs, problem_type, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
-										 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, models_dir / 'checkpoints', game_level, chkpt_file,
-										 chkpt_data, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
+										 target_update_rate, initial_eps, final_eps, eps_type, TRAIN_RNG_SEED, logger, checkpoint_path, game_level, chkpt_file,
+										 chkpt_data, True, eps_decay, warmup, start_it, start_temp, checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug,
 										 greedy_actions=greedy_actions, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal, restart=args.restart_train,
 										 curriculum_models=starting_models, only_move=only_movement)
 		
 				logger.info('Saving model and history list')
-				multi_agt_model.save_models(game_level, model_path / problem_type, logger)
+				multi_agt_model.save_models(game_level, model_path, logger)
 	
 				####################
 				## Testing Model ##
@@ -749,8 +754,7 @@ def main():
 							a_id = agent_ids[a_idx]
 							dqn_model = multi_agt_model.agent_dqns[a_id]
 							model_obs = get_model_obs(obs[a_idx])
-							q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1])[0]
-	
+							q_values = dqn_model.q_network.apply(dqn_model.online_state.params, model_obs[0], model_obs[1], rngs={"dropout": jax.random.PRNGKey(42)})[0]
 							if greedy_actions:
 								action = q_values.argmax(axis=-1)
 							else:
@@ -786,8 +790,8 @@ def main():
 	
 				if (tests_passed / N_TESTS) > train_acc[game_level][problem_type]:
 					logger.info('Updating best model for current loc')
-					Path.mkdir(models_dir / 'best', parents=True, exist_ok=True)
-					multi_agt_model.save_models(game_level, models_dir / 'best' / problem_type, logger)
+					Path.mkdir(model_path / 'best', parents=True, exist_ok=True)
+					multi_agt_model.save_models(game_level, model_path / 'best', logger)
 					train_acc[game_level][problem_type] = tests_passed / N_TESTS
 	
 				logger.info('Updating best training performances record')

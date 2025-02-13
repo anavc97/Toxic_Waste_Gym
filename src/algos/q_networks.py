@@ -87,9 +87,11 @@ class DuelingQNetworkV2(nn.Module):
 	pool_window: List[Tuple[int]]
 	pool_strides: List[int]
 	pool_padding: List[int]
+	training: bool
 	
 	@nn.compact
 	def __call__(self, x_conv: jnp.ndarray, x_arr: jnp.ndarray):
+		print("# q_network: ", self.training)
 		if len(x_arr.shape) < 1:
 			x_arr = x_arr.reshape((1, 1))
 		x = x_conv
@@ -98,7 +100,9 @@ class DuelingQNetworkV2(nn.Module):
 			x = nn.max_pool(x, window_shape=self.pool_window[i], strides=(self.pool_strides[i], ) * len(self.pool_window[i]))
 		x = jnp.hstack([x.reshape((x.shape[0], -1)), x_arr])
 		for i in range(self.num_layers):
-			x = self.activation_function(nn.Dense(self.layer_sizes[i])(x))
+			a = nn.Dense(self.layer_sizes[i])(x)
+			b = nn.Dropout(rate=0.3, deterministic=not self.training)(a)
+			x = self.activation_function(b)
 		a = nn.Dense(self.action_dim)(x)
 		v = nn.Dense(1)(x)
 		return v + (a - a.mean())

@@ -23,7 +23,7 @@ class SingleAgentDQN(object):
 	_use_tracker: bool
 	_use_v2: bool
 
-	def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, action_space: Space,
+	def __init__(self, action_dim: int, num_layers: int, act_function: Callable, layer_sizes: List[int], buffer_size: int, gamma: float, training: bool, action_space: Space,
 	             observation_space: Space, use_gpu: bool, dueling_dqn: bool = False, use_ddqn: bool = False, use_cnn: bool = False,
 	             handle_timeout: bool = False, use_tensorboard: bool = False, tracker: Optional[Run] = None, cnn_properties: List[int] = None,
 	             use_v2: bool = False):
@@ -32,7 +32,7 @@ class SingleAgentDQN(object):
 		if use_tensorboard:
 			self._perform_tracker = tracker
 		self._use_v2 = use_v2
-		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tensorboard, cnn_properties)
+		self._agent_dqn = DQNetwork(action_dim, num_layers, act_function, layer_sizes, gamma, training, dueling_dqn, use_ddqn, use_cnn, use_tensorboard, cnn_properties)
 		self._replay_buffer = ReplayBuffer(buffer_size, observation_space, action_space, "cuda" if use_gpu else "cpu",
 										   handle_timeout_termination=handle_timeout)
 	

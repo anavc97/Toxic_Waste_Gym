@@ -4,11 +4,11 @@ field:  ["XXXXXXXXXXXXXXX",
          "XXXXXXXXXXXXXXX",
          "XXXXXXXXXXDXXXX",
          "XXXX   R   XXXX",
-         "XXXX1    2 XXXX",
-         "XXXX   X   XXXX",
+         "XXXX       XXXX",
+         "XXXX 2 X   XXXX",
          "XXXX XXXXX XXXX",
-         "XXXXTTGTYTTXXXX",
-         "XXXXTTTTTTTXXXX",
+         "XXXX  G Y  XXXX",
+         "XXXX 1     XXXX",
          "XXXXXXXXXXXXXXX",
          "XXXXXXXXXXXXXXX",
          "XXXXXXXXXXXXXXX",
@@ -16,8 +16,8 @@ field:  ["XXXXXXXXXXXXXXX",
          "XXXXXXXXXXXXXXX"]
 
 players: [
-  { orientation: [-1, 0], id: 0, name: 'human', type: 'human' },
-  { orientation: [-1, 0], id: 1, name: 'astro', type: 'robot' }
+  { orientation: [1, 0], id: 0, name: 'human', type: 'human' },
+  { orientation: [1, 0], id: 1, name: 'astro', type: 'robot' }
   ]
 
 objects : {
