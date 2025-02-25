@@ -68,7 +68,7 @@ public class InputHandler : MonoBehaviour
             {   
                 actionExecuted = false;
                 gameHandler.performHumanAction(mov_x, mov_y, handleBall);
-                actionRender.SendActionData(action_int);
+                //actionRender.SendActionData(action_int);
                 mov_x = 0;
                 mov_y = 0;
                 handleBall = 0;

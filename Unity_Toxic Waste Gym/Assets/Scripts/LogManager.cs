@@ -40,8 +40,8 @@ public class LogManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
         SOCKETS_IP = "127.0.0.1";
         SERVER_PORT = 2000;
-        NGROK = 2;
-        robotController = GameObject.Find("astro").GetComponent<ActionRenderingRobot>();
+        NGROK = 3;
+        if(SceneManager.GetActiveScene().name != "Intro" && SceneManager.GetActiveScene().name != "Tutorial 3"){robotController = GameObject.Find("astro").GetComponent<ActionRenderingRobot>();}
     }
 
     void Update()
@@ -111,10 +111,11 @@ public class LogManager : MonoBehaviour
 
     public IEnumerator SendPostRequest(string jsonString)
     {
+        Debug.Log("Sending Log");
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
-        if(NGROK == 1) {url = "https://788a5a947123.ngrok.app";SERVER_PORT = 2000;}
-        if(NGROK == 2) {url = "https://7864deea194e.ngrok.app";SERVER_PORT = 2100;}
-        if(NGROK == 3) {url = "https://e544b4146808.ngrok.app";SERVER_PORT = 2200;}
+        if(NGROK == 1) {url = "https://5e4a3a106185.ngrok.app";SERVER_PORT = 2000;}
+        if(NGROK == 2) {url = "https://095cfe8e834d.ngrok.app";SERVER_PORT = 2100;}
+        if(NGROK == 3) {url = "https://8a5393958d89.ngrok.app";SERVER_PORT = 2200;}
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
         UnityWebRequest request = new UnityWebRequest(url, "POST");
@@ -126,7 +127,7 @@ public class LogManager : MonoBehaviour
 
         if (request.result == UnityWebRequest.Result.Success)
         {
-            //Debug.Log("Response: " + request.downloadHandler.text);
+            Debug.Log("Response: " + request.downloadHandler.text);
 
         }
         else
@@ -137,13 +138,15 @@ public class LogManager : MonoBehaviour
     }
 
         public IEnumerator SendActionRequest(string jsonString)
-    {
+    {   
+        Debug.Log("Message: " + jsonString);
         robotController = GameObject.Find("astro").GetComponent<ActionRenderingRobot>();
 
         string url = "http://" + SOCKETS_IP + ":" + SERVER_PORT.ToString() + "/";
-        if(NGROK == 1) {url = "https://08a3437cffe1.ngrok.app";SERVER_PORT = 2000;}
-        if(NGROK == 2) {url = "https://00146c6d4f59.ngrok.app";SERVER_PORT = 2100;}
-        //if(NGROK == 3) {url = "https://7d515c71c6f4.ngrok.app";SERVER_PORT = 2200;}
+        if(NGROK == 1) {url = "https://5e4a3a106185.ngrok.app";SERVER_PORT = 2000;}
+        if(NGROK == 2) {url = "https://095cfe8e834d.ngrok.app";SERVER_PORT = 2100;}
+        if(NGROK == 3) {url = "https://8a5393958d89.ngrok.app";SERVER_PORT = 2200;}
+        
         byte[] byteData = System.Text.Encoding.UTF8.GetBytes(jsonString);
 
         UnityWebRequest request = new UnityWebRequest(url, "POST");
@@ -152,11 +155,12 @@ public class LogManager : MonoBehaviour
         request.SetRequestHeader("Content-Type", "application/json");
 
         yield return request.SendWebRequest();
-
+        Debug.Log("Server Reply Action: " + request.downloadHandler.text);
+        
         if (request.result == UnityWebRequest.Result.Success)
         {
             Match match = Regex.Match(request.downloadHandler.text, @"\d+$");
-        
+            
             if (match.Success)
             {
                 Debug.Log("Robot action changed: " + int.Parse(match.Value));

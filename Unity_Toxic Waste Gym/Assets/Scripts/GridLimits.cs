@@ -21,6 +21,7 @@ public class GridLimits : MonoBehaviour
     {
         Scene currentScene = SceneManager.GetActiveScene();
 		if(currentScene.name == "level_zero"){defineGridLevelZero();}
+        else if(currentScene.name == "cramped_room"){defineGridCrampedRoom();}
         else if(currentScene.name == "level_one"){defineGridLevelOne();}
         else if(currentScene.name == "level_two"){defineGridLevelTwo();}
         else if(currentScene.name == "level_three"){defineGridLevelThree();}
@@ -74,6 +75,39 @@ public class GridLimits : MonoBehaviour
         }
     }
 
+    void defineGridCrampedRoom()
+    {
+        gridPositions = new List<Vector3>();
+        
+        string[] field = {
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXDXXXX",
+            "XXXX    X  XXXX",
+            "XXXX       XXXX",
+            "XXXX   X   XXXX",
+            "XXXX XXXXX XXXX",
+            "XXXX  X X  XXXX",
+            "XXXX       XXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX",
+            "XXXXXXXXXXXXXXX"
+        };
+        
+        for (int y = 0; y < field.Length; y++)
+        {
+            for (int x = 0; x < field[y].Length; x++)
+            {
+                if (field[y][x] == 'X')
+                {
+                    gridPositions.Add(new Vector3(x, field.Length - 1 - y, 0));
+                }
+            }
+        }
+    }
 
     void defineGridLevelOne()
     {

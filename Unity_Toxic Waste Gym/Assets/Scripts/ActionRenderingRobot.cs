@@ -7,6 +7,8 @@ using System.Linq;
 using System;
 using System.Diagnostics.Tracing;
 using Unity.VisualScripting;
+using System.IO;
+using Newtonsoft.Json;
 //using System.Numerics;
 
 public class ActionRenderingRobot : MonoBehaviour
@@ -158,7 +160,9 @@ public class ActionRenderingRobot : MonoBehaviour
     public List<bool> IdAccuracyList = new List<bool>(){false,true,false,false,true,false,false,true};
 
     private GameObject targetBall;
-    
+    public Dictionary<string, List<double>> stateActionTable;
+    public GameHandler gamehandler;
+
     public int action;
     void Awake()
     {
@@ -173,6 +177,7 @@ public class ActionRenderingRobot : MonoBehaviour
       astroOrientation = new Vector2(0,-1);
       humanPlayer = GameObject.Find("human");
       ballInteraction = GameObject.Find("red_1").GetComponent<BallInteraction>();
+      gamehandler = GameObject.Find("GameHandler").GetComponent<GameHandler>();
       Scene currentScene = SceneManager.GetActiveScene();
 		  if(currentScene.name == "level_one"){astroStation = new Vector3(7,8,0);}
       else if(currentScene.name == "level_two"){astroStation = new Vector3(7,7,0);}
@@ -182,15 +187,20 @@ public class ActionRenderingRobot : MonoBehaviour
       floor = GameObject.Find("Grid").GetComponent<GridLimits>().gridPosAvailable;
       gameOverRobot = false;
       allBalls = GameObject.FindGameObjectsWithTag("Ball");
-      action = 10;  
-      //StartCoroutine(AstroRemote());
-      if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
+      string jsonPath = "state_action_table_100000_human.json";
+      string jsonData = File.ReadAllText(jsonPath);
+        
+      // Deserialize JSON into a Dictionary
+      stateActionTable = JsonConvert.DeserializeObject<Dictionary<string, List<double>>>(jsonData);
+      
+      StartCoroutine(AstroRemote());
+      /*if(SceneManager.GetActiveScene().name == "level_three" || SceneManager.GetActiveScene().name == "level_zero"){StartCoroutine(AstroAutomatic());}
       else{
         //StartCoroutine(AstroAutomatic());
         StartCoroutine(AstroBad());
         //StartCoroutine(AstroBadSimple());
         //StartCoroutine(AstroTutorial());
-      }
+      }*/
     }
 
     private IEnumerator ActivateError()
@@ -693,7 +703,7 @@ public class ActionRenderingRobot : MonoBehaviour
       }
     }
 
-    IEnumerator AstroRemote()
+    IEnumerator DeprecatedAstroRemote()
     { 
       // 0 - up  1 - down 2 - left 3 - right 4 - interact
       while (!gameOverRobot){
@@ -707,6 +717,45 @@ public class ActionRenderingRobot : MonoBehaviour
         yield return new WaitForSeconds(0.5f);    
       }
     } 
+    IEnumerator AstroRemote()
+    { 
+      // 0 - up  1 - down 2 - left 3 - right 4 - interact
+      while (!gameOverRobot){
+
+        string currentState = gamehandler.FindCurrentState();
+        if (stateActionTable.ContainsKey(currentState))
+        {
+          List<double> actionProbabilities = stateActionTable[currentState];          
+          int selectedAction = SelectAction(actionProbabilities);
+          Debug.Log($"Action probability: {actionProbabilities}; Selected Action: {selectedAction}");
+          PerformAction(selectedAction);
+        }
+        else
+        {
+          Debug.Log($"State not found: {currentState}");
+        }
+
+        yield return new WaitForSeconds(0.3f);    
+      }
+    } 
+
+    static int SelectAction(List<double> probabilities)
+    {   
+        System.Random random = new System.Random();
+        double randValue = random.NextDouble(); // Random number between 0 and 1
+        double cumulative = 0.0;
+
+        for (int i = 0; i < probabilities.Count; i++)
+        {
+            cumulative += probabilities[i];
+            if (randValue < cumulative)
+            {
+                return i; // Return the selected action index
+            }
+        }
+
+        return probabilities.Count - 1; // Fallback (shouldn't happen)
+    }
 
     public void PerformAction(int action)
     {

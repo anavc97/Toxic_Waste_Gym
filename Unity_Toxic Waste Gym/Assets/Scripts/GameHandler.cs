@@ -59,6 +59,13 @@ public class GameHandler : MonoBehaviour
         {"red", 3}
         };
     
+    public Dictionary<string,List<string>> ballOrder = new Dictionary<string,List<string>>{
+        {"cramped_room", new List<string> {"red_1","green_1","yellow_1"}},
+        {"level_one", new List<string> {"red_1","green_1","yellow_1"}},
+        {"level_two", new List<string> {"red_1","green_1","yellow_1"}},
+        {"level_three", new List<string> {"red_1","green_1","yellow_1"}}        
+    };
+    public List<string> currBallOrder = new List<string>();
     private bool ball_idd;
 
     void Awake()
@@ -83,6 +90,7 @@ public class GameHandler : MonoBehaviour
         timerScript = GameObject.Find("Timer").GetComponent<Timer>();
         humanPlayer = GameObject.Find("human");
         astroPlayer = GameObject.Find("astro");
+        currBallOrder = ballOrder[SceneManager.GetActiveScene().name];
         gameRunning = true;
         balls = GameObject.FindGameObjectsWithTag("Ball");
         lastIDList = new string[balls.Length];
@@ -215,6 +223,53 @@ public class GameHandler : MonoBehaviour
         }
     }
 
+    public string FindCurrentState()
+    {
+        humanPlayer = GameObject.Find("human");
+        astroPlayer = GameObject.Find("astro");
+        Vector2 RobotOR = astroPlayer.GetComponent<ActionRenderingRobot>().astroOrientation;
+        string state = "";
+        state += (14 - (int)humanPlayer.transform.position.y).ToString(); // x_python = 14 - y_unity
+        state += ((int)humanPlayer.transform.position.x).ToString(); // y_python = x_unity
+        state += (14 - (int)astroPlayer.transform.position.y).ToString();
+        state += ((int)astroPlayer.transform.position.x).ToString();
+        state += (-(int)humanOrientation.y).ToString(); // x_python = -y_unity
+        state += ((int)humanOrientation.x).ToString(); // y_python = x_python
+        state += (-(int)RobotOR.y).ToString();
+        state += ((int)RobotOR.x).ToString();
+
+        foreach (string ball_name in currBallOrder)
+        {               
+            GameObject ball = GameObject.Find(ball_name);
+            if(GetHoldStatus(ball) == 2) //ball was disposed, holding player is astro and position should be registered as -1 -1
+            {
+                state += "-1-1";
+            }
+            else if(GetHoldStatus(ball) == 1)
+            {
+                state += string.Join("", new int[] { 14 - (int)humanPlayer.transform.position.y, (int)humanPlayer.transform.position.x });
+            }
+            else
+            {
+                state += string.Join("", new int[] { 14 - (int)ball.transform.position.y, (int)ball.transform.position.x });
+            }
+            
+        }
+
+        foreach (string ball_name in currBallOrder)
+        {
+            GameObject ball = GameObject.Find(ball_name);
+            state += (GetHoldStatus(ball)).ToString();
+        }
+
+        foreach (string ball_name in currBallOrder)
+        {
+            // under development - for now, all balls are identified in the python env
+            state += "1";
+        }
+
+        return state;
+    }
     public Dictionary<string, object> ConstructData()
     {
 

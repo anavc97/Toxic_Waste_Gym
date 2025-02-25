@@ -89,7 +89,6 @@ public class ActionRendering : MonoBehaviour
         Dictionary<string, object> actionData = new Dictionary<string, object>();
         actionData["human action"] = action;
         string jsonData = JsonConvert.SerializeObject(actionData);
-        Debug.Log("Message: " + jsonData);
         StartCoroutine(logger.SendActionRequest(jsonData));
 
     }
