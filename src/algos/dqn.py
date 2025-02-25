@@ -324,4 +324,4 @@ class DQNetwork(object):
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
-        logger.info("Loaded model state from file: " + str(file_path))
+        if logger != None: logger.info("Loaded model state from file: " + str(file_path))

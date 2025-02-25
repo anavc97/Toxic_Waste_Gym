@@ -147,10 +147,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
 	             require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-	             is_train: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
+	             is_train: bool = False, random_init_pos: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
 		
 		self._dict_obs = dict_obs
 		self._is_train = is_train
+		self._random_init_pos = random_init_pos
 		self._slip = slip
 		self._slip_prob = 0.0
 		self._max_time = 0.0
@@ -556,11 +557,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._door_pos = (-1, 1)
 		obs, info = super().reset(seed=seed, options=options)
 
-		if self._is_train:
+		if self._is_train or self._random_init_pos:
 			valid_pos = list(product(range(self.rows), range(self.cols)))
 			for pos in np.transpose(np.nonzero(self._field)):
 				valid_pos.remove(tuple(pos))
-			
+
 			for p in self.players:
 				row, col = self._np_random.choice(valid_pos)
 				p.position = tuple([row, col])
@@ -612,7 +613,14 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				slip_agents.append(acting_player.id)
 			else:
 				new_positions.append(next_pos)
-			
+			act = actions[agent_idx]
+			acting_player = self._players[agent_idx]
+			act_direction = ActionDirection[Actions(act).name].value
+
+		for agent_idx in range(self.n_players):
+			act = actions[agent_idx]
+			acting_player = self._players[agent_idx]
+			act_direction = ActionDirection[Actions(act).name].value
 			# Handle INTERACT action is only necessary for human agents
 			if act == Actions.INTERACT and acting_player.agent_type == AgentType.HUMAN:
 				facing_pos = (acting_player.position[0] + acting_player.orientation[0], acting_player.position[1] + acting_player.orientation[1])
@@ -623,7 +631,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						adj_agent_action = actions[adj_agent_idx]
 						adj_agent_type = adjacent_agent.agent_type
 						# check if the agent is a robot and is not trying to move
-						if adj_agent_type == AgentType.ROBOT and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT):
+						if adj_agent_type == AgentType.ROBOT and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT): #and adjacent_agent.position == new_positions[adj_agent_idx]: #
 							# can only place trash if agent and robot are looking at each other
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
