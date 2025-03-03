@@ -16,7 +16,7 @@ from collections import namedtuple
 from itertools import product
 
 
-MOVE_PENALTY = -1.0
+MOVE_PENALTY = 0
 HOLD_REWARD = 0.0
 DELIVER_WASTE = 4.0
 ROOM_CLEAN = 5
@@ -326,7 +326,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.COUNTER
 					n_yellow += 1
 				elif cell_val.isdigit():
-					nxt_player_data = players_data[self._n_players]
+					for player in players_data:
+						if str(player['id']) == cell_val: nxt_player_data = player
+					#nxt_player_data = players_data[self._n_players]
 					# noinspection PyTypeChecker
 					self.add_player((row, col), tuple(nxt_player_data['orientation']), nxt_player_data['id'], nxt_player_data['name'],
 					                AgentType[nxt_player_data['type'].upper()].value)

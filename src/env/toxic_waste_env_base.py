@@ -494,6 +494,7 @@ class BaseToxicEnv(Env):
 		if self._n_players < self._max_players:
 			self._players.append(PlayerState(position, orientation, agent_id, agent_name, agent_type, held_objs))
 			self._n_players += 1
+			self._players.sort(key=lambda p: p._id)
 			return True
 		else:
 			print(colored('[ADD_PLAYER] Max number players (%d) already reached, cannot add a new one.' % self._max_players, 'yellow'))
