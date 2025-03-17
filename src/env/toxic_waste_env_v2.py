@@ -16,7 +16,7 @@ from collections import namedtuple
 from itertools import product
 
 
-MOVE_PENALTY = 0
+MOVE_PENALTY = -1
 HOLD_REWARD = 0.0
 DELIVER_WASTE = 4.0
 ROOM_CLEAN = 5
@@ -158,7 +158,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._time_penalties = 0.0
 		self._score = 0.0
 		self._door_pos = (-1, 1)
-		self._collect_all = pick_all
+		self._collect_all = pick_all or problem_type == "all_balls"
 		self._problem_type = problem_type
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 		                 False, use_render, render_mode, joint_obs)
@@ -340,8 +340,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
 		if self._collect_all:
 			remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
+			input(remain_balls)
 			if self._problem_type == ProblemType.ONLY_GREEN:
 				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
+			elif self._problem_type == ProblemType.BALLS_ONLY:
+				return player_at_door and not remain_balls
 			else:
 				return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
 		else:
@@ -633,7 +636,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						adj_agent_action = actions[adj_agent_idx]
 						adj_agent_type = adjacent_agent.agent_type
 						# check if the agent is a robot and is not trying to move
-						if adj_agent_type == AgentType.ROBOT and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT): #and adjacent_agent.position == new_positions[adj_agent_idx]: #
+						if adj_agent_type == AgentType.ROBOT and adjacent_agent.position == new_positions[adj_agent_idx]: #and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT):
 							# can only place trash if agent and robot are looking at each other
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
@@ -663,7 +666,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					if adjacent_agent is None:
 						# Pick object from counter or floor
 						for obj in self._objects:
-							if obj.position == facing_pos and obj.hold_state == HoldState.FREE:
+							if obj.position == facing_pos and obj.hold_state == HoldState.FREE:								
 								pick_obj = obj
 								pick_obj.position = acting_player.position
 								pick_obj.hold_state = HoldState.HELD
