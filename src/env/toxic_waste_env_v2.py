@@ -635,7 +635,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						adj_agent_action = actions[adj_agent_idx]
 						adj_agent_type = adjacent_agent.agent_type
 						# check if the agent is a robot and is not trying to move
-						if adj_agent_type == AgentType.ROBOT and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT):#and adjacent_agent.position == new_positions[adj_agent_idx]:
+						if adj_agent_type == AgentType.ROBOT and adjacent_agent.position == new_positions[adj_agent_idx]:#and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT):#
 							# can only place trash if agent and robot are looking at each other
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
@@ -649,8 +649,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							agents_disposed_waste.append(acting_player)
 							agents_disposed_waste.append(adjacent_agent)
 							# waste_disposed[acting_player.id] = place_obj.points
-							waste_disposed[acting_player.id] = self._reward_space['deliver']
-							waste_disposed[adjacent_agent.id] = self._reward_space['deliver']
+							waste_disposed[acting_player.id] = self._reward_space['deliver'] + place_obj.points
+							waste_disposed[adjacent_agent.id] = self._reward_space['deliver'] + place_obj.points
 							self._score += place_obj.points
 					else:
 						# Drop object to the field
