@@ -16,11 +16,11 @@ from collections import namedtuple
 from itertools import product
 
 
-MOVE_PENALTY = -1
+MOVE_PENALTY = 0
 HOLD_REWARD = 0.0
-DELIVER_WASTE = 4.0
+DELIVER_WASTE = 0
 ROOM_CLEAN = 5
-PICK_REWARD = 2
+PICK_REWARD = 0
 ADJ_REWARD = 0.0
 IDENTIFY_REWARD = 0.0
 
@@ -635,7 +635,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						adj_agent_action = actions[adj_agent_idx]
 						adj_agent_type = adjacent_agent.agent_type
 						# check if the agent is a robot and is not trying to move
-						if adj_agent_type == AgentType.ROBOT and adjacent_agent.position == new_positions[adj_agent_idx]:#and (adj_agent_action == Actions.STAY or adj_agent_action == Actions.INTERACT):#
+						if adj_agent_type == AgentType.ROBOT and adj_agent_action == Actions.STAY:#and adjacent_agent.position == new_positions[adj_agent_idx]:
 							# can only place trash if agent and robot are looking at each other
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
@@ -723,9 +723,11 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			# Game finished reward
 			time_left = self.get_time_left() if not self._is_train else (self.max_steps - self._current_step)
 			max_time = self._max_time if not self._is_train else self.max_steps
-			self._score += (time_left / max_time) * self._score
+			#self._score += (time_left / max_time) * self._score
 			for player in self._players:
-				player.reward += self._reward_space['finish'] * self._score
+				#player.reward += self._reward_space['finish'] * self._score
+				player.reward += self._reward_space['finish'] + self._score
+				
 		else:
 			for player in self._players:
 				if player in agents_disposed_waste:
