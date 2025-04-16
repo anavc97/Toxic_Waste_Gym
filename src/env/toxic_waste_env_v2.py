@@ -308,7 +308,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.DOOR
 					self._door_pos = (row, col)
 				elif cell_val == 'G':
-					points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']
+					'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else''' points = objects_data['green']['points']
 					self.add_object((row, col), objects_data['green']['ids'][n_green], points,
 					                objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
 					self._field[row, col] = CellEntity.COUNTER
@@ -320,7 +320,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.COUNTER
 					n_red += 1
 				elif cell_val == 'Y':
-					points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']
+					'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else''' points = objects_data['yellow']['points']
 					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], points,
 					                objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
 					self._field[row, col] = CellEntity.COUNTER
