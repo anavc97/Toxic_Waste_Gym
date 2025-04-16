@@ -579,11 +579,12 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		slip_agents, agent_bonus = self.execute_transitions(actions)
 		finished = self.is_game_finished()
-		if self._problem_type == ProblemType.ONLY_MOVE:
+		'''if self._problem_type == ProblemType.ONLY_MOVE:
 			rewards = np.zeros(self.n_players) if finished else MOVE_PENALTY * np.ones(self.n_players)
 		else:
 			rewards = np.array([player.reward for player in self._players])
-		# rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])
+		# rewards = np.array([self._score + agent_bonus[idx] for idx in range(self.n_players)])'''
+		rewards = np.array([player.reward for player in self._players])
 		timeout = self.is_game_timedout()
 		return self.make_obs(), rewards, finished, timeout, {'agents_slipped': slip_agents}
 	
