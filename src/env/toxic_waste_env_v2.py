@@ -19,7 +19,7 @@ from itertools import product
 MOVE_PENALTY = 0
 HOLD_REWARD = 0.0
 DELIVER_WASTE = 0
-ROOM_CLEAN = 5
+ROOM_CLEAN = 0
 PICK_REWARD = 0
 ADJ_REWARD = 0.0
 IDENTIFY_REWARD = 0.0
@@ -32,7 +32,7 @@ class Actions(IntEnum):
 	RIGHT = 3
 	INTERACT = 4
 	STAY = 5
-	IDENTIFY = 6
+	#IDENTIFY = 6
 
 
 class ActionDirection(Enum):
@@ -42,7 +42,7 @@ class ActionDirection(Enum):
 	RIGHT = (0, 1)
 	INTERACT = (0, 0)
 	STAY = (0, 0)
-	IDENTIFY = (0, 0)
+	#IDENTIFY = (0, 0)
 
 
 class WasteType(IntEnum):
@@ -163,7 +163,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 		                 False, use_render, render_mode, joint_obs)
 		if self._problem_type == ProblemType.ONLY_MOVE:
-			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': 1.0, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
+			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': ROOM_CLEAN, 'hold': 0.0, 'pick': PICK_REWARD, 'adjacent': 0.0, 'identify': 0.0}
 		elif self._problem_type == ProblemType.MOVE_CATCH:
 			self._reward_space = {'move': MOVE_PENALTY, 'deliver': 0.0, 'finish': ROOM_CLEAN, 'hold': 0.0, 'pick': 0.0, 'adjacent': 0.0, 'identify': 0.0}
 		elif self._problem_type == ProblemType.PICK_ONE:
@@ -608,7 +608,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			act = actions[agent_idx]
 			acting_player = self._players[agent_idx]
 			act_direction = ActionDirection[Actions(act).name].value
-			if act != Actions.INTERACT and act != Actions.STAY and act != Actions.IDENTIFY:
+			if act != Actions.INTERACT and act != Actions.STAY:# and act != Actions.IDENTIFY:
 				acting_player.orientation = act_direction
 			next_pos = (max(min(acting_player.position[0] + act_direction[0], self._rows), 0),
 			            max(min(acting_player.position[1] + act_direction[1], self.cols), 0))
@@ -682,7 +682,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						# self._time_penalties += pick_obj.time_penalty			# Uncomment if it is supposed to apply penalty at pickup
 			
 			# IDENTIFY action only has impact by robot agents
-			elif act == Actions.IDENTIFY and acting_player.agent_type == AgentType.ROBOT:
+			elif act == Actions.INTERACT and acting_player.agent_type == AgentType.ROBOT:
 				object_facing = self.get_object_facing(acting_player)
 				if object_facing is not None and not object_facing.identified:
 					acting_player.reward = self._reward_space['identify']

@@ -35,7 +35,7 @@ EPS_DECAY = 0.75	# for linear eps
 CYCLE_EPS = 0.97
 EPS_TYPE = "linear"
 USE_GPU = True
-DEBUG = False
+DEBUG = True
 USE_RENDER = False
 PRECOMP_FRAC = 0.33
 
@@ -46,7 +46,7 @@ STEPS_EPISODE = 400
 WARMUP_STEPS = STEPS_EPISODE * 2
 FIELD_LENGTH = 15
 SLIP = False
-FACING = True
+FACING = False
 AGENT_CENTERED = True
 USE_ENCODING = True
 VERSION = 2
@@ -64,11 +64,16 @@ parser.add_argument('--curriculum-model-path', dest='curriculum_model', type=str
 parser.add_argument('--data-logs', dest='data_logs', type=str, required=False, default=TENSORBOARD_DATA[0])
 parser.add_argument('--eps-type', dest='eps_type', type=str, required=False, default=EPS_TYPE)
 parser.add_argument('--eps-decay', dest='eps_decay', type=float, required=False, default=EPS_DECAY)
+parser.add_argument('--final-eps', dest='final_eps', type=float, required=False, default=FINAL_EPS, help='Minimum epsilon greedy.')
+parser.add_argument('--start-eps', dest='start_eps', type=float, required=False, default=INIT_EPS, help='Starting value for exploration epsilon greedy.')
+
 parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 parser.add_argument('--iterations', dest='max_iterations', type=int, required=False, default=N_ITERATIONS)
 parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
 parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 parser.add_argument('--pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
+parser.add_argument('--problem-type', dest='problem_type', type=str, choices=['only_movement', 'move_catch', 'pick_one', 'only_green', 'green_yellow', 'all_balls', 'full'],
+                    default='full', help='Different types of problem simplification')
 parser.add_argument('--restart', dest='restart', action='store_true', help='Flag that signals that train is suppose to restart from a previously saved point.')
 parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
 parser.add_argument('--train-only-green', dest='only_green', action='store_true', help='Flag denoting train only picking green balls')
@@ -76,7 +81,8 @@ parser.add_argument('--train-only-green-yellow', dest='only_green_yellow', actio
 parser.add_argument('--train-all-balls', dest='use_all_balls', action='store_true', help='Flag denoting train picking all balls and no identification')
 parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999, help='Initial value for the annealing temperature.')
 parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
-
+parser.add_argument('--checkpoint-freq', dest='checkpoint_freq', type=int, required=False, default=10,
+						help='Number of epochs between each model train checkpointing.')
 
 input_args = parser.parse_args()
 add_method = input_args.buffer_method
@@ -88,10 +94,13 @@ curriculum_path = input_args.curriculum_model
 data_logs = input_args.data_logs
 eps_type = input_args.eps_type
 eps_decay = input_args.eps_decay
+start_eps = input_args.start_eps
+final_eps = input_args.final_eps
 logs_dir = input_args.logs_dir
 models_dir = input_args.models_dir
 n_iterations = input_args.max_iterations
 pick_all = input_args.has_pick_all
+problem_type = input_args.problem_type
 restart = input_args.restart
 smart_add = input_args.buffer_smart_add
 train_only_movement = input_args.only_movement
@@ -101,14 +110,14 @@ train_all_balls = input_args.use_all_balls
 temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 warmup = input_args.warmup
-
+checkpoint_freq = input_args.checkpoint_freq
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
 		"--game-levels %s --max-env-steps %d --field-size %d %d --version %d "
 		"--tensorboardDetails %s %d %d %s"
 		% (N_AGENTS, ARCHITECTURE, buffer_size, GAMMA,  																						# DQN parameters
-		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, INIT_EPS, FINAL_EPS, eps_decay, eps_type, warmup, CYCLE_EPS,  		# Train parameters
+		   n_iterations, BATCH_SIZE, TRAIN_FREQ, TARGET_FREQ, ALPHA, TAU, start_eps, final_eps, eps_decay, eps_type, warmup, CYCLE_EPS,  		# Train parameters
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  															# Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
@@ -119,7 +128,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
 		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) +
 		 (" --has-pick-all" if pick_all else "") + (" --anneal-decay %f" % temp_decay) + (" --train-only-green" if train_only_green else "") +
-		 (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else ""))
+		 (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else "") + (" --problem-type %s" % problem_type) + (" --checkpoint-freq %d" % checkpoint_freq))
 commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)

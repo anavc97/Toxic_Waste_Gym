@@ -18,7 +18,7 @@ import traceback
 from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_model_madqn import CentralizedMADQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
-from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions
+from env.toxic_waste_env_v2 import ToxicWasteEnvV2, Actions, ProblemType
 from env.astro_greedy_agent import GreedyAgent
 from pathlib import Path
 from itertools import product
@@ -72,7 +72,7 @@ def model_execution(dqn_model: DQNetwork, eps: float, greedy_actions: bool, n_ag
 	if rng_gen.random() < eps:
 		actions = waste_env.action_space.sample()
 	else:
-		q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)))[0]
+		q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)), rngs={"dropout": jax.random.PRNGKey(42)})[0]
 		
 		if greedy_actions:
 			action = q_values.argmax(axis=-1)
@@ -265,6 +265,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	if waste_env.use_render:
 		waste_env.render()
 	
+	logger.info("Model obs: " + str(v2_obs[0].shape) + str(v2_obs[1].shape))
+
 	start_time = time.time()
 	epoch = 0
 	start_record_it = cycle * num_iterations
@@ -299,9 +301,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
 
-			if only_move:
+			'''if only_move:
 				# rewards = np.zeros(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
-				rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)
+				rewards = FINISH_REWARD * np.ones(waste_env.n_players) if terminated else MOVE_PENALTY * np.ones(waste_env.n_players)'''
 
 			if debug_mode:
 				logger.info('Environment current state')
@@ -315,8 +317,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			episode_history += [get_history_entry(waste_env.create_observation(), actions, n_agents)]
 			step_reward = sum(rewards) / waste_env.n_players
 			episode_rewards += step_reward
-			if dqn_model.use_summary:
-				astro_model.madqn.summary_writer.add_scalar("charts/performance/reward", step_reward, epoch)
+			if astro_model.use_tracker:
+				astro_model.performance_tracker.log({"charts/reward": step_reward}, step=(epoch + start_record_epoch))
 			
 			if terminated:
 				finished = np.ones(n_agents)
@@ -340,16 +342,19 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				avg_episode_len += [episode_len]
 				avg_episode_reward += [episode_rewards]
 				dqn_model = astro_model.madqn
-				if dqn_model.use_summary:
-					dqn_model.summary_writer.add_scalar("charts/performance/episode_q_vals", np.sum(episode_q_vals), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/performance/mean_episode_q_vals", np.mean(episode_q_vals), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/performance/episode_return", episode_rewards, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/performance/avg_episode_return", np.mean(avg_episode_reward), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/performance/episodic_length", episode_len, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/performance/avg_episode_len", np.mean(avg_episode_len), it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/control/epsilon", eps, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/control/anneal_temp", temp, it + start_record_it)
-					dqn_model.summary_writer.add_scalar("charts/control/iteration", it, it + start_record_it)
+				if astro_model.use_tracker:
+					astro_model.performance_tracker.log(data={
+					"charts/performance/episode_q_vals": np.sum(episode_q_vals),
+					"charts/performance/mean_episode_q_vals": np.mean(episode_q_vals),
+					"charts/performance/episode_return": episode_rewards,
+					"charts/performance/avg_episode_return": np.mean(avg_episode_reward),
+					"charts/performance/episodic_length": episode_len,
+					"charts/performance/avg_episode_len": np.mean(avg_episode_len),
+					"charts/control/epsilon": eps,
+					"charts/control/anneal_temp": temp,
+					"charts/control/iteration": it
+					} , step=(it + start_record_it))
+				
 				obs, *_ = waste_env.reset()
 				if waste_env.use_render:
 					waste_env.render()
@@ -360,7 +365,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				[model.reset(waste_order, dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)])) for model in agent_models]
+				[model.reset(waste_order, len(waste_order), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in agent_models]
 				if warmup_anneal:
 					warm_anneal_count -= 1
 					warmup_anneal = warm_anneal_count > 0
@@ -370,7 +375,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		temp *= anneal_cool
 		
 		if it % checkpoint_freq == 0:
-			astro_model.save_model('v2_l-%s-checkpoint' % game_level, model_path, logger)
+			astro_model.save_model('v2_%s_it_%s_checkpoint' % (game_level, it), model_path, logger)
 			with open(chkpt_file, 'w') as j_file:
 				chkt_data[game_level] = {'iteration': it, 'temp': temp}
 				json.dump(chkt_data, j_file)
@@ -427,6 +432,8 @@ def main():
 	parser.add_argument('--initial-temp', dest='init_temp', type=float, default=1.0, help='Initial value for the annealing temperature.')
 	parser.add_argument('--models-dir', dest='models_dir', type=str, default='', help='Directory to store trained models, if left blank stored in default location')
 	parser.add_argument('--logs-dir', dest='logs_dir', type=str, default='', help='Directory to store logs, if left blank stored in default location')
+	parser.add_argument('--data-dir', dest='data_dir', type=str, default='',
+						help='Directory to retrieve data regarding configs and model performances, if left blank using default location')	
 	parser.add_argument('--checkpoint-file', dest='checkpoint_file', type=str, required=False, default='', help='File with data from previous training checkpoint')
 	parser.add_argument('--buffer-smart-add', dest='buffer_smart_add', action='store_true',
 						help='Flag denoting the use of smart sample add to experience replay buffer instead of first-in first-out')
@@ -435,6 +442,9 @@ def main():
 	parser.add_argument('--use-curriculum', dest='use_curriculum', action='store_true',
 						help='Flag that signals training using previously trained models as a starting model')
 	parser.add_argument('--curriculum-model', dest='curriculum_model', type=str, default='', help='Path to model to use as a starting model to improve.')
+	parser.add_argument('--problem-type', dest='problem_type', type=str, choices=['only_movement', 'move_catch', 'pick_one', 'only_green', 'green_yellow', 'all_balls', 'full'],
+	                    help='Different types of problem simplification')
+
 	parser.add_argument('--train-only-movement', dest='only_movement', action='store_true', help='Flag denoting train only of moving in environment')
 	parser.add_argument('--has-pick-all', dest='has_pick_all', action='store_true', help='Flag denoting all green and yellow balls have to be picked before human exiting')
 
@@ -486,6 +496,7 @@ def main():
 	chkpt_file = args.checkpoint_file
 	use_curriculum = args.use_curriculum
 	curriculum_model = args.curriculum_model
+	problem_type = args.problem_type
 	only_movement = args.only_movement
 	
 	# Astro environment args
@@ -507,8 +518,9 @@ def main():
 	now = datetime.now()
 	home_dir = Path(__file__).parent.absolute().parent.absolute()
 	log_dir = Path(args.logs_dir) if args.logs_dir != '' else home_dir / 'logs'
+	data_dir = Path(args.data_dir) if args.data_dir != '' else home_dir / 'data'
 	models_dir = Path(args.models_dir) / 'models' if args.models_dir != '' else home_dir / 'models'
-	configs_dir = Path(__file__).parent.absolute() / 'env' / 'data' / 'configs'
+	configs_dir = data_dir / 'configs'
 	model_path = models_dir / 'astro_disposal_dqn' / now.strftime("%Y%m%d-%H%M%S")
 	rng_gen = np.random.default_rng(RNG_SEED)
 	
@@ -528,6 +540,22 @@ def main():
 			print('Attempt at using curriculum learning but doesn\'t supply a model to use as a starting point')
 			return
 	
+	only_movement = True if problem_type == "only_movement" else False
+	if problem_type == "only_movement":
+		problem_code = ProblemType.ONLY_MOVE
+	elif problem_type == "move_catch":
+		problem_code = ProblemType.MOVE_CATCH
+	elif problem_type == "pick_one":
+		problem_code = ProblemType.PICK_ONE
+	elif problem_type == "only_green":
+		problem_code = ProblemType.ONLY_GREEN
+	elif problem_type == "green_yellow":
+		problem_code = ProblemType.GREEN_YELLOW
+	elif problem_type == "all_balls":
+		problem_code = ProblemType.BALLS_ONLY
+	else:
+		problem_code = ProblemType.FULL
+	
 	with open(configs_dir / 'q_network_architectures.yaml') as architecture_file:
 		arch_data = yaml.safe_load(architecture_file)
 		if architecture in arch_data.keys():
@@ -542,7 +570,7 @@ def main():
 			pool_padding = arch_data[architecture]['pool_padding']
 			cnn_properties = [n_conv_layers, cnn_size, cnn_kernel, cnn_strides, pool_window, pool_strides, pool_padding]
 	
-	wandb.init(project='astro-toxic-waste', entity='miguel-faria',
+	run = wandb.init(project='trustat-toxic-waste', entity='ana-v-carrasco97-inesc-id',
 			   config={
 					   "agent_type": "joint_policy",
 					   "env_version": "v1" if env_version == 1 else "v2",
@@ -559,7 +587,8 @@ def main():
 					   "batch_size": batch_size,
 					   "online_frequency": train_freq,
 					   "target_frequency": target_freq,
-					   "architecture": architecture
+					   "architecture": architecture,
+					   "problem":		problem_type
 			   },
 			   dir=tensorboard_details[0],
 			   name=('joint_policy_' + now.strftime("%Y%m%d-%H%M%S")),
@@ -590,11 +619,11 @@ def main():
 			logger.info('#######################################')
 			logger.info('Level %s setup' % game_level)
 			if env_version == 1:
-				env = ToxicWasteEnvV1(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
+				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
 									  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
 			else:
-				env = ToxicWasteEnvV2(field_size, game_levels[0], n_agents, n_objects, max_episode_steps, RNG_SEED, facing, centered_obs, render_mode,
-									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all)
+				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode,
+									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all, problem_type=problem_code)
 			
 			obs, *_ = env.reset(seed=RNG_SEED)
 			
@@ -628,7 +657,7 @@ def main():
 				curriculum_model = 'v2_l-%s-checkpoint_ctce.model' % game_level
 			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
 			                             env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
-			                             use_tracker=use_tensorboard, tensorboard_data=tensorboard_details, cnn_properties=cnn_properties,
+			                             use_tracker=use_tensorboard,tracker=run, cnn_properties=cnn_properties,
 			                             buffer_data=(args.buffer_smart_add, args.buffer_method))
 			if env_version == 1:
 				train_astro_model(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate,
