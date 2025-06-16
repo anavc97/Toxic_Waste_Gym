@@ -196,9 +196,9 @@ class GreedyAgent(object):
 	
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
-		# print('Problem type: ', problem_type)
-		# print('Agent HUMAN has plan ' + self._plan)
-		# print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
+		#print('Problem type: ', problem_type)
+		#print('Agent HUMAN has plan ' + self._plan)
+		#print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
 
 		if (only_movement or n_waste_left <= 0 or
 				(problem_type == 'pick_one' and any([obj.hold_state == WasteStatus.DISPOSED for obj in objs]))):
@@ -317,7 +317,8 @@ class GreedyAgent(object):
 			self._plan = 'disposal'
 			if abs(self.distance(self._pos, human_pos)) == 1:
 				if self.are_facing(human_or, self._orientation):
-					return int(Actions.INTERACT)
+					#return int(Actions.INTERACT)
+					return int(Actions.STAY)
 				else:
 					return int(self.move_to_position(human_pos))
 			

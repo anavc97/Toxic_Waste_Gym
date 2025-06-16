@@ -23,6 +23,8 @@ ROOM_CLEAN = 0
 PICK_REWARD = 0
 ADJ_REWARD = 0.0
 IDENTIFY_REWARD = 0.0
+picked_balls = 0
+disposed_balls = 0
 
 
 class Actions(IntEnum):
@@ -214,7 +216,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def add_object(self, position: Tuple[int, int], obj_id: str = 'ball', points: int = 1, time_penalty: float = 1, waste_type: int = WasteType.GREEN) -> bool:
 		
 		if self._n_objects < self._max_objects:
-			is_identified = False if self._problem_type == ProblemType.FULL else True
+			#is_identified = False if self._problem_type == ProblemType.FULL else True
+			is_identified = True
 			self._objects.append(WasteStateV2(position, obj_id, points=points, time_penalty=time_penalty, identified=is_identified, waste_type=waste_type))
 			self._n_objects += 1
 			return True
@@ -340,8 +343,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def is_game_finished(self) -> bool:
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
+		remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
+		if self._problem_type == ProblemType.FULL:
+			return not remain_balls
 		if self._collect_all:
-			remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
 			if self._problem_type == ProblemType.ONLY_GREEN:
 				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
 			elif self._problem_type == ProblemType.BALLS_ONLY: # catch all balls
@@ -411,6 +416,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		env_log += 'Current timestep: %d\nGame is finished: %r\n' % (self._current_step, self.is_game_finished())
 		env_log += 'Game has timed out: %r\nTime left: %f' % (self.is_game_timedout(), self.get_time_left())
+		env_log += '\nBalls Picked: %r\nBalls Disposed: %r' % (picked_balls, disposed_balls)
 		
 		return env_log
 	
@@ -431,7 +437,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		env_log += 'Field layout: %s\n' % str(field)
 		env_log += 'Current timestep: %d\nGame is finished: %r\n' % (self._current_step, self.is_game_finished())
 		env_log += 'Game has timed out: %r\nTime left: %f' % (self.is_game_timedout(), self.get_time_left())
-		
+		env_log += '\nBalls Picked: %r\nBalls Disposed: %r' % (picked_balls, disposed_balls)
+
 		return env_log
 	
 	def make_obs_grid(self) -> Union[np.ndarray, List]:
@@ -509,17 +516,28 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			green_layer = np.zeros(layers_size, dtype=np.int32)
 			yellow_layer = np.zeros(layers_size, dtype=np.int32)
 			red_layer = np.zeros(layers_size, dtype=np.int32)
+			up_layer = np.zeros(layers_size, dtype=np.int32)
+			down_layer = np.zeros(layers_size, dtype=np.int32)
+			left_layer = np.zeros(layers_size, dtype=np.int32)
+			right_layer = np.zeros(layers_size, dtype=np.int32)
 			occupancy_layer = np.ones(layers_size, dtype=np.int32)
 			acting_layer = np.zeros((self._n_players, *layers_size), dtype=np.int32)
 			
 			for agent_idx in range(self._n_players):
 				pos = self._players[agent_idx].position
+				orient = self._players[agent_idx].orientation
 				if self._players[agent_idx].agent_type == AgentType.HUMAN:
 					human_layer[pos[0], pos[1]] = 1
 				else:
 					robot_layer[pos[0], pos[1]] = 1
 				occupancy_layer[pos[0], pos[1]] = 0
 				acting_layer[agent_idx, pos[0], pos[1]] = 1
+								#orientation
+				if orient == (-1,0): up_layer[pos[0], pos[1]] = 1
+				elif orient == (1,0): down_layer[pos[0], pos[1]] = 1
+				elif orient == (0,-1): left_layer[pos[0], pos[1]] = 1
+				elif orient == (0,1): right_layer[pos[0], pos[1]] = 1
+			 
 			
 			for obj in self._objects:
 				pos = obj.position
@@ -541,16 +559,16 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			if self._dict_obs:
 				if self._joint_obs:
-					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
+					return [{'conv': np.stack([robot_layer, human_layer, up_layer, down_layer, left_layer, right_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), 'array': np.array(time_left)}]
 				else:
-					return [{'conv': np.stack([robot_layer, human_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+					return [{'conv': np.stack([robot_layer, human_layer, up_layer, down_layer, left_layer, right_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
 					         'array': np.array(time_left)}
 					        for idx in range(self._n_players)]
 			else:
 				if self._joint_obs:
-					return np.array([np.stack([robot_layer, human_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
+					return np.array([np.stack([robot_layer, human_layer, up_layer, down_layer, left_layer, right_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer]), np.array(time_left)], dtype=object)
 				else:
-					return np.array([np.array([np.stack([robot_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
+					return np.array([np.array([np.stack([robot_layer, human_layer, up_layer, down_layer, left_layer, right_layer, balls_layer, green_layer, yellow_layer, red_layer, occupancy_layer, acting_layer[idx]]),
 					                           np.array(time_left)],
 					                          dtype=object)
 					                 for idx in range(self._n_players)])
@@ -592,6 +610,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def execute_transitions(self, actions: List[int]) -> Tuple[List[int], List[float]]:
 		
+		global disposed_balls, picked_balls
 		self._current_step += 1
 		old_positions = []
 		bonus_pts = [0] * self.n_players
@@ -654,6 +673,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							# waste_disposed[acting_player.id] = place_obj.points
 							waste_disposed[acting_player.id] = self._reward_space['deliver'] + place_obj.points
 							waste_disposed[adjacent_agent.id] = self._reward_space['deliver'] + place_obj.points
+							disposed_balls +=1
 							self._score += place_obj.points
 					else:
 						# Drop object to the field
@@ -675,6 +695,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 								pick_obj.holding_player = acting_player
 								pick_obj.identified = True
 								acting_player.hold_object(pick_obj)
+								picked_balls += 1
 								if not pick_obj.was_picked:
 									acting_player.reward += self._reward_space['pick']
 									bonus_pts[agent_idx] += self._reward_space['pick']

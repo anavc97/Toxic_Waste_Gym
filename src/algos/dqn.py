@@ -17,6 +17,11 @@ from pathlib import Path
 from termcolor import colored
 from functools import partial
 from jax import jit
+from jax.tree_util import tree_flatten
+
+def grad_global_norm(grads):
+    leaves, _ = tree_flatten(grads)
+    return jnp.sqrt(sum([jnp.sum(jnp.square(g)) for g in leaves if g is not None]))
 
 EPS_TYPE = {'linear': 1, 'exp': 2, 'log': 3, 'epoch': 4}
 
@@ -78,6 +83,8 @@ class DQNetwork(object):
                                                                 cnn_kernel=cnn_kernel, pool_window=pool_window, cnn_strides=cnn_strides,
                                                                 pool_strides=pool_strides, pool_padding=pool_padding)
                 else:
+                    print("pool window:", pool_window, flush=True)
+                    print("pool stride:", pool_strides, flush=True)
                     self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, layer_sizes=layer_sizes.copy(),
                                                         num_conv_layers=num_conv_layers, activation_function=act_function, cnn_size=cnn_size,
                                                         cnn_kernel=cnn_kernel, cnn_strides=cnn_strides, pool_window=pool_window,
@@ -166,19 +173,19 @@ class DQNetwork(object):
             if file_path == '':
                 self._online_state = TrainState.create(
                     apply_fn=self._q_network.apply,
-                    params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
-                            else self._q_network.init(q_key, jnp.empty(obs.shape))),
+                    params=(self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
+                            else self._q_network.init(q_key, jnp.zeros(obs.shape))),
                     tx=optax.adam(learning_rate=optim_learn_rate),
                 )
             else:
                 template = TrainState.create(apply_fn=self._q_network.apply,
-                                             params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
-                                                     else self._q_network.init(q_key, jnp.empty(obs.shape))),
+                                             params=(self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
+                                                     else self._q_network.init(q_key, jnp.zeros(obs.shape))),
                                              tx=optax.adam(learning_rate=optim_learn_rate))
                 with open(file_path, "rb") as f:
                     self._online_state = flax.serialization.from_bytes(template, f.read())
         if self._target_state_params is None:
-            self._target_state_params = (self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
+            self._target_state_params = (self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
                                          else self._q_network.init(q_key, jnp.empty(obs.shape)))
             update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params, 1.0)
             self._target_state_params = flax.core.freeze(update_target_state_params)
@@ -263,6 +270,12 @@ class DQNetwork(object):
             # print('update_online_model: ', next_q_value.shape, observations[0].shape, observations[1].shape, actions.shape)
             
             (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
+            grad_norm = grad_global_norm(grads)
+            print(f"Gradient L2 Norm: {grad_norm}", flush=True)
+            if jnp.isnan(grad_norm) or jnp.isinf(grad_norm):
+                print("Warning: Exploding gradients detected!", flush=True)
+            elif grad_norm < 1e-5:
+                print("Warning: Vanishing gradients detected!", flush=True)
             self._online_state = q_state.apply_gradients(grads=grads)
        
         elif self._use_ddqn:

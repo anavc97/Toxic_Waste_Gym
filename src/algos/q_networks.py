@@ -3,6 +3,9 @@
 import flax.linen as nn
 import jax.numpy as jnp
 from typing import Callable, List, Tuple
+import time
+from flax.linen.initializers import constant
+
 
 class QNetwork(nn.Module):
 	action_dim: int
@@ -91,21 +94,33 @@ class DuelingQNetworkV2(nn.Module):
 	
 	@nn.compact
 	def __call__(self, x_conv: jnp.ndarray, x_arr: jnp.ndarray):
-		print("# q_network: ", self.training)
 		if len(x_arr.shape) < 1:
 			x_arr = x_arr.reshape((1, 1))
 		x = x_conv
+
 		for i in range(self.num_conv_layers):
-			x = self.activation_function(nn.Conv(self.cnn_size[i], kernel_size=self.cnn_kernel[i], strides=self.cnn_strides[i])(x))
+			x = nn.Conv(self.cnn_size[i], kernel_size=self.cnn_kernel[i], strides=self.cnn_strides[i])(x)
+			x = self.activation_function(x)
 			x = nn.max_pool(x, window_shape=self.pool_window[i], strides=(self.pool_strides[i], ) * len(self.pool_window[i]))
 		x = jnp.hstack([x.reshape((x.shape[0], -1)), x_arr])
 		for i in range(self.num_layers):
 			a = nn.Dense(self.layer_sizes[i])(x)
 			b = nn.Dropout(rate=0.3, deterministic=not self.training)(a)
 			x = self.activation_function(b)
-		a = nn.Dense(self.action_dim)(x)
-		v = nn.Dense(1)(x)
-		return v + (a - a.mean())
+			
+		a = nn.Dense(
+			self.action_dim,
+			kernel_init=nn.initializers.variance_scaling(1.0, 'fan_in', 'truncated_normal'),
+			bias_init=constant(1.0)  # or try 0.1
+		)(x)
+
+		v = nn.Dense(
+			1,
+			kernel_init=nn.initializers.variance_scaling(1.0, 'fan_in', 'truncated_normal'),
+			bias_init=constant(1.0)  # same here
+		)(x)
+		output = v + (a - a.mean())
+		return output
 
 
 class MultiObsCNNDuelingQNetwork(nn.Module):

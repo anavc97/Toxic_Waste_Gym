@@ -6,9 +6,9 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gres=gpu:1
+#SBATCH --gres=shard:24
 #SBATCH --time=120:00:00
-#SBATCH --mem=50G
+#SBATCH --mem=20G
 #SBATCH --qos=gpu-medium
 #SBATCH --output=/home/users/acarrasco/projects/toxic_waste/logs/"job-%x-%j.out"
 date;hostname;pwd
@@ -27,10 +27,10 @@ if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   python "$script_path"/run_train_toxic_central_model.py --data-logs /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --logs-dir /mnt/scratch-artemis/miguelfaria/logs/toxic_waste --models-dir /mnt/data-artemis/miguelfaria/toxic_waste --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 6000 --eps-type linear --eps-decay 0.5 --buffer-size 10000 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
 elif [ "$HOSTNAME" = "nexus1" ] || [ "$HOSTNAME" = "nexus2" ] || [ "$HOSTNAME" = "nexus3" ] || [ "$HOSTNAME" = "nexus4" ]; then
   source "$HOME"/python_envs/toxic_waste_env/bin/activate
-  python "$script_path"/run_train_toxic_central_model.py --data-logs /home/users/acarrasco/projects/toxic_waste/logs --models-dir /home/users/acarrasco/projects/toxic_waste/models --buffer-method uniform --initial-temp 0.0 --problem-type only_movement --iterations 2010 --eps-type linear --start-eps 0.9 --final-eps 0.1 --eps-decay 0.5 --buffer-size 250000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
+  python "$script_path"/run_train_toxic_central_model.py --data-logs /home/users/acarrasco/projects/toxic_waste/logs --models-dir /home/users/acarrasco/projects/toxic_waste/models --problem-type full --buffer-method uniform --initial-temp 1.0 --iterations 10000 --eps-type linear --start-eps 0.5 --final-eps 0.1 --eps-decay 0.6 --buffer-size 10000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
 
 else
-  python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 0.0 --only-movement --iterations 10 --eps-type linear --eps-decay 0.2 --buffer-size 10000
+  python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 1.0 --iterations 1000 --eps-type linear --eps-decay 0.2 --buffer-size 10000
 fi
 
 source "$HOME"/miniconda3/bin/deactivate
