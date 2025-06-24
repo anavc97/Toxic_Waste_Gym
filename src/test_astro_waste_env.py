@@ -37,6 +37,7 @@ parser.add_argument('--gamma', dest='gamma', type=float, required=False, default
 parser.add_argument('--model-name', dest='model_name', type=str, required=True, help='Name of model to load')
 parser.add_argument('--problem-type', dest='problem_type', type=str, required=True, help='Problem Type (Folder) for model to load')
 parser.add_argument('--iteration', dest='it', type=int, required=False, help='Iteration of model checkpoint to load')
+parser.add_argument('--greedy', dest='greedy',  action='store_true', help='Agent models are greedy')
 args = parser.parse_args()
 
 problem_type = args.problem_type
@@ -69,7 +70,7 @@ def main():
 	facing = False
 	layer_obs = True
 	centered_obs = True
-	use_render = True
+	use_render = False
 	rng_gen = np.random.default_rng(RNG_SEED)
 	agent_models = []
 	data_dir = data_dir = Path(__file__).parent.absolute().parent.absolute() / 'data'
@@ -103,7 +104,7 @@ def main():
 	file_handler.setLevel(logging.INFO)
 	logger.addHandler(file_handler)
 	
-	env.render()
+	#env.render()
 	obs, *_ = env.reset(seed=RNG_SEED)
 	print(env.get_env_log())
 	model_obs = get_model_obs(obs[0])	
@@ -111,17 +112,21 @@ def main():
 	obs_shape = (model_obs[0].shape ,model_obs[1].shape)
 	action_dim = env.action_space[0].n	
 	training = False
-	astro_dqn = DQNetwork(action_dim, n_layers, nn.relu, layer_sizes, gamma, training=False, cnn_layer=True, dueling_dqn=True, use_ddqn=True, cnn_properties=cnn_properties)
-	#print("params agent:", action_dim, n_layers, nn.relu, layer_sizes, gamma, True, True, True, True, cnn_properties)
-	astro_dqn.load_model_v2(astro_model_filename, models_dir, logger, obs_shape)
-	human_dqn = DQNetwork(action_dim, n_layers, nn.relu, layer_sizes, gamma, training=False, cnn_layer=True,dueling_dqn=True, use_ddqn=True, cnn_properties=cnn_properties)
-	#print("params agent2:", action_dim, n_layers, nn.relu, layer_sizes, gamma, True, True, True, True, cnn_properties)
-	
-	human_dqn.load_model_v2(human_model_filename, models_dir, logger, obs_shape)
-	
+	if args.greedy:
+		for player in env.players:
+				agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
+													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
+													env.door_pos, agent_type=player.agent_type))
+	else:
+		astro_dqn = DQNetwork(action_dim, n_layers, nn.relu, layer_sizes, gamma, training=False, cnn_layer=True, dueling_dqn=True, use_ddqn=True, cnn_properties=cnn_properties)
+		astro_dqn.load_model_v2(astro_model_filename, models_dir, logger, obs_shape)
+		human_dqn = DQNetwork(action_dim, n_layers, nn.relu, layer_sizes, gamma, training=False, cnn_layer=True,dueling_dqn=True, use_ddqn=True, cnn_properties=cnn_properties)	
+		human_dqn.load_model_v2(human_model_filename, models_dir, logger, obs_shape)
+		agent_models.append(human_dqn)
+		agent_models.append(astro_dqn)
+
 	successes = 0
-	agent_models.append(human_dqn)
-	agent_models.append(astro_dqn)
+
 	state, *_ = env.reset(seed=RNG_SEED)
 	env.seed(RNG_SEED)
 	np.random.seed(RNG_SEED)
@@ -156,7 +161,7 @@ def main():
 			next_obs, rewards, finished, timeout, info = env.step(actions)
 			logger.info(f'Rewards: {rewards}')
 			obs = next_obs
-			env.render()
+			#env.render()
 			epoch += 1
 			print(finished, timeout)
 			# print(env.get_filled_field())
