@@ -14,7 +14,9 @@ import yaml
 import logging
 import json
 import traceback
-
+import math
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 from algos.dqn import EPS_TYPE, DQNetwork
 from algos.single_model_madqn import CentralizedMADQN
 from env.toxic_waste_env_v1 import ToxicWasteEnvV1
@@ -25,12 +27,13 @@ from itertools import product
 from typing import List, Union, Dict, Tuple
 from datetime import datetime
 from itertools import permutations
+import copy
 
 
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
 INTERACTIVE_SESSION = False
-ANNEAL_DECAY = 0.999
+ANNEAL_DECAY = 0.9999
 RESTART_WARMUP = 5
 MOVE_PENALTY = -1
 FINISH_REWARD = 100
@@ -84,20 +87,20 @@ def input_callback(env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], stop_flag: thre
 
 def model_execution(dqn_model: DQNetwork, eps: float, greedy_actions: bool, n_agents: int, n_joint_actions: int, v2_obs: Tuple, rng_gen: np.random.Generator,
 					waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], episode_q_vals: List, logger: logging.Logger) -> List[int]:
-
 	if rng_gen.random() < eps:
-		logger.info('Random action. Current eps: %s' % str(eps))
 		actions = waste_env.action_space.sample()
+		logger.info('Random actions:%s. Current eps: %s' % (str(actions), str(eps)))
 	else:
-		logger.info('Model action. Current eps: %s' % str(eps))
 		q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)), rngs={"dropout": jax.random.PRNGKey(42)})[0]
-		
+		logger.info('Q values this step: %s' % str(q_values))
 		if greedy_actions:
 			action = q_values.argmax(axis=-1)
+			logger.info('Model GREEDY actions:%s. Current eps: %s' % (str(action),str(eps)))
 		else:
 			pol = np.isclose(q_values, q_values.max(), rtol=1e-10, atol=1e-10).astype(int)
 			pol = pol / pol.sum()
 			action = rng_gen.choice(range(n_joint_actions), p=pol)
+			logger.info('Model actions:%s. Current eps: %s' % (str(action),str(eps)))
 		joint_action = int(jax.device_get(action))
 		actions = convert_joint_act(joint_action, n_agents, waste_env.action_space[0].n)
 		
@@ -106,7 +109,7 @@ def model_execution(dqn_model: DQNetwork, eps: float, greedy_actions: bool, n_ag
 	return actions
 
 
-def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_agents: int, episode_q_vals: List, agent_models: List[GreedyAgent],  logger: logging.Logger, dqn_model: DQNetwork, v2_obs: Tuple, train_only_movement: bool = False) -> List[int]:
+def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_agents: int, episode_q_vals: List, agent_models: List[GreedyAgent],  logger: logging.Logger, dqn_model: DQNetwork, v2_obs: Tuple, fixed_state: Tuple, train_only_movement: bool = False) -> List[int]:
 	actions = []
 	obs = waste_env.create_observation()
 	q_values = dqn_model.q_network.apply(dqn_model.online_state.params, v2_obs[0], v2_obs[1].reshape((1, 1)), rngs={"dropout": jax.random.PRNGKey(42)})[0]
@@ -116,7 +119,7 @@ def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_ag
 
 	joint_action = get_joint_action_index(actions, n_agents, waste_env.action_space[0].n)
 	episode_q_vals.append(float(q_values[int(joint_action)]))
-	logger.info('Q values this step: %s' % str(float(q_values[int(joint_action)])))
+	if v2_obs == fixed_state: logger.info('Q values this step: %s' % str(q_values))
 
 	return actions
 
@@ -246,7 +249,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 						 start_temp: float = 1.0, checkpoint_freq: int = 10, target_freq: int = 1000, train_freq: int = 10, summary_frequency: int = 1000,
 						 greedy_actions: bool = True, cycle: int = 0, debug_mode: bool = False, interactive: bool = False, anneal_cool: float = 0.9, restart: bool = False,
 						 only_move: bool = False, curriculum_model: Union[str, Path] = '') -> List:
-	
+
 	def get_model_obs(raw_obs: Union[np.ndarray, Dict]) -> Tuple[np.ndarray, np.ndarray]:
 		conv_obs = []
 		arr_obs = []
@@ -270,7 +273,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					arr_obs += [raw_obs[idx][1:]]
 			conv_obs = np.array(conv_obs)
 			return conv_obs.reshape(1, *conv_obs.shape), np.array(arr_obs[0])
-
+	
 	history = []
 	if interactive:
 		stop_thread = threading.Event()
@@ -279,7 +282,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 	decision_rng_gen = np.random.default_rng(rng_seed)
 	anneal_rng_gen = np.random.default_rng(rng_seed + 1)
 	n_agents = waste_env.n_players
-	n_joint_actions = waste_env.action_space[0].n * waste_env.n_players
+	n_joint_actions = waste_env.action_space[0].n ** waste_env.n_players
 	
 	obs, *_ = waste_env.reset()
 	dqn_model = astro_model.madqn
@@ -295,7 +298,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		waste_env.render()
 	
 	logger.info("Model obs: " + str(v2_obs[0].shape) + str(v2_obs[1].shape))
-
+	logger.info("FIXED STATE: " + str(v2_obs))
+	fixed_state = copy.copy(v2_obs)
 	start_time = time.time()
 	epoch = 0
 	start_record_it = cycle * num_iterations
@@ -315,19 +319,19 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 		done = False
 		anneal = (anneal_rng_gen.random() < temp or warmup_anneal)
 		episode_q_vals = []
+		s_it = time.time()
 		while not done:
 			# interact with environment
 			v2_obs = get_model_obs(obs)
 			if anneal:
-				actions = heuristic_execution(waste_env, n_agents, episode_q_vals, agent_models, logger, dqn_model, v2_obs, only_move)
-				logger.info('Annealed. Current temp: %s' % str(temp))
+				actions = heuristic_execution(waste_env, n_agents, episode_q_vals, agent_models, logger, dqn_model, v2_obs, fixed_state, only_move)
+				logger.info('Annealed actions:%s. Current temp: %s' % (str(actions),str(temp)))
 
 			else:
 				if eps_type == 'epoch':
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, epoch, max_timesteps)
 				else:
 					eps = DQNetwork.eps_update(EPS_TYPE[eps_type], initial_eps, final_eps, exploration_decay, it, num_iterations)
-				
 				actions = model_execution(dqn_model, eps, greedy_actions, n_agents, n_joint_actions, v2_obs, decision_rng_gen, waste_env, episode_q_vals, logger)
 
 			next_obs, rewards, terminated, timeout, infos = waste_env.step(actions)
@@ -340,6 +344,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				logger.info('Environment current state')
 				logger.info(waste_env.get_full_env_log())
 				logger.info('Player actions: %s' % str([Actions(act).name for act in actions]))
+				#print('Player actions: %s' % str([Actions(act).name for act in actions]))
 				logger.info('Rewards: %s' % str(rewards))
 
 
@@ -364,14 +369,10 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 												np.array(actions), np.array(step_reward), finished[0], [infos])
 			else:
 				astro_model.replay_buffer.add(obs, next_obs, np.array(actions), rewards, finished[0], [infos])
-
 			astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
-
 			obs = next_obs
 			epoch += 1
-			logger.info('Q values this step: %s' % str(episode_q_vals[-1]))
-			logger.info('Sum Q Values: %s' % str(np.sum(episode_q_vals)))
-			logger.info('Mean Q Values: %s' % str(np.mean(episode_q_vals)))
+						
 			if terminated or timeout:
 				logger.info("------ End of episode ------ ")
 				episode_len = epoch - episode_start
@@ -389,12 +390,12 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					"charts/control/anneal_temp": temp,
 					"charts/control/iteration": it
 					} , step=(it + start_record_it))
-				
 				obs, *_ = waste_env.reset()
 				if waste_env.use_render:
-					waste_env.render()
+					waste_env.render()	
 				else:
 					waste_env.close_render()
+
 				episode_rewards = 0
 				episode_q_vals = []
 				episode_start = epoch
@@ -404,6 +405,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				if warmup_anneal:
 					warm_anneal_count -= 1
 					warmup_anneal = warm_anneal_count > 0
+				
 		
 		# update Q-network and target network
 		# astro_model.update_dqn_models(batch_size, epoch, start_time, target_freq, tau, summary_frequency, train_freq, warmup, waste_env.action_space[0].n)
@@ -414,6 +416,8 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 			with open(chkpt_file, 'w') as j_file:
 				chkt_data[game_level] = {'iteration': it, 'temp': temp}
 				json.dump(chkt_data, j_file)
+		
+		print("iteration time: ", (time.time()-s_it), flush=True)
 	
 	if interactive:
 		stop_thread.set()
@@ -423,7 +427,6 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 
 def main():
 	parser = argparse.ArgumentParser(description='Train DQN model for Astro waste disposal game.')
-
 	# Multi-agent DQN params
 	parser.add_argument('--nagents', dest='n_agents', type=int, required=True, help='Number of agents in the environment')
 	parser.add_argument('--architecture', dest='architecture', type=str, required=True, help='DQN architecture to use from the architectures yaml')
@@ -661,6 +664,7 @@ def main():
 				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode,
 									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all, problem_type=problem_code)
 			
+			#print("ENV: " + str(field_size) + str(game_level) + str(n_agents) + str(n_objects) + str(max_episode_steps) + str(RNG_SEED) + str(data_dir) + str(facing) + str(centered_obs) + str(render_mode) + str(has_slip) + "True" + str(use_render) + "True" + str(args.has_pick_all) + str(problem_code))
 			obs, *_ = env.reset(seed=RNG_SEED)
 			
 			logger.info('Getting human behaviour model')
@@ -704,7 +708,7 @@ def main():
 				train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate, target_update_rate, initial_eps,
 									 final_eps, eps_type, RNG_SEED, logger, checkpoint_path, game_level, chkpt_file, chkpt_data, eps_decay, warmup, start_it, start_temp,
 									 checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal,
-									 restart=args.restart_train, curriculum_model='', only_move=only_movement)
+									 restart=args.restart_train, curriculum_model='', only_move=only_movement, greedy_actions=False)
 	
 			logger.info('Saving model')
 			astro_dqn.save_model(game_level, model_path, logger)

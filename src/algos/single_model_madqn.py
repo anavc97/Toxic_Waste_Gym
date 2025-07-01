@@ -331,9 +331,12 @@ class SingleModelMADQN(object):
 							self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 					else:
 						for a_idx in range(self._n_agents):
-							self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
+							loss = self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
 																(next_obs_conv[a_idx], next_obs_array[a_idx]), rewards[a_idx], dones[a_idx],
 																epoch, start_time, tensorboard_frequency)
+						#  update tensorboard
+						if self._use_tracker:
+							self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 				
 				else:
 					observations = jnp.array([data[idx].observations for idx in range(self._n_agents)])
@@ -358,8 +361,10 @@ class SingleModelMADQN(object):
 					
 					else:
 						for a_idx in range(self._n_agents):
-							self._agent_dqn.update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
+							loss = self._agent_dqn.update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
 																dones[a_idx], epoch, start_time, tensorboard_frequency)
+						if self._use_tracker:
+							self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 			
 			if epoch % target_freq == 0:
 				self._agent_dqn.update_target_model(tau)
@@ -432,8 +437,11 @@ class CentralizedMADQN(object):
 		has_dict_space = (isinstance(observation_space, gymnasium.spaces.Dict) or
 						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
 		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
-		self._madqn = DQNetwork(action_dim ** num_agents, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
-		                        cnn_properties, use_v2=use_v2)
+		self._madqn = DQNetwork(action_dim ** 2, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
+		                        cnn_properties=cnn_properties, use_v2=use_v2)
+		
+		#print("DQN: " + str(action_dim ** 2) + str(num_layers) + str(act_function) + str(layer_sizes) + str(gamma) + str(dueling_dqn) + str(use_ddqn) + str(use_cnn) + str(use_tracker) + str(cnn_properties) + str(use_v2), flush=True)
+
 		if has_dict_space:
 			obs_space = observation_space[0] if isinstance(observation_space, gymnasium.spaces.Tuple) else observation_space
 			self._replay_buffer = buffer_type(buffer_size, obs_space, action_space, "cuda" if use_gpu else "cpu", handle_timeout_termination=handle_timeout, n_agents=num_agents,
@@ -566,7 +574,6 @@ class CentralizedMADQN(object):
 		if epoch >= warmup:
 			if epoch % train_freq == 0:
 				data = self._replay_buffer.sample(batch_size)
-				
 				if self._use_v2:
 					if isinstance(data.observations, dict):
 						obs_conv = data.observations['conv']
@@ -578,20 +585,28 @@ class CentralizedMADQN(object):
 						obs_array = data.observations[1]
 						next_obs_conv = data.next_observations[0]
 						next_obs_array = data.next_observations[1]
+					s = time.time()
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
+					#actions = jnp.array(data.actions)  # if not already
+					#actions = actions[:, 0] * n_actions + actions[:, 1]
+
+					print("actions: ", actions, flush=True)
+					print("pre-update - actions time: ", (time.time()-s), flush=True)
 					rewards = data.rewards.sum(axis=1).reshape((-1, 1))
 					dones = data.dones
 					#print('update_dqn_models: ', obs_conv.shape, obs_array.shape, actions.shape, next_obs_conv.shape, next_obs_array.shape, rewards.shape, dones.shape)
-					self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
+					loss = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
-				
 				else:
 					observations = data.observations
 					next_observations = data.next_observations
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones
-					self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+					loss = self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+				
+				if self._use_tracker:
+					self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 			
 			if epoch % target_freq == 0:
 				self.madqn.update_target_model(tau)

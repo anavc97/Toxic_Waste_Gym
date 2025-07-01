@@ -7,6 +7,7 @@ from .toxic_waste_env_v1 import ToxicWasteEnvV1
 from typing import List, Tuple, Dict, Union
 from enum import IntEnum
 from math import inf, sqrt
+import random
 
 
 SAFE_DISTANCE = 2
@@ -196,7 +197,7 @@ class GreedyAgent(object):
 	
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
-		#print('Problem type: ', problem_type)
+		#print('Wastes left: ', n_waste_left)
 		#print('Agent HUMAN has plan ' + self._plan)
 		#print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
 
@@ -309,11 +310,13 @@ class GreedyAgent(object):
 		human_pos = human_agents[0].position
 		human_or = human_agents[0].orientation
 		human_holding = (human_agents[0].held_objects is not None and len(human_agents[0].held_objects) > 0)
-		# print('Agent ASTRO has plan ' + self._plan)
+		#print('Agent ASTRO has plan ' + self._plan)
 		for idx in range(len(objs)):
 			self.waste_pos[idx] = objs[idx].position
 		
 		if human_holding:
+			if random.random() < 0.1:  # 10% chance to STAY
+				return int(Actions.STAY)
 			self._plan = 'disposal'
 			if abs(self.distance(self._pos, human_pos)) == 1:
 				if self.are_facing(human_or, self._orientation):

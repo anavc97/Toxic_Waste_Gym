@@ -8,6 +8,7 @@ import flax.linen as nn
 import numpy as np
 import optax
 import logging
+import time
 
 from algos.q_networks import QNetwork, DuelingQNetwork, CNNQNetwork, CNNDuelingQNetwork, DuelingQNetworkV2, MultiObsDuelingQNetworkV2
 from flax.training.checkpoints import save_checkpoint, restore_checkpoint
@@ -65,7 +66,7 @@ class DQNetwork(object):
                 cnn_kernel = [(3, 3), (3, 3)]
                 cnn_strides = [1, 1]
                 pool_window = [(2, 2), (2, 2)]
-                pool_strides = [2, 2]
+                pool_strides = [2, 1]
                 pool_padding = [[(1, 1), (1, 1)], [(0, 0), (0, 0)]]
             else:
                 num_conv_layers = cnn_properties[0]
@@ -83,8 +84,6 @@ class DQNetwork(object):
                                                                 cnn_kernel=cnn_kernel, pool_window=pool_window, cnn_strides=cnn_strides,
                                                                 pool_strides=pool_strides, pool_padding=pool_padding)
                 else:
-                    print("pool window:", pool_window, flush=True)
-                    print("pool stride:", pool_strides, flush=True)
                     self._q_network = DuelingQNetworkV2(action_dim=action_dim, num_layers=num_layers, layer_sizes=layer_sizes.copy(),
                                                         num_conv_layers=num_conv_layers, activation_function=act_function, cnn_size=cnn_size,
                                                         cnn_kernel=cnn_kernel, cnn_strides=cnn_strides, pool_window=pool_window,
@@ -109,6 +108,7 @@ class DQNetwork(object):
         self._use_ddqn = use_ddqn
         self._cnn_layer = cnn_layer
         self._use_v2 = use_v2
+        self._rng_key = jax.random.PRNGKey(42)
         self._q_network.apply = jax.jit(self._q_network.apply)
         self._dqn_initialized = False
 
@@ -167,8 +167,8 @@ class DQNetwork(object):
     ##       CLASS UTILS       ##
     #############################
     def init_network_states(self, rng_seed: int, obs: Union[np.ndarray, Tuple], optim_learn_rate: float, file_path: Union[str, Path] = ''):
-        key = jax.random.PRNGKey(rng_seed)
-        key, q_key = jax.random.split(key, 2)
+        rng_key = jax.random.PRNGKey(rng_seed)
+        rng_key, q_key = jax.random.split(rng_key, 2)
         if self._online_state is None:
             if file_path == '':
                 self._online_state = TrainState.create(
@@ -204,23 +204,28 @@ class DQNetwork(object):
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
         return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
     
-    def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
-        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": jax.random.PRNGKey(42)})  # get target network q values
-        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": jax.random.PRNGKey(42)})  # get online network's prescribed actions
+    def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params, rng_key) -> Union[np.ndarray, jax.Array]:
+        rng_key, key = jax.random.split(rng_key, 2)
+        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": key})  # get target network q values
+        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": key})  # get online network's prescribed actions
         online_acts = jnp.argmax(q_next_online, axis=1)
         q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
         # print('compute_v2_targets: ', q_next_target.shape, rewards.shape, dones.shape, (rewards + (1 - dones) * self._gamma * q_next_target).shape)
-        return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze()  # compute Bellman equation
+        return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze(), rng_key  # compute Bellman equation
     
     def mse_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                  next_q_value: Union[np.ndarray, jax.Array]):
-        q = self._q_network.apply(params, observations, rngs={"dropout": jax.random.PRNGKey(42)})  # get online model's q_values
+        self._rng_key, dropout_key = jax.random.split(self._rng_key, 2)
+        q = self._q_network.apply(params, observations, rngs={"dropout": dropout_key})  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
     
+    @partial(jit, static_argnums=(0,))
     def mse_loss_v2(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                      next_q_value: Union[np.ndarray, jax.Array]):
-        q = self._q_network.apply(params, observations[0], observations[1][:, None],rngs={"dropout": jax.random.PRNGKey(42)})  # get online model's q_values
+        rng_key = jax.random.PRNGKey(42)
+        rng_key, dropout_key = jax.random.split(rng_key, 2)
+        q = self._q_network.apply(params, observations[0], observations[1][:, None],rngs={"dropout": dropout_key})  # get online model's q_values
         q = q[np.arange(q.shape[0]), actions.squeeze()]
         # print('mse_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
         return ((q - next_q_value) ** 2).mean(), q  # compute loss
@@ -262,20 +267,18 @@ class DQNetwork(object):
     def update_online_model(self, observations: Union[jnp.ndarray, Tuple], actions: jnp.ndarray, next_observations: jnp.ndarray, rewards: jnp.ndarray, finished: jnp.ndarray,
                             epoch: int, start_time: float, summary_frequency: int) -> float:
         
+        observations = jax.device_put(observations)
+        actions = jax.device_put(actions)
+        next_observations = jax.device_put(next_observations)
+        rewards = jax.device_put(rewards)
+        finished = jax.device_put(finished)
+
         # perform a gradient-descent step
         if self._use_v2:
             q_state = self._online_state
             target_params = self._target_state_params
-            next_q_value = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params)
-            # print('update_online_model: ', next_q_value.shape, observations[0].shape, observations[1].shape, actions.shape)
-            
+            next_q_value, self._rng_key = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params, self._rng_key)
             (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
-            grad_norm = grad_global_norm(grads)
-            print(f"Gradient L2 Norm: {grad_norm}", flush=True)
-            if jnp.isnan(grad_norm) or jnp.isinf(grad_norm):
-                print("Warning: Exploding gradients detected!", flush=True)
-            elif grad_norm < 1e-5:
-                print("Warning: Vanishing gradients detected!", flush=True)
             self._online_state = q_state.apply_gradients(grads=grads)
        
         elif self._use_ddqn:
@@ -293,7 +296,8 @@ class DQNetwork(object):
         self._target_state_params = flax.core.freeze(update_target_state_params)
     
     def get_action(self, obs):
-        q_values = self._q_network.apply(self._q_network.variables, obs, rngs={"dropout": jax.random.PRNGKey(42)})
+        self._rng_key, key = jax.random.split(self._rng_key, 2)
+        q_values = self._q_network.apply(self._q_network.variables, obs, rngs={"dropout": key})
         actions = q_values.argmax()
         return jax.device_get(actions)
     
@@ -301,8 +305,9 @@ class DQNetwork(object):
         save_checkpoint(ckpt_dir=model_dir, target=self._online_state, step=epoch)
     
     def load_checkpoint(self, ckpt_file: Path, logger: logging.Logger, epoch: int = -1) -> None:
+        self._rng_key, q_key = jax.random.split(self._rng_key, 2)
         template = TrainState.create(apply_fn=self._q_network.apply,
-                                     params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty((1, 7))),
+                                     params=self._q_network.init(q_key, jnp.empty((1, 7))),
                                      tx=optax.adam(learning_rate=0.0001))
         if epoch < 0:
             if pathlib.Path.is_file(ckpt_file):
@@ -323,8 +328,9 @@ class DQNetwork(object):
     
     def load_model(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
         file_path = model_dir / filename
+        self._rng_key, q_key = jax.random.split(self._rng_key, 2)
         template = TrainState.create(apply_fn=self._q_network.apply,
-                                     params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape)),
+                                     params=self._q_network.init(q_key, jnp.empty(obs_shape)),
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
@@ -332,8 +338,9 @@ class DQNetwork(object):
 
     def load_model_v2(self, filename: str, model_dir: Path, logger: logging.Logger, obs_shape: tuple) -> None:
         file_path = model_dir / filename
+        self._rng_key, q_key = jax.random.split(self._rng_key, 2)
         template = TrainState.create(apply_fn=self._q_network.apply,
-                                     params=self._q_network.init(jax.random.PRNGKey(201), jnp.empty(obs_shape[0]), jnp.empty(obs_shape[1])),
+                                     params=self._q_network.init(q_key, jnp.empty(obs_shape[0]), jnp.empty(obs_shape[1])),
                                      tx=optax.adam(learning_rate=0.0001))
         with open(file_path, "rb") as f:
             self._online_state = flax.serialization.from_bytes(template, f.read())
