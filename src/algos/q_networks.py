@@ -97,27 +97,20 @@ class DuelingQNetworkV2(nn.Module):
 		if len(x_arr.shape) < 1:
 			x_arr = x_arr.reshape((1, 1))
 		x = x_conv
-		#print("Input x_conv shape:", x.shape, flush=True)
 		for i in range(self.num_conv_layers):
 			x = nn.Conv(self.cnn_size[i], kernel_size=self.cnn_kernel[i], strides=self.cnn_strides[i])(x)
-			#print(f"After Conv {i} shape:", x.shape, flush=True)
 			x = self.activation_function(x)
 			x = nn.max_pool(x, window_shape=self.pool_window[i], strides=(self.pool_strides[i], ) * len(self.pool_window[i]))
-		#print(f"After MaxPool {i} shape:", x.shape, flush=True)
 		#x = jnp.hstack([x.reshape((x.shape[0], -1)), x_arr]) ## ADDED TIME LEFT ON OBS
 		x = x.reshape((x.shape[0], -1)) ## NO TIME LEFT ON OBS
-		#print("After flatten shape:", x.shape, flush=True)
 		for i in range(self.num_layers):
 			a = nn.Dense(self.layer_sizes[i])(x)
-			#print(f"After Dense {i} shape:", a.shape, flush=True)
-			b = nn.Dropout(rate=0.3, deterministic=not self.training)(a)
-			x = self.activation_function(b)
-			#print(f"After Activation {i} shape:", x.shape, flush=True)
+			#b = nn.Dropout(rate=0.3, deterministic=not self.training)(a)
+			x = self.activation_function(a)
 			
 		a = nn.Dense(self.action_dim)(x)
 		v = nn.Dense(1)(x)
 		output = v + (a - a.mean())
-		#print("Final Q output shape:", output.shape)
 		return output
 
 

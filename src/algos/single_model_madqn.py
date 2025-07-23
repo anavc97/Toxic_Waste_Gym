@@ -331,6 +331,7 @@ class SingleModelMADQN(object):
 							self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 					else:
 						for a_idx in range(self._n_agents):
+							print("Going to update_online_model: ", a_idx, flush=True)
 							loss = self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
 																(next_obs_conv[a_idx], next_obs_array[a_idx]), rewards[a_idx], dones[a_idx],
 																epoch, start_time, tensorboard_frequency)
@@ -573,8 +574,9 @@ class CentralizedMADQN(object):
 		
 		if epoch >= warmup:
 			if epoch % train_freq == 0:
-				data = self._replay_buffer.sample(batch_size)
+				data = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
 				if self._use_v2:
+					#print("inside update_dqn_model > use_v2", flush=True)
 					if isinstance(data.observations, dict):
 						obs_conv = data.observations['conv']
 						obs_array = data.observations['array']
@@ -585,16 +587,13 @@ class CentralizedMADQN(object):
 						obs_array = data.observations[1]
 						next_obs_conv = data.next_observations[0]
 						next_obs_array = data.next_observations[1]
-					s = time.time()
-					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
-					#actions = jnp.array(data.actions)  # if not already
-					#actions = actions[:, 0] * n_actions + actions[:, 1]
 
-					print("actions: ", actions, flush=True)
-					print("pre-update - actions time: ", (time.time()-s), flush=True)
+					#actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
+					actions = jnp.array(data.actions) 
+					actions = actions[:, 0] * n_actions + actions[:, 1]
 					rewards = data.rewards.sum(axis=1).reshape((-1, 1))
 					dones = data.dones
-					#print('update_dqn_models: ', obs_conv.shape, obs_array.shape, actions.shape, next_obs_conv.shape, next_obs_array.shape, rewards.shape, dones.shape)
+
 					loss = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
 				else:

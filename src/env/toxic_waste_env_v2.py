@@ -481,6 +481,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			
 			for obj in self._objects:
 				pos = obj.position
+				if obj.hold_state == HoldState.DISPOSED: continue
 				balls_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 1
 				occupancy_layer[pos[0] + self._agent_sight, pos[1] + self._agent_sight] = 0
 				if obj.identified:
@@ -540,6 +541,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 			 
 			
 			for obj in self._objects:
+				if obj.hold_state == HoldState.DISPOSED: continue
 				pos = obj.position
 				balls_layer[pos[0], pos[1]] = 1
 				occupancy_layer[pos[0], pos[1]] = 0

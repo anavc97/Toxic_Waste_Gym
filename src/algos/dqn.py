@@ -173,19 +173,19 @@ class DQNetwork(object):
             if file_path == '':
                 self._online_state = TrainState.create(
                     apply_fn=self._q_network.apply,
-                    params=(self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
+                    params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
                             else self._q_network.init(q_key, jnp.zeros(obs.shape))),
                     tx=optax.adam(learning_rate=optim_learn_rate),
                 )
             else:
                 template = TrainState.create(apply_fn=self._q_network.apply,
-                                             params=(self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
+                                             params=(self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
                                                      else self._q_network.init(q_key, jnp.zeros(obs.shape))),
                                              tx=optax.adam(learning_rate=optim_learn_rate))
                 with open(file_path, "rb") as f:
                     self._online_state = flax.serialization.from_bytes(template, f.read())
         if self._target_state_params is None:
-            self._target_state_params = (self._q_network.init(q_key, jnp.ones(obs[0].shape)*3, jnp.ones(obs[1].shape)*3) if isinstance(obs, tuple)
+            self._target_state_params = (self._q_network.init(q_key, jnp.empty(obs[0].shape), jnp.empty(obs[1].shape)) if isinstance(obs, tuple)
                                          else self._q_network.init(q_key, jnp.empty(obs.shape)))
             update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params, 1.0)
             self._target_state_params = flax.core.freeze(update_target_state_params)
@@ -193,42 +193,59 @@ class DQNetwork(object):
         self._dqn_initialized = True
     
     def compute_dqn_targets(self, dones, next_observations, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
+        #print("Doing dqn_targets", flush=True)
         q_next_target = self._q_network.apply(target_state_params, next_observations)  # get target network q values
         q_next_target = jnp.max(q_next_target, axis=-1)  # get best q_val for each obs
         return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
     
     def compute_ddqn_targets(self, dones, next_observations, q_state, rewards, target_state_params) -> Union[np.ndarray, jax.Array]:
-        q_next_target = self._q_network.apply(target_state_params, next_observations)  # get target network q values
-        q_next_online = self._q_network.apply(q_state.params, next_observations)  # get online network's prescribed actions
-        online_acts = jnp.argmax(q_next_online, axis=1)
-        q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
-        return rewards + (1 - dones) * self._gamma * q_next_target  # compute Bellman equation
+        '''
+        return y = r + gamma* Q_target(s', argmax(Q_online(s',a'))) if not done, else y = r
+        '''      
+        self._rng_key, dropout_key = jax.random.split(self._rng_key, 2)
+        q_next_target = self._q_network.apply(target_state_params, next_observations)#, rngs={"dropout": dropout_key})  # get target network q values - Q_target(all [batch size] next obs, all 36 actions)
+        q_next_online = self._q_network.apply(q_state.params, next_observations)#, rngs={"dropout": dropout_key})  # get online network's prescribed actions - Q_online(all [batch size] next obs, all 36 actions)
+        online_acts = jnp.argmax(q_next_online, axis=1) # choose highest action based on Q_online values -> ( [batch size],)
+        q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  #q_target values for the actions chosen by Q_online for each batch sample - (64,1)
+        return rewards + (1 - dones) * self._gamma * q_next_target  # if done, then only last reward, else compute Bellman equation
     
     def compute_v2_targets(self, dones, next_observations_conv, next_observations_arr, q_state, rewards, target_state_params, rng_key) -> Union[np.ndarray, jax.Array]:
+        '''
+        return y = r + gamma* Q_target(s', argmax(Q_online(s',a'))) if not done, else y = r
+        '''
         rng_key, key = jax.random.split(rng_key, 2)
-        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": key})  # get target network q values
-        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None], rngs={"dropout": key})  # get online network's prescribed actions
-        online_acts = jnp.argmax(q_next_online, axis=1)
-        q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1)  # get target's q values for prescribed actions
-        # print('compute_v2_targets: ', q_next_target.shape, rewards.shape, dones.shape, (rewards + (1 - dones) * self._gamma * q_next_target).shape)
-        return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze(), rng_key  # compute Bellman equation
+        q_next_target = self._q_network.apply(target_state_params, next_observations_conv, next_observations_arr[:, None])#, rngs={"dropout": key})  # Q_target(all [batch size] next obs, all 36 actions)
+        q_next_online = self._q_network.apply(q_state.params, next_observations_conv, next_observations_arr[:, None])#, rngs={"dropout": key})  # Q_online(all [batch size] next obs, all 36 actions)
+        online_acts = jnp.argmax(q_next_online, axis=1) # choose highest action based on Q_online values -> ( [batch size],)
+        q_next_target = q_next_target[np.arange(q_next_target.shape[0]), online_acts.squeeze()].reshape(-1, 1) #q_target values for the actions chosen by Q_online for each batch sample - (64,1)
+        q_next_target = jax.lax.stop_gradient(q_next_target)
+
+        return (rewards + (1 - dones) * self._gamma * q_next_target).squeeze(), rng_key  # if done, then only last reward, else compute Bellman equation
     
     def mse_loss(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                  next_q_value: Union[np.ndarray, jax.Array]):
+        
+        '''
+        MSE LOSS: L = (Q_online(s,a) - Q_target(s,a))² // (Q_online(s,a) - y)²
+        '''
+
         self._rng_key, dropout_key = jax.random.split(self._rng_key, 2)
-        q = self._q_network.apply(params, observations, rngs={"dropout": dropout_key})  # get online model's q_values
-        q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1)
-        return ((q - next_q_value) ** 2).mean(), q  # compute loss
+        q = self._q_network.apply(params, observations)#, rngs={"dropout": dropout_key})  # Q_online(s,a) for all the actions in the batch
+        q = q[np.arange(q.shape[0]), actions.squeeze()].reshape(-1, 1) # getting a sequence of only the q_values of the actions taken for each observation
+        return ((q - next_q_value) ** 2).mean(), q  # compute L (mean over all of the batch size) - loss: [batch_size, 1] -> loss.mean(): scalar
     
     @partial(jit, static_argnums=(0,))
     def mse_loss_v2(self, params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array], actions: Union[np.ndarray, jax.Array],
                      next_q_value: Union[np.ndarray, jax.Array]):
-        rng_key = jax.random.PRNGKey(42)
-        rng_key, dropout_key = jax.random.split(rng_key, 2)
-        q = self._q_network.apply(params, observations[0], observations[1][:, None],rngs={"dropout": dropout_key})  # get online model's q_values
-        q = q[np.arange(q.shape[0]), actions.squeeze()]
-        # print('mse_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape)
-        return ((q - next_q_value) ** 2).mean(), q  # compute loss
+        '''
+        MSE LOSS: L = (Q_online(s,a) - Q_target(s,a))² // (Q_online(s,a) - y)²
+        '''
+        #rng_key, dropout_key = jax.random.split(rng_key, 2)
+        q = self._q_network.apply(params, observations[0], observations[1][:, None])#,rngs={"dropout": dropout_key})  # Q_online(s,a) for all the actions in the batch
+        q = q[np.arange(q.shape[0]), actions.squeeze()] #q_online values for the actions chosen by Q_online for each batch sample - (64,1)
+        #print('mse_loss: ', q.shape, next_q_value.shape, ((q - next_q_value) ** 2).shape, flush=True)
+        target = jax.lax.stop_gradient(next_q_value)  # ← stop gradients
+        return ((q - target) ** 2).mean(), q  # compute loss
     
     @partial(jit, static_argnums=(0,))
     def compute_dqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
@@ -244,9 +261,10 @@ class DQNetwork(object):
     def compute_ddqn_loss(self, q_state: TrainState, target_state_params: flax.core.FrozenDict, observations: Union[np.ndarray, jax.Array],
                           actions: Union[np.ndarray, jax.Array], next_observations: Union[np.ndarray, jax.Array], rewards: Union[np.ndarray, jax.Array],
                           dones: Union[np.ndarray, jax.Array]):
-        next_q_value = self.compute_ddqn_targets(dones, next_observations, q_state, rewards, target_state_params)
+
+        next_q_value = self.compute_ddqn_targets(dones, next_observations, q_state, rewards, target_state_params)  #computing bellman targets: Q_target(s,a)/y
         
-        (loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value)
+        (loss_value, q_pred), grads = jax.value_and_grad(self.mse_loss, has_aux=True)(q_state.params, observations, actions, next_q_value) # Computes the loss L -> next_q_value = y, q_state.params = Q_online(s,a)
         new_q_state = q_state.apply_gradients(grads=grads)
         return loss_value, q_pred, new_q_state
     
@@ -275,11 +293,12 @@ class DQNetwork(object):
 
         # perform a gradient-descent step
         if self._use_v2:
+            #print("inside update_ONLINE_model > use_v2", flush=True)
             q_state = self._online_state
             target_params = self._target_state_params
-            next_q_value, self._rng_key = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params, self._rng_key)
-            (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value)
-            self._online_state = q_state.apply_gradients(grads=grads)
+            next_q_value, self._rng_key = self.compute_v2_targets(finished, next_observations[0], next_observations[1], q_state, rewards, target_params, self._rng_key) #compute targets Q_target(s,a)
+            (td_loss, q_val), grads = jax.value_and_grad(self.mse_loss_v2, has_aux=True)(q_state.params, observations, actions, next_q_value) #compute MSE loss for Q_online(s,a) - Q_target(s,a)
+            self._online_state = q_state.apply_gradients(grads=grads) #Apply gradient of loss
        
         elif self._use_ddqn:
             td_loss, q_val, self._online_state = self.compute_ddqn_loss(self._online_state, self._target_state_params, observations, actions,
@@ -292,12 +311,12 @@ class DQNetwork(object):
         return float(td_loss)
     
     def update_target_model(self, tau: float):
-        update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params.unfreeze(), tau)
-        self._target_state_params = flax.core.freeze(update_target_state_params)
+        update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params.unfreeze(), tau) # soft update to target parameters
+        self._target_state_params = flax.core.freeze(update_target_state_params) #refreezing target parameters
     
     def get_action(self, obs):
         self._rng_key, key = jax.random.split(self._rng_key, 2)
-        q_values = self._q_network.apply(self._q_network.variables, obs, rngs={"dropout": key})
+        q_values = self._q_network.apply(self._q_network.variables, obs)#, rngs={"dropout": key})
         actions = q_values.argmax()
         return jax.device_get(actions)
     
