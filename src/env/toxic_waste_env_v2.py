@@ -343,7 +343,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					continue
 	
 	def is_game_finished(self) -> bool:
-		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
+		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN]) or (any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.ROBOT]) and any([self._field[p.position[0]-1, p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])) # human at door or robot at door + human next to it
 		remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
 		if self._collect_all:
 			if self._problem_type == ProblemType.ONLY_GREEN:
