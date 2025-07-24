@@ -318,7 +318,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._field[row, col] = CellEntity.COUNTER
 					n_green += 1
 				elif cell_val == 'R':
-					points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']
+					'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
+					points = objects_data['red']['points']
 					self.add_object((row, col), objects_data['red']['ids'][n_red], points,
 					                objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 					self._field[row, col] = CellEntity.COUNTER
@@ -344,8 +345,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def is_game_finished(self) -> bool:
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
 		remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
-		if self._problem_type == ProblemType.FULL:
-			return not remain_balls
 		if self._collect_all:
 			if self._problem_type == ProblemType.ONLY_GREEN:
 				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
