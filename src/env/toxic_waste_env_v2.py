@@ -160,6 +160,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._time_penalties = 0.0
 		self._score = 0.0
 		self._door_pos = (-1, 1)
+		self._exit_pos = (1, -1)
 		self._collect_all = pick_all or problem_type == ProblemType.BALLS_ONLY
 		self._problem_type = problem_type
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
@@ -196,6 +197,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	@property
 	def door_pos(self) -> Tuple:
 		return self._door_pos
+	
+	@property
+	def exit_pos(self) -> Tuple:
+		return self._exit_pos
 	
 	@property
 	def has_pick_all(self) -> bool:
@@ -310,6 +315,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				elif cell_val == 'D':
 					self._field[row, col] = CellEntity.DOOR
 					self._door_pos = (row, col)
+				elif cell_val == 'E':
+					self._exit_pos = (row, col)
 				elif cell_val == 'G':
 					'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
 					points = objects_data['green']['points']

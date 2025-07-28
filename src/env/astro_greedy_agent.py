@@ -75,7 +75,7 @@ class GreedyAgent(object):
 	_plan: str
 	
 	def __init__(self, pos_init: Tuple[int, int], orient_init: Tuple[int, int], agent_id: str, objs_pos: Dict[int, Tuple[int, int]],
-				 rng_seed: int, field: np.ndarray, version: int, door_pos: Tuple[int, int] = (-1, -1), agent_type: int = AgentType.HUMAN):
+				 rng_seed: int, field: np.ndarray, version: int, door_pos: Tuple[int, int] = (-1, -1), exit_pos: Tuple[int, int] = (-1, -1), agent_type: int = AgentType.HUMAN):
 		
 		self._pos = pos_init
 		self._orientation = orient_init
@@ -86,6 +86,7 @@ class GreedyAgent(object):
 		self._rng_gen = np.random.default_rng(rng_seed)
 		self._version = version
 		self._door_pos = door_pos
+		self._exit_pos = exit_pos
 		self._agent_type = agent_type
 		self._plan = 'none' if agent_type == AgentType.ROBOT else 'collect'
 		
@@ -198,7 +199,7 @@ class GreedyAgent(object):
 		robot_pos = robot_agents[0].position
 		robot_or = robot_agents[0].orientation
 		#print('Wastes left: ', n_waste_left)
-		#print('Agent HUMAN has plan ' + self._plan)
+		print('Agent HUMAN has plan ' + self._plan + str(self._exit_pos))
 		#print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
 
 		if (only_movement or n_waste_left <= 0 or
@@ -310,7 +311,8 @@ class GreedyAgent(object):
 		human_pos = human_agents[0].position
 		human_or = human_agents[0].orientation
 		human_holding = (human_agents[0].held_objects is not None and len(human_agents[0].held_objects) > 0)
-		#print('Agent ASTRO has plan ' + self._plan)
+		all_wastes_disposed = all([obj.hold_state == WasteStatus.DISPOSED for obj in objs])
+		print('Agent ASTRO has plan ' + self._plan + str(self._exit_pos) + str(all_wastes_disposed))
 		for idx in range(len(objs)):
 			self.waste_pos[idx] = objs[idx].position
 		
@@ -332,6 +334,8 @@ class GreedyAgent(object):
 				return int(self.move_to_position(human_pos))
 		
 		else:
+			if all_wastes_disposed:
+				return int(self.move_to_position(self._exit_pos))
 			if self._plan == 'shadow':
 				return shadow_human()
 			
