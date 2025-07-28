@@ -557,7 +557,7 @@ def main():
 				else:
 					agent_models.append(GreedyAgent(player.position, player.orientation, player.name,
 													dict([(idx, env.objects[idx].position) for idx in range(n_objects)]), RNG_SEED, env.field, env_version,
-													env.door_pos, agent_type=player.agent_type))
+													env.door_pos, env.exit_pos, agent_type=player.agent_type))
 			
 			logger.info('Train setup')
 			waste_idx = []
