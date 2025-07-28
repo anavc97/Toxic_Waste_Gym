@@ -350,15 +350,15 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					continue
 	
 	def is_game_finished(self) -> bool:
-		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN]) or (any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.ROBOT]) and any([self._field[p.position[0]-1, p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])) # human at door or robot at door + human next to it
+		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
 		remain_balls = [obj for obj in self.objects if obj.hold_state != HoldState.DISPOSED]
 		if self._collect_all:
 			if self._problem_type == ProblemType.ONLY_GREEN:
 				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
 			elif self._problem_type == ProblemType.BALLS_ONLY: # catch all balls
-				return player_at_door and not remain_balls
+				return not remain_balls
 			else:
-				return player_at_door and all([ball.waste_type == WasteType.RED for ball in remain_balls])
+				return player_at_door and not remain_balls
 		else:
 			if self._problem_type == ProblemType.MOVE_CATCH:
 				return player_at_door and any([ball.was_picked for ball in self.objects])

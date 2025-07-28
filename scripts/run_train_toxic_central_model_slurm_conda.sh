@@ -28,7 +28,7 @@ if [ "$HOSTNAME" = "artemis" ] || [ "$HOSTNAME" = "poseidon" ] ; then
   source "$HOME"/miniconda3/bin/deactivate
 elif [ "$HOSTNAME" = "nexus1" ] || [ "$HOSTNAME" = "nexus2" ] || [ "$HOSTNAME" = "nexus3" ] || [ "$HOSTNAME" = "nexus4" ]; then
   source "$HOME"/python_envs/toxic_waste_env/bin/activate
-  python "$script_path"/run_train_toxic_central_model.py --data-logs /home/users/acarrasco/projects/toxic_waste/logs --models-dir /home/users/acarrasco/projects/toxic_waste/models --problem-type all_balls --pick-all --buffer-method uniform --initial-temp 1.0 --temp-decay 0.99 --iterations 30000 --eps-type linear --start-eps 1 --final-eps 0.1 --eps-decay 0.6 --buffer-size 100000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
+  python "$script_path"/run_train_toxic_central_model.py --data-logs /home/users/acarrasco/projects/toxic_waste/logs --models-dir /home/users/acarrasco/projects/toxic_waste/models --problem-type all_balls --pick-all --buffer-method uniform --initial-temp 1.0 --temp-decay 0.99 --iterations 30000 --eps-type linear --start-eps 1 --final-eps 0.1 --eps-decay 0.4 --buffer-size 100000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
   source deactivate
 else
   python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 1.0 --iterations 1000 --eps-type linear --eps-decay 0.2 --buffer-size 10000
