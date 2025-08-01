@@ -10,7 +10,7 @@
 #SBATCH --time=120:00:00
 #SBATCH --mem=20G
 #SBATCH --qos=gpu-medium
-#SBATCH --output=/home/users/acarrasco/projects/toxic_waste/logs/"job-%x-%j.out"
+#SBATCH --output=/home/anavc/Toxic_Waste_Gym/logs/"job-%x-%j.out"
 date;hostname;pwd
 
 if [ -n "${SLURM_JOB_ID:-}" ] ; then
@@ -18,7 +18,7 @@ if [ -n "${SLURM_JOB_ID:-}" ] ; then
 else
   script_path="$( cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 ; pwd -P )"
 fi
-
+append
 export LD_LIBRARY_PATH="/usr/lib/cuda/lib64:$LD_LIBRARY_PATH"
 export PATH="/usr/lib/cuda/bin:$PATH"
 
@@ -30,8 +30,13 @@ elif [ "$HOSTNAME" = "nexus1" ] || [ "$HOSTNAME" = "nexus2" ] || [ "$HOSTNAME" =
   source "$HOME"/python_envs/toxic_waste_env/bin/activate
   python "$script_path"/run_train_toxic_central_model.py --data-logs /home/users/acarrasco/projects/toxic_waste/logs --models-dir /home/users/acarrasco/projects/toxic_waste/models --problem-type all_balls --pick-all --buffer-method uniform --initial-temp 1.0 --temp-decay 0.99 --iterations 30000 --eps-type linear --start-eps 1 --final-eps 0.1 --eps-decay 0.4 --buffer-size 100000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
   source deactivate
+elif [ "$HOSTNAME" = "a01" ] || [ "$HOSTNAME" = "a02" ] || [ "$HOSTNAME" = "a03" ]
+  source "$HOME"/python_envs/toxic_waste_env/bin/activate
+  python3 "$script_path"/run_train_toxic_central_model.py --logs-dir /cfs/home/u021180/projects/toxic_waste/logs --data-logs /cfs/home/u021180/projects/toxic_waste/logs --models-dir /cfs/home/u021180/Toxic_Waste_Gym/models --problem-type full --pick-all --buffer-method uniform --initial-temp 1.0 --temp-decay 0.9999 --iterations 30000 --eps-type linear --start-eps 1 --final-eps 0.1 --eps-decay 0.8 --buffer-size 100000 --checkpoint-freq 1000 --batch-size 64 # --restart --checkpoint-file "$chkpt_dir"/v2_train_checkpoint_data.json
+  deactivate
 else
-  python "$script_path"/run_train_toxic_central_model.py --buffer-method uniform --initial-temp 1.0 --iterations 1000 --eps-type linear --eps-decay 0.2 --buffer-size 10000
+  source "$HOME"/python_envs/toxic_waste_env/bin/activate
+  python "$script_path"/run_train_toxic_central_model.py --curriculum-learning --curriculum-model-path /home/anavc/Toxic_Waste_Gym/models/astro_disposal_dqn/20250723-110325 --data-logs /home/anavc/Toxic_Waste_Gym/logs --models-dir /home/anavc/Toxic_Waste_Gym/models --problem-type all_balls --pick-all --buffer-method uniform --initial-temp 1.0 --temp-decay 0.99 --iterations 1000 --eps-type linear --start-eps 0.1 --final-eps 0.1 --eps-decay 0.4 --buffer-size 100000 --checkpoint-freq 1000 --batch-size 64
 fi
 
 date

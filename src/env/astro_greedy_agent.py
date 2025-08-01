@@ -185,10 +185,14 @@ class GreedyAgent(object):
 		self._nxt_waste_idx = -1
 		self._status = HumanStatus.HANDS_FREE
 		if pick_all:
-			self._waste_order = waste_order.copy()
+			aux = waste_order.copy()
+			random.shuffle(aux)
+			self._waste_order = aux
 		else:
 			if n_spawn_objs > 0:
-				self._waste_order = waste_order.copy()
+				aux = waste_order.copy()
+				random.shuffle(aux)
+				self._waste_order = aux
 			else:
 				self._waste_order = []
 		self._waste_pos = objs_pos.copy()
@@ -200,7 +204,7 @@ class GreedyAgent(object):
 		robot_or = robot_agents[0].orientation
 		#print('Wastes left: ', n_waste_left)
 		print('Agent HUMAN has plan ' + self._plan + str(self._exit_pos))
-		#print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
+		print('Sequence: ', self._waste_order, '\tNext waste: ', self._nxt_waste_idx)
 
 		if (only_movement or n_waste_left <= 0 or
 				(problem_type == 'pick_one' and any([obj.hold_state == WasteStatus.DISPOSED for obj in objs]))):
@@ -312,7 +316,7 @@ class GreedyAgent(object):
 		human_or = human_agents[0].orientation
 		human_holding = (human_agents[0].held_objects is not None and len(human_agents[0].held_objects) > 0)
 		all_wastes_disposed = all([obj.hold_state == WasteStatus.DISPOSED for obj in objs])
-		print('Agent ASTRO has plan ' + self._plan + str(self._exit_pos) + str(all_wastes_disposed))
+		#print('Agent ASTRO has plan ' + self._plan + str(self._exit_pos) + str(all_wastes_disposed))
 		for idx in range(len(objs)):
 			self.waste_pos[idx] = objs[idx].position
 		

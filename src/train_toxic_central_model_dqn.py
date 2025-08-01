@@ -28,7 +28,8 @@ from typing import List, Union, Dict, Tuple
 from datetime import datetime
 from itertools import permutations
 import copy
-
+from pathlib import Path
+import re
 
 RNG_SEED = 21062023
 ROBOT_NAME = 'astro'
@@ -575,15 +576,48 @@ def main():
 			start_temp = chkpt_data[game_level]['temp']
 			if args.restart_train and curriculum_model != '':
 				curriculum_model = 'v2_l-%s-checkpoint_ctce.model' % game_level
+
 			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
 			                             env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
 			                             use_tracker=use_tensorboard,tracker=run, cnn_properties=cnn_properties,
 			                             buffer_data=(args.buffer_smart_add, args.buffer_method))
-		
+			print("#######################", use_curriculum, flush=True)
+			if use_curriculum:
+
+				curriculum_path = Path(curriculum_model)
+				if not curriculum_path.exists():
+					raise FileNotFoundError(f"Curriculum folder not found: {curriculum_path}")
+				
+				# First look for {game_level}_ctce.model
+				game_level_model = curriculum_path / f"{game_level}_ctce.model"
+				if game_level_model.exists():
+					curriculum_model = game_level_model
+				else:
+					# Otherwise search checkpoints for highest iteration
+					checkpoints_folder = curriculum_path / "checkpoints"
+					if not checkpoints_folder.exists():
+						raise FileNotFoundError(f"No checkpoints found in curriculum folder: {checkpoints_folder}")
+					
+					# Regex to match the pattern and extract iteration number
+					pattern = re.compile(rf"v2_{re.escape(game_level)}_it_(\d+)_checkpoint_ctce\.model")
+					checkpoint_files = list(checkpoints_folder.glob(f"v2_{game_level}_it_*_checkpoint_ctce.model"))
+
+					if not checkpoint_files:
+						raise FileNotFoundError(f"No checkpoint files found for game level '{game_level}' in {checkpoints_folder}")
+
+					# Select the file with the highest iteration number
+					checkpoint_files.sort(key=lambda f: int(pattern.match(f.name).group(1)), reverse=True)
+					curriculum_model = checkpoint_files[0]
+				
+				print(f"Using curriculum model: {curriculum_model}")
+				exit()
+
+			else: curriculum_model = ''	
+
 			train_astro_model_v2(env, astro_dqn, agent_models, waste_order, n_iterations, max_episode_steps * n_iterations, batch_size, learn_rate, target_update_rate, initial_eps,
 									final_eps, eps_type, RNG_SEED, logger, checkpoint_path, game_level, chkpt_file, chkpt_data, eps_decay, warmup, start_it, start_temp,
 									checkpoint_freq, target_freq, train_freq, tensorboard_freq, debug_mode=debug, interactive=INTERACTIVE_SESSION, anneal_cool=decay_anneal,
-									restart=args.restart_train, curriculum_model='', only_move=only_movement, greedy_actions=False)
+									restart=args.restart_train, curriculum_model=curriculum_model, only_move=only_movement, greedy_actions=False)
 	
 			logger.info('Saving model')
 			astro_dqn.save_model(game_level, model_path, logger)
