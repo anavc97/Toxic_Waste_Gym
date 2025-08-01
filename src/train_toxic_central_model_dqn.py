@@ -120,8 +120,6 @@ def heuristic_execution(waste_env: Union[ToxicWasteEnvV1, ToxicWasteEnvV2], n_ag
 
 	joint_action = get_joint_action_index(actions, n_agents, waste_env.action_space[0].n)
 	episode_q_vals.append(float(q_values[int(joint_action)]))
-	logger.info("state: %s" % v2_obs[0])
-	logger.info('Heuristic: Q values this step:\n %s' % str(q_values))
 
 	return actions
 
@@ -283,7 +281,11 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				episode_start = epoch
 				done = True
 				history += [episode_history]
-				[model.reset(waste_order, len(waste_order), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in agent_models]
+				new_waste_order = waste_order.copy()
+				random.shuffle(new_waste_order)
+				[model.reset(new_waste_order, len(new_waste_order), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in agent_models]
+				waste_order = new_waste_order.copy()
+				for model in agent_models: logger.info('WASTE ORDER: %s' % str(model.waste_order)) 
 				if warmup_anneal:
 					warm_anneal_count -= 1
 					warmup_anneal = warm_anneal_count > 0
@@ -610,7 +612,6 @@ def main():
 					curriculum_model = checkpoint_files[0]
 				
 				print(f"Using curriculum model: {curriculum_model}")
-				exit()
 
 			else: curriculum_model = ''	
 
