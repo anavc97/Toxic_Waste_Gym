@@ -83,6 +83,7 @@ parser.add_argument('--temp-decay', dest='temp_decay', type=float, default=0.999
 parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, help='Number of steps to collect data before starting train')
 parser.add_argument('--checkpoint-freq', dest='checkpoint_freq', type=int, required=False, default=10,
 						help='Number of epochs between each model train checkpointing.')
+parser.add_argument('--rnd-waste-order', dest='rnd_waste_order', action='store_true', help='')
 
 input_args = parser.parse_args()
 add_method = input_args.buffer_method
@@ -111,6 +112,7 @@ temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 warmup = input_args.warmup
 checkpoint_freq = input_args.checkpoint_freq
+rnd_waste_order = input_args.rnd_waste_order
 
 args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d --batch %d --train-freq %d "
 		"--target-freq %d --alpha %f --tau %f --init-eps %f --final-eps %f --eps-decay %f --eps-type %s --warmup-steps %d --cycle-eps-decay %f "
@@ -121,7 +123,7 @@ args = (" --nagents %d --architecture %s --buffer %d --gamma %f --iterations %d 
 		   ' '.join(GAME_LEVEL), STEPS_EPISODE, FIELD_LENGTH, FIELD_LENGTH, VERSION,  															# Environment parameters
 		   data_logs, TENSORBOARD_DATA[1], TENSORBOARD_DATA[2], TENSORBOARD_DATA[3]))
 args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "") + (" --render" if USE_RENDER else "") + ("  --gpu" if USE_GPU else "") +
-		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "") + (" --layer-obs" if USE_CNN else "") +
+		 (" --cnn" if USE_CNN else "") + (" --tensorboard" if USE_TENSORBOARD else "")+ (" --rnd-waste-order" if rnd_waste_order else "") + (" --layer-obs" if USE_CNN else "") +
 		 (" --restart --checkpoint-file %s" % chkpt_file if restart else "") + (" --use-curriculum --curriculum-model %s" % curriculum_path if use_curriculum_learning else "") +
 		 (" --debug" if DEBUG else "") + (" --has-slip" if SLIP else "") + (" --require_facing" if FACING else "") +
 		 (" --agent-centered" if AGENT_CENTERED else "") + (" --use-encoding" if USE_ENCODING else "") + (" --fraction %f" % PRECOMP_FRAC) +

@@ -38,7 +38,7 @@ ANNEAL_DECAY = 0.9999
 RESTART_WARMUP = 5
 MOVE_PENALTY = -1
 FINISH_REWARD = 100
-
+rnd_waste_order = False
 
 def convert_joint_act(action: int, num_agents: int, n_actions: int) -> List[int]:
 	actions_map = list(product(range(n_actions), repeat=num_agents))
@@ -153,7 +153,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 					arr_obs += [raw_obs[idx][1:]]
 			conv_obs = np.array(conv_obs)
 			return conv_obs.reshape(1, *conv_obs.shape), np.array(arr_obs[0])
-	
+		
 	history = []
 	if interactive:
 		stop_thread = threading.Event()
@@ -282,7 +282,7 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 				done = True
 				history += [episode_history]
 				new_waste_order = waste_order.copy()
-				random.shuffle(new_waste_order)
+				if rnd_waste_order: random.shuffle(new_waste_order)
 				[model.reset(new_waste_order, len(new_waste_order), dict([(idx, waste_env.objects[idx].position) for idx in range(waste_env.n_objects)]), waste_env.has_pick_all) for model in agent_models]
 				waste_order = new_waste_order.copy()
 				for model in agent_models: logger.info('WASTE ORDER: %s' % str(model.waste_order)) 
@@ -309,6 +309,9 @@ def train_astro_model_v2(waste_env: ToxicWasteEnvV2, astro_model: CentralizedMAD
 
 
 def main():
+
+	global rnd_waste_order
+
 	parser = argparse.ArgumentParser(description='Train DQN model for Astro waste disposal game.')
 	# Multi-agent DQN params
 	parser.add_argument('--nagents', dest='n_agents', type=int, required=True, help='Number of agents in the environment')
@@ -382,7 +385,8 @@ def main():
 	parser.add_argument('--render', dest='use_render', action='store_true', help='Flag signaling the use of a render')
 	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
 						help='List of render modes for the environment')
-	
+	parser.add_argument('--rnd-waste-order', dest='rnd_waste_order', action='store_true', help='')
+
 	args = parser.parse_args()
 	# DQN args
 	n_agents = args.n_agents
@@ -396,7 +400,8 @@ def main():
 	use_tensorboard = args.use_tensorboard
 	# [log_dir: str, queue_size: int, flush_interval: int, filename_suffix: str]
 	tensorboard_details = args.tensorboard_details
-	
+	rnd_waste_order = args.rnd_waste_order
+
 	# Train args
 	n_iterations = args.n_iterations
 	batch_size = args.batch_size
