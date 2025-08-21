@@ -298,6 +298,7 @@ class SingleModelMADQN(object):
 			if epoch % train_freq == 0:
 				data = self._replay_buffer.sample(batch_size)
 				
+				
 				if self._use_v2:
 					obs_conv = []
 					obs_array = []
@@ -441,9 +442,7 @@ class CentralizedMADQN(object):
 		now = datetime.now()
 		has_dict_space = (isinstance(observation_space, gymnasium.spaces.Dict) or
 						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
-		if use_per: 
-			print("USING PER", flush=True)
-			buffer_type = DictPrioritizedReplayBuffer if has_dict_space else PrioritizedReplayBuffer
+		if use_per: buffer_type = DictPrioritizedReplayBuffer if has_dict_space else PrioritizedReplayBuffer
 		else: buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
 		self._madqn = DQNetwork(action_dim ** 2, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
 		                        cnn_properties=cnn_properties, use_v2=use_v2)
@@ -582,6 +581,7 @@ class CentralizedMADQN(object):
 		if epoch >= warmup:
 			if epoch % train_freq == 0:
 				data, indices = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
+				print("Sampled indices:", indices[:10], flush=True)  # first 10 for sanity
 				if self._use_v2:
 					#print("inside update_dqn_model > use_v2", flush=True)
 					if isinstance(data.observations, dict):
@@ -604,6 +604,7 @@ class CentralizedMADQN(object):
 					loss, q_pred, next_q_value = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
 					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+					if epoch % 100 == 0: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
 					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
 
 				else:
@@ -612,9 +613,9 @@ class CentralizedMADQN(object):
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones
-
 					loss, q_pred, next_q_value = self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
 					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+					if epoch % 100 == 0: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
 					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
 					
 				if self._use_tracker:
@@ -622,6 +623,19 @@ class CentralizedMADQN(object):
 			
 			if epoch % target_freq == 0:
 				self.madqn.update_target_model(tau)
+			
+			if epoch % 100 == 0:
+				print(f"Buffer fill: {self._replay_buffer.pos}/{self._replay_buffer.buffer_size}, full={self._replay_buffer.full}", flush=True)
+				pr = self._replay_buffer.priorities
+				N = self._replay_buffer.buffer_size if self._replay_buffer.full else self._replay_buffer.pos
+				print(f"Priority stats (over {N}): min={pr[:N].min():.4f}, max={pr[:N].max():.4f}, mean={pr[:N].mean():.4f}", flush=True)
+				N = self._replay_buffer.buffer_size if self._replay_buffer.full else self._replay_buffer.pos
+				probs = (self._replay_buffer.priorities[:N] + self._replay_buffer.eps) ** self._replay_buffer.alpha
+				probs /= probs.sum()
+				print(f"Sample probs (first 10): {probs[:10]}", flush=True)
+
+
+
 	
 	def save_model(self, filename: str, model_dir: Path, logger: logging.Logger) -> None:
 		self._madqn.save_model(filename + '_ctce', model_dir, logger)

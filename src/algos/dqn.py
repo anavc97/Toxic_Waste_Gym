@@ -308,7 +308,7 @@ class DQNetwork(object):
                                                                        next_observations, rewards, finished)
 
         # print("update_online_model: ", td_loss.shape, q_val.shape)
-        return float(td_loss)
+        return float(td_loss), q_val, next_q_value
     
     def update_target_model(self, tau: float):
         update_target_state_params = optax.incremental_update(self._online_state.params, self._target_state_params.unfreeze(), tau) # soft update to target parameters
