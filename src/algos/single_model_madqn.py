@@ -13,7 +13,10 @@ from flax.training.train_state import TrainState
 from gymnasium.spaces import Space
 from pathlib import Path
 from src.algos.dqn import DQNetwork, EPS_TYPE
-from src.utilities.buffers import ReplayBuffer, DictReplayBuffer
+from src.utilities.buffers import (
+    ReplayBuffer, DictReplayBuffer,
+    PrioritizedReplayBuffer, DictPrioritizedReplayBuffer
+)
 from typing import List, Optional, Callable, Tuple
 from datetime import datetime
 from functools import partial
@@ -332,7 +335,7 @@ class SingleModelMADQN(object):
 					else:
 						for a_idx in range(self._n_agents):
 							print("Going to update_online_model: ", a_idx, flush=True)
-							loss = self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
+							loss,_,_ = self._agent_dqn.update_online_model((obs_conv[a_idx], obs_array[a_idx]), actions[a_idx],
 																(next_obs_conv[a_idx], next_obs_array[a_idx]), rewards[a_idx], dones[a_idx],
 																epoch, start_time, tensorboard_frequency)
 						#  update tensorboard
@@ -362,7 +365,7 @@ class SingleModelMADQN(object):
 					
 					else:
 						for a_idx in range(self._n_agents):
-							loss = self._agent_dqn.update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
+							loss,_,_ = self._agent_dqn.update_online_model(observations[a_idx], actions[a_idx], next_observations[a_idx], rewards[a_idx],
 																dones[a_idx], epoch, start_time, tensorboard_frequency)
 						if self._use_tracker:
 							self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
@@ -390,7 +393,7 @@ class SingleModelMADQN(object):
 			if self._use_tracker and epoch % tensorboard_frequency == 0:
 				self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 		else:
-			loss = self._agent_dqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+			loss,_,_ = self._agent_dqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
 		
 		train_info += ('loss: %.7f\t' % loss)
 		logger.debug('Train Info: ' + train_info)
@@ -425,19 +428,23 @@ class CentralizedMADQN(object):
 	
 	def __init__(self, num_agents: int, action_dim: int, num_layers: int, act_converter: Callable, act_function: Callable, layer_sizes: List[int],
 	             buffer_size: int, gamma: float, action_space: Space, observation_space: Space, use_gpu: bool, dueling_dqn: bool = False,
-	             use_ddqn: bool = False, use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tracker: bool = False,
+	             use_ddqn: bool = False, use_cnn: bool = False, use_v2: bool = False, handle_timeout: bool = False, use_tracker: bool = False, use_per: bool = True,
 	             tracker: Optional[Run] = None, cnn_properties: List[int] = None, buffer_data: tuple = (False, '')):
 		
 		self._num_agents = num_agents
 		self._use_v2 = use_v2
 		self._use_tracker = use_tracker
+		use_per = True
 		if use_tracker:
 			self._perform_tracker = tracker
 		self._joint_action_converter = act_converter
 		now = datetime.now()
 		has_dict_space = (isinstance(observation_space, gymnasium.spaces.Dict) or
 						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
-		buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
+		if use_per: 
+			print("USING PER", flush=True)
+			buffer_type = DictPrioritizedReplayBuffer if has_dict_space else PrioritizedReplayBuffer
+		else: buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
 		self._madqn = DQNetwork(action_dim ** 2, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
 		                        cnn_properties=cnn_properties, use_v2=use_v2)
 		
@@ -574,7 +581,7 @@ class CentralizedMADQN(object):
 		
 		if epoch >= warmup:
 			if epoch % train_freq == 0:
-				data = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
+				data, indices = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
 				if self._use_v2:
 					#print("inside update_dqn_model > use_v2", flush=True)
 					if isinstance(data.observations, dict):
@@ -594,16 +601,22 @@ class CentralizedMADQN(object):
 					rewards = data.rewards.sum(axis=1).reshape((-1, 1))
 					dones = data.dones
 
-					loss = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
+					loss, q_pred, next_q_value = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
+					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
+
 				else:
 					observations = data.observations
 					next_observations = data.next_observations
 					actions = jnp.array([act[0] * n_actions + act[1] for act in data.actions])
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones
-					loss = self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
-				
+
+					loss, q_pred, next_q_value = self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
+					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
+					
 				if self._use_tracker:
 					self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
 			

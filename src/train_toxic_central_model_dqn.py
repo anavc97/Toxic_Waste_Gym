@@ -587,7 +587,7 @@ def main():
 			astro_dqn = CentralizedMADQN(n_agents if not env.use_joint_obs else 1, env.action_space[0].n, n_layers, convert_joint_act, nn.relu, layer_sizes, buffer_size, gamma,
 			                             env.action_space, env.observation_space, use_gpu, dueling_dqn, use_ddqn, use_cnn, (env_version == 2), False,
 			                             use_tracker=use_tensorboard,tracker=run, cnn_properties=cnn_properties,
-			                             buffer_data=(args.buffer_smart_add, args.buffer_method))
+			                             buffer_data=(args.buffer_smart_add, args.buffer_method), use_per=True)
 			print("#######################", use_curriculum, flush=True)
 			if use_curriculum:
 

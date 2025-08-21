@@ -156,7 +156,7 @@ class ReplayBuffer(GeneralBuffer):
         separately and treat the task as infinite horizon task.
         https://github.com/DLR-RM/stable-baselines3/issues/284
     """
-
+    print("normal replay buffer", flush=True)
     def __init__(self, buffer_size: int, observation_space: spaces.Space, action_space: spaces.Space, device: Union[jax.Device, str] = "auto", n_envs: int = 1, n_agents: int = 1,
                  rng_seed: int = 1234567890, optimize_memory_usage: bool = False, handle_timeout_termination: bool = True, smart_add: bool = False, add_method: str = 'uniform'):
         super().__init__(buffer_size, observation_space, action_space, device, n_envs=n_envs, n_agents=n_agents,rng_seed=rng_seed)
@@ -454,7 +454,7 @@ class RolloutBuffer(GeneralBuffer):
     
 
 class DictReplayBuffer(ReplayBuffer):
-    
+    print("DICT", flush=True)
     def __init__(self, buffer_size: int, observation_space: spaces.Dict, action_space: spaces.Space, device: Union[jax.Device, str] = "auto", n_envs: int = 1, n_agents: int = 1,
                  rng_seed: int = 1234567890, optimize_memory_usage: bool = False, handle_timeout_termination: bool = True, smart_add: bool = False, add_method: str = 'uniform'):
         super(ReplayBuffer, self).__init__(buffer_size, observation_space, action_space, device, n_envs=n_envs, n_agents=n_agents, rng_seed=rng_seed)
@@ -575,3 +575,70 @@ class DictReplayBuffer(ReplayBuffer):
             dones=self.to_tensor(dones).reshape(-1, 1),
             rewards=self.to_tensor(self._normalize_reward(rewards, env)),
         )
+
+
+class PrioritizedReplayBuffer(ReplayBuffer):
+    print("PER", flush=True)
+    def __init__(self, *args, alpha: float = 0.6, eps: float = 1e-6, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.alpha = alpha
+        self.eps = eps
+        self.priorities = np.zeros(self.buffer_size, dtype=np.float32)
+        self.max_priority = 1.0
+
+    def add_sample(self, pos, obs, next_obs, action, reward, done, infos):
+        super().add_sample(pos, obs, next_obs, action, reward, done, infos)
+        self.priorities[pos] = self.max_priority  # new samples get max priority
+
+    def sample(self, batch_size, env=None):
+        N = self.buffer_size if self.full else self.pos
+        if N == 0:
+            raise ValueError("Buffer empty")
+
+        probs = (self.priorities[:N] + self.eps) ** self.alpha
+        probs /= probs.sum()
+
+        self.rng_key, subkey = jax.random.split(self.rng_key)
+        batch_inds = jax.random.choice(subkey, jnp.arange(N), shape=(batch_size,), p=jnp.array(probs))
+
+        # Use parent _get_samples to fetch data
+        sample = self._get_samples(batch_inds, env=env)
+        return sample, batch_inds
+
+    def update_priorities(self, indices, new_priorities):
+        new_priorities = np.abs(np.array(new_priorities, dtype=np.float32)) + self.eps
+        self.priorities[indices] = new_priorities
+        self.max_priority = max(self.max_priority, new_priorities.max())
+
+
+class DictPrioritizedReplayBuffer(DictReplayBuffer):
+    print("DICT PER", flush=True)
+    def __init__(self, *args, alpha: float = 0.6, eps: float = 1e-6, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.alpha = alpha
+        self.eps = eps
+        self.priorities = np.zeros(self.buffer_size, dtype=np.float32)
+        self.max_priority = 1.0
+
+    def add_sample(self, pos, obs, next_obs, action, reward, done, infos):
+        super().add_sample(pos, obs, next_obs, action, reward, done, infos)
+        self.priorities[pos] = self.max_priority
+
+    def sample(self, batch_size, env=None):
+        N = self.buffer_size if self.full else self.pos
+        if N == 0:
+            raise ValueError("Buffer empty")
+
+        probs = (self.priorities[:N] + self.eps) ** self.alpha
+        probs /= probs.sum()
+
+        self.rng_key, subkey = jax.random.split(self.rng_key)
+        batch_inds = jax.random.choice(subkey, jnp.arange(N), shape=(batch_size,), p=jnp.array(probs))
+
+        sample = self._get_samples(batch_inds, env=env)
+        return sample, batch_inds
+
+    def update_priorities(self, indices, new_priorities):
+        new_priorities = np.abs(np.array(new_priorities, dtype=np.float32)) + self.eps
+        self.priorities[indices] = new_priorities
+        self.max_priority = max(self.max_priority, new_priorities.max())
