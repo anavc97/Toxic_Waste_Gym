@@ -435,14 +435,15 @@ class CentralizedMADQN(object):
 		self._num_agents = num_agents
 		self._use_v2 = use_v2
 		self._use_tracker = use_tracker
-		use_per = True
+		self._use_per = use_per
+		print("using per? ", self._use_per, flush=True)
 		if use_tracker:
 			self._perform_tracker = tracker
 		self._joint_action_converter = act_converter
 		now = datetime.now()
 		has_dict_space = (isinstance(observation_space, gymnasium.spaces.Dict) or
 						  isinstance(observation_space, gymnasium.spaces.Tuple) and isinstance(observation_space[0], gymnasium.spaces.Dict))
-		if use_per: buffer_type = DictPrioritizedReplayBuffer if has_dict_space else PrioritizedReplayBuffer
+		if self._use_per: buffer_type = DictPrioritizedReplayBuffer if has_dict_space else PrioritizedReplayBuffer
 		else: buffer_type = DictReplayBuffer if has_dict_space else ReplayBuffer
 		self._madqn = DQNetwork(action_dim ** 2, num_layers, act_function, layer_sizes, gamma, dueling_dqn, use_ddqn, use_cnn, use_tracker,
 		                        cnn_properties=cnn_properties, use_v2=use_v2)
@@ -580,10 +581,12 @@ class CentralizedMADQN(object):
 		
 		if epoch >= warmup:
 			if epoch % train_freq == 0:
-				data, indices = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
-				print("Sampled indices:", indices[:10], flush=True)  # first 10 for sanity
+				if self._use_per: 
+					data, indices = self._replay_buffer.sample(batch_size) #Take 64 samples from the replay buffer
+					if epoch % 1000 == 0: print("Sampled indices:", indices[:10], flush=True)  # first 10 for sanity
+				else: data = self._replay_buffer.sample(batch_size)
+				
 				if self._use_v2:
-					#print("inside update_dqn_model > use_v2", flush=True)
 					if isinstance(data.observations, dict):
 						obs_conv = data.observations['conv']
 						obs_array = data.observations['array']
@@ -603,9 +606,10 @@ class CentralizedMADQN(object):
 
 					loss, q_pred, next_q_value = self.madqn.update_online_model((obs_conv, obs_array), actions, (next_obs_conv, next_obs_array),
 												   rewards, dones, epoch, start_time, tensorboard_frequency)
-					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
-					if epoch % 100 == 0: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
-					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
+					if self._use_per:
+						td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+						if epoch % 1000 == 0: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
+						self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
 
 				else:
 					observations = data.observations
@@ -614,9 +618,10 @@ class CentralizedMADQN(object):
 					rewards = data.rewards.sum(axis=1)
 					dones = data.dones
 					loss, q_pred, next_q_value = self.madqn.update_online_model(observations, actions, next_observations, rewards, dones, epoch, start_time, tensorboard_frequency)
-					td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
-					if epoch % 100 == 0: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
-					self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
+					if self._use_per:
+						td_errors = jnp.abs(q_pred - next_q_value).reshape(-1)
+						if epoch % 1000 == 0 and self._use_per: print(f"TD-error stats: min={td_errors.min():.4f}, max={td_errors.max():.4f}, mean={td_errors.mean():.4f}", flush=True)
+						self._replay_buffer.update_priorities(np.array(indices), np.array(td_errors))
 					
 				if self._use_tracker:
 					self._perform_tracker.log(data={"losses/td_loss": float(loss)}, step=epoch)
@@ -624,7 +629,7 @@ class CentralizedMADQN(object):
 			if epoch % target_freq == 0:
 				self.madqn.update_target_model(tau)
 			
-			if epoch % 100 == 0:
+			if epoch % 1000 == 0 and self._use_per:
 				print(f"Buffer fill: {self._replay_buffer.pos}/{self._replay_buffer.buffer_size}, full={self._replay_buffer.full}", flush=True)
 				pr = self._replay_buffer.priorities
 				N = self._replay_buffer.buffer_size if self._replay_buffer.full else self._replay_buffer.pos
