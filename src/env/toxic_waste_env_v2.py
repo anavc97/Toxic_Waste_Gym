@@ -300,7 +300,8 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		n_red = 0
 		n_green = 0
 		n_yellow = 0
-		
+		ball_pos = []
+		shuffle_balls = True
 		for row in range(self._rows):
 			for col in range(self._cols):
 				cell_val = field_data[row][col]
@@ -318,24 +319,30 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				elif cell_val == 'E':
 					self._exit_pos = (row, col)
 				elif cell_val == 'G':
-					'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
-					points = objects_data['green']['points']
-					self.add_object((row, col), objects_data['green']['ids'][n_green], points,
-					                objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
+					ball_pos.append((row,col))
+					if not shuffle_balls:
+						'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
+						points = objects_data['green']['points']
+						self.add_object((row, col), objects_data['green']['ids'][n_green], points,
+										objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
 					self._field[row, col] = CellEntity.COUNTER
 					n_green += 1
 				elif cell_val == 'R':
-					'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
-					points = objects_data['red']['points']
-					self.add_object((row, col), objects_data['red']['ids'][n_red], points,
-					                objects_data['red']['time_penalty'], waste_type=WasteType.RED)
+					ball_pos.append((row,col))
+					if not shuffle_balls:
+						'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
+						points = objects_data['red']['points']
+						self.add_object((row, col), objects_data['red']['ids'][n_red], points,
+										objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 					self._field[row, col] = CellEntity.COUNTER
 					n_red += 1
 				elif cell_val == 'Y':
-					'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
-					points = objects_data['yellow']['points']
-					self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], points,
-					                objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
+					ball_pos.append((row,col))
+					if not shuffle_balls:
+						'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
+						points = objects_data['yellow']['points']
+						self.add_object((row, col), objects_data['yellow']['ids'][n_yellow], points,
+										objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
 					self._field[row, col] = CellEntity.COUNTER
 					n_yellow += 1
 				elif cell_val.isdigit():
@@ -348,6 +355,31 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 				else:
 					print(colored("[SETUP_ENV] Cell value %s not recognized, considering empty cell" % cell_val, 'yellow'))
 					continue
+
+		#SHUFFLING BALLS
+		if shuffle_balls: 
+			self._np_random.shuffle(ball_pos)
+			print("ball_pos: ", ball_pos, flush=True)
+			for i in range(0,n_green):
+				'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
+				points = objects_data['green']['points']
+				self.add_object(ball_pos.pop(-1), objects_data['green']['ids'][i], points,
+								objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
+				print("greens: ", ball_pos, flush=True)
+				
+			for i in range(0,n_red):
+				'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
+				points = objects_data['red']['points']
+				self.add_object(ball_pos.pop(-1), objects_data['red']['ids'][i], points,
+								objects_data['red']['time_penalty'], waste_type=WasteType.RED)
+				print("reds: ", ball_pos, flush=True)
+				
+			for i in range(0,n_yellow):
+				'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
+				points = objects_data['yellow']['points']
+				self.add_object(ball_pos.pop(-1), objects_data['yellow']['ids'][i], points,
+								objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
+				print("yellows: ", ball_pos, flush=True)
 	
 	def is_game_finished(self) -> bool:
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
@@ -667,6 +699,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						# check if the agent is a robot and is not trying to move
 						if adj_agent_type == AgentType.ROBOT and adj_agent_action == Actions.STAY:#and adjacent_agent.position == new_positions[adj_agent_idx]:
 							# can only place trash if agent and robot are looking at each other
+							print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", flush=True)
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
 							# Place object in robot
@@ -684,6 +717,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							disposed_balls +=1
 							self._score += place_obj.points
 					else:
+						print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbA", flush=True)
 						# Drop object to the field
 						dropped_obj = acting_player.held_objects[0]
 						if dropped_obj.hold_state == HoldState.HELD and self.free_pos(facing_pos):
