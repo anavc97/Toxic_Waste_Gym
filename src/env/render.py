@@ -28,7 +28,7 @@ def get_display(spec):
 
 class Viewer(object):
     
-    def __init__(self, world_size: Tuple[int, int], grid_size: int=32, icon_size: int=32, visible: bool=True):
+    def __init__(self, world_size: Tuple[int, int], grid_size: int=30, icon_size: int=30, visible: bool=True):
         display = get_display(None)
         self.rows, self.cols = world_size
         self.grid_size = grid_size
@@ -36,8 +36,8 @@ class Viewer(object):
         self.w_grid_size = grid_size
         self.h_grid_size = grid_size
 
-        self.width = self.cols * grid_size + 1
-        self.height = self.rows * grid_size + 1
+        self.width = self.cols * grid_size 
+        self.height = self.rows * grid_size
         self.window = pyglet.window.Window(width=self.width, height=self.height, display=display, visible=visible, resizable=True)
         self.window.on_close = self.window_closed_by_user
         self.isopen = True

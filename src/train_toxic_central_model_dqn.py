@@ -383,9 +383,9 @@ def main():
 	parser.add_argument('--use-encoding', dest='use_encoding', action='store_true', help='')
 	parser.add_argument('--layer-obs', dest='use_layers', action='store_true', help='Environment observation in layer organization')
 	parser.add_argument('--render', dest='use_render', action='store_true', help='Flag signaling the use of a render')
-	parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None,
-						help='List of render modes for the environment')
+	#parser.add_argument('--render-mode', dest='render_mode', type=str, nargs='+', required=False, default=None, help='List of render modes for the environment')
 	parser.add_argument('--rnd-waste-order', dest='rnd_waste_order', action='store_true', help='')
+	parser.add_argument('--frame-obs', dest='frame_obs', action='store_true', help='')
 
 	args = parser.parse_args()
 	# DQN args
@@ -424,6 +424,7 @@ def main():
 	curriculum_model = args.curriculum_model
 	problem_type = args.problem_type
 	only_movement = args.only_movement
+	frame_obs = args.frame_obs
 	
 	# Astro environment args
 	env_version = args.env_version
@@ -434,7 +435,7 @@ def main():
 	facing = args.require_facing
 	centered_obs = args.centered_obs
 	use_encoding = args.use_encoding
-	render_mode = args.render_mode
+	#render_mode = args.render_mode
 	use_render = args.use_render
 	
 	os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = args.fraction
@@ -545,16 +546,20 @@ def main():
 			logger.info('Starting Astro Waste Disposal DQN Train')
 			logger.info('#######################################')
 			logger.info('Level %s setup' % game_level)
+			if frame_obs: 
+				rdr_mode = "rgb_array" 
+			else: rdr_mode = None
 			if env_version == 1:
 				env = ToxicWasteEnvV1(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, facing, args.use_layers, centered_obs,
 									  use_encoding, render_mode, slip=has_slip, use_render=use_render, joint_obs=True)
 			else:
-				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, render_mode,
-									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all, problem_type=problem_code)
+				env = ToxicWasteEnvV2(field_size, game_level, n_agents, n_objects, max_episode_steps, RNG_SEED, data_dir, facing, centered_obs, rdr_mode,
+									  slip=has_slip, is_train=True, use_render=use_render, joint_obs=True, pick_all=args.has_pick_all, problem_type=problem_code, frame_obs=frame_obs)
 			
 			#print("ENV: " + str(field_size) + str(game_level) + str(n_agents) + str(n_objects) + str(max_episode_steps) + str(RNG_SEED) + str(data_dir) + str(facing) + str(centered_obs) + str(render_mode) + str(has_slip) + "True" + str(use_render) + "True" + str(args.has_pick_all) + str(problem_code))
 			obs, *_ = env.reset(seed=RNG_SEED)
 			
+			if frame_obs: env.render()
 			logger.info('Getting human behaviour model')
 			agent_models = []
 			for player in env.players:

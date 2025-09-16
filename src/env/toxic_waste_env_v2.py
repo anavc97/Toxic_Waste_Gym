@@ -149,7 +149,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def __init__(self, terrain_size: Tuple[int, int], layout: str, max_players: int, max_objects: int, max_steps: int, rnd_seed: int, data_dir: Path,
 	             require_facing: bool = False, agent_centered: bool = False, render_mode: List[str] = None, use_render: bool = False, slip: bool = False,
-	             is_train: bool = False, random_init_pos: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL):
+	             is_train: bool = False, random_init_pos: bool = False, dict_obs: bool = True, joint_obs: bool = False, pick_all: bool = False, problem_type: int = ProblemType.FULL, frame_obs: bool = False):
 		
 		self._dict_obs = dict_obs
 		self._is_train = is_train
@@ -163,6 +163,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._exit_pos = (1, -1)
 		self._collect_all = pick_all or problem_type == ProblemType.BALLS_ONLY
 		self._problem_type = problem_type
+		self._frame_obs = frame_obs
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 		                 False, use_render, render_mode, joint_obs)
 		if self._problem_type == ProblemType.ONLY_MOVE:
@@ -233,55 +234,63 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	def _get_action_space(self) -> MultiDiscrete:
 		return MultiDiscrete([len(Actions)] * self._n_players)
 	
-	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict]:
+	def _get_observation_space(self) -> Union[gymnasium.spaces.Tuple, gymnasium.spaces.Dict, gymnasium.spaces.MultiDiscrete]:
 		
-		# grid observation space
-		if self._agent_centered_obs:
-			grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
 		
-		else:
-			grid_shape = (self._rows, self._cols)
-		
-		# agents layer: agent levels
-		robots_min = np.zeros(grid_shape, dtype=np.int32)
-		robots_max = np.ones(grid_shape, dtype=np.int32)
-		humans_min = np.zeros(grid_shape, dtype=np.int32)
-		humans_max = np.ones(grid_shape, dtype=np.int32)
+		if self._frame_obs:
+			frame_shape = (450,450,3)			
+			print("FRAME OBS, ", frame_shape, flush=True)
 
-		#orientation layer
-		or_up_min = np.zeros(grid_shape, dtype=np.int32)
-		or_up_max = np.ones(grid_shape, dtype=np.int32)
-		or_down_min = np.zeros(grid_shape, dtype=np.int32)
-		or_down_max = np.ones(grid_shape, dtype=np.int32)
-		or_left_min = np.zeros(grid_shape, dtype=np.int32)
-		or_left_max = np.ones(grid_shape, dtype=np.int32)
-		or_right_min = np.zeros(grid_shape, dtype=np.int32)
-		or_right_max = np.ones(grid_shape, dtype=np.int32)
-
-		# waste layer: waste pos
-		balls_min = np.zeros(grid_shape, dtype=np.int32)
-		balls_max = np.ones(grid_shape, dtype=np.int32)
-		green_min = np.zeros(grid_shape, dtype=np.int32)
-		green_max = np.ones(grid_shape, dtype=np.int32)
-		yellow_min = np.zeros(grid_shape, dtype=np.int32)
-		yellow_max = np.ones(grid_shape, dtype=np.int32)
-		red_min = np.zeros(grid_shape, dtype=np.int32)
-		red_max = np.ones(grid_shape, dtype=np.int32)
-		
-		# access layer: i the cell available
-		occupancy_min = np.zeros(grid_shape, dtype=np.int32)
-		occupancy_max = np.ones(grid_shape, dtype=np.int32)
-		
-		# total layer
-		min_obs = np.stack([robots_min, humans_min, or_up_min, or_down_min, or_left_min, or_right_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
-		max_obs = np.stack([robots_max, humans_max, or_up_max, or_down_max, or_left_max, or_right_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
-		
-		if self._dict_obs:
-			return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
-			                              'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
+			return gymnasium.spaces.Dict({'conv': Box(0, 255, frame_shape, np.uint8),
+											'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
 		else:
-			return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
-			                               Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
+			# grid observation space
+			if self._agent_centered_obs:
+				grid_shape = (1 + 2 * self._agent_sight, 1 + 2 * self._agent_sight)
+			
+			else:
+				grid_shape = (self._rows, self._cols)
+			
+			# agents layer: agent levels
+			robots_min = np.zeros(grid_shape, dtype=np.int32)
+			robots_max = np.ones(grid_shape, dtype=np.int32)
+			humans_min = np.zeros(grid_shape, dtype=np.int32)
+			humans_max = np.ones(grid_shape, dtype=np.int32)
+
+			#orientation layer
+			or_up_min = np.zeros(grid_shape, dtype=np.int32)
+			or_up_max = np.ones(grid_shape, dtype=np.int32)
+			or_down_min = np.zeros(grid_shape, dtype=np.int32)
+			or_down_max = np.ones(grid_shape, dtype=np.int32)
+			or_left_min = np.zeros(grid_shape, dtype=np.int32)
+			or_left_max = np.ones(grid_shape, dtype=np.int32)
+			or_right_min = np.zeros(grid_shape, dtype=np.int32)
+			or_right_max = np.ones(grid_shape, dtype=np.int32)
+
+			# waste layer: waste pos
+			balls_min = np.zeros(grid_shape, dtype=np.int32)
+			balls_max = np.ones(grid_shape, dtype=np.int32)
+			green_min = np.zeros(grid_shape, dtype=np.int32)
+			green_max = np.ones(grid_shape, dtype=np.int32)
+			yellow_min = np.zeros(grid_shape, dtype=np.int32)
+			yellow_max = np.ones(grid_shape, dtype=np.int32)
+			red_min = np.zeros(grid_shape, dtype=np.int32)
+			red_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# access layer: i the cell available
+			occupancy_min = np.zeros(grid_shape, dtype=np.int32)
+			occupancy_max = np.ones(grid_shape, dtype=np.int32)
+			
+			# total layer
+			min_obs = np.stack([robots_min, humans_min, or_up_min, or_down_min, or_left_min, or_right_min, balls_min, green_min, yellow_min, red_min, occupancy_min])
+			max_obs = np.stack([robots_max, humans_max, or_up_max, or_down_max, or_left_max, or_right_max, balls_max, green_max, yellow_max, red_max, occupancy_max])
+			
+			if self._dict_obs:
+				return gymnasium.spaces.Dict({'conv': Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
+											'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
+			else:
+				return gymnasium.spaces.Tuple([Box(np.array(min_obs), np.array(max_obs), dtype=np.int32),
+											Box(np.array(0), np.array(self.max_steps), dtype=np.float32)])
 	
 	def setup_env(self) -> None:
 		
@@ -359,27 +368,23 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		#SHUFFLING BALLS
 		if shuffle_balls: 
 			self._np_random.shuffle(ball_pos)
-			print("ball_pos: ", ball_pos, flush=True)
 			for i in range(0,n_green):
 				'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
 				points = objects_data['green']['points']
 				self.add_object(ball_pos.pop(-1), objects_data['green']['ids'][i], points,
 								objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
-				print("greens: ", ball_pos, flush=True)
 				
 			for i in range(0,n_red):
 				'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
 				points = objects_data['red']['points']
 				self.add_object(ball_pos.pop(-1), objects_data['red']['ids'][i], points,
 								objects_data['red']['time_penalty'], waste_type=WasteType.RED)
-				print("reds: ", ball_pos, flush=True)
 				
 			for i in range(0,n_yellow):
 				'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
 				points = objects_data['yellow']['points']
 				self.add_object(ball_pos.pop(-1), objects_data['yellow']['ids'][i], points,
 								objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
-				print("yellows: ", ball_pos, flush=True)
 	
 	def is_game_finished(self) -> bool:
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
@@ -480,7 +485,10 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		return env_log
 	
 	def make_obs_grid(self) -> Union[np.ndarray, List]:
-		
+		if self._frame_obs: 
+			return [{'conv': self.render(), 'array': np.array(self.get_time_left())}
+				        for a in self._players]
+
 		if self._agent_centered_obs:
 			layers_size = (self._rows + 2 * self._agent_sight, self._cols + 2 * self._agent_sight)
 			robot_layer = np.zeros(layers_size, dtype=np.int32)
@@ -699,7 +707,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 						# check if the agent is a robot and is not trying to move
 						if adj_agent_type == AgentType.ROBOT and adj_agent_action == Actions.STAY:#and adjacent_agent.position == new_positions[adj_agent_idx]:
 							# can only place trash if agent and robot are looking at each other
-							print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", flush=True)
 							if self.require_facing and not self.are_facing(acting_player, adjacent_agent):
 								continue
 							# Place object in robot
@@ -717,7 +724,6 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 							disposed_balls +=1
 							self._score += place_obj.points
 					else:
-						print("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbA", flush=True)
 						# Drop object to the field
 						dropped_obj = acting_player.held_objects[0]
 						if dropped_obj.hold_state == HoldState.HELD and self.free_pos(facing_pos):

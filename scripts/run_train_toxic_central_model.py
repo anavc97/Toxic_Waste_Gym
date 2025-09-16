@@ -84,6 +84,7 @@ parser.add_argument('--warmup', dest='warmup', type=int, default=WARMUP_STEPS, h
 parser.add_argument('--checkpoint-freq', dest='checkpoint_freq', type=int, required=False, default=10,
 						help='Number of epochs between each model train checkpointing.')
 parser.add_argument('--rnd-waste-order', dest='rnd_waste_order', action='store_true', help='')
+parser.add_argument('--frame-obs', dest='frame_obs', action='store_true', help='')
 
 input_args = parser.parse_args()
 add_method = input_args.buffer_method
@@ -108,6 +109,7 @@ train_only_movement = input_args.only_movement
 train_only_green = input_args.only_green
 train_only_green_yellow = input_args.only_green_yellow
 train_all_balls = input_args.use_all_balls
+frame_obs = input_args.frame_obs
 temp_decay = input_args.temp_decay
 use_curriculum_learning = input_args.curriculum_learning
 warmup = input_args.warmup
@@ -130,7 +132,7 @@ args += ((" --dueling" if USE_DUELING else "") + (" --ddqn" if USE_DDQN else "")
 		 (" --models-dir %s" % models_dir if models_dir != '' else "") + (" --logs-dir %s" % logs_dir if logs_dir != '' else "") + (" --buffer-smart-add" if smart_add else "") +
 		 (" --buffer-method %s" % add_method) + (" --train-only-movement" if train_only_movement else "") + (" --initial-temp %f" % anneal_init) +
 		 (" --has-pick-all" if pick_all else "") + (" --anneal-decay %f" % temp_decay) + (" --train-only-green" if train_only_green else "") +
-		 (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else "") + (" --problem-type %s" % problem_type) + (" --checkpoint-freq %d" % checkpoint_freq))
+		 (" --train-only-green-yellow" if train_only_green_yellow else "") + (" --train-all-balls" if train_all_balls else "") + (" --problem-type %s" % problem_type) + (" --checkpoint-freq %d" % checkpoint_freq) + (" --frame-obs" if frame_obs else ""))
 commamd = "python " + str(src_dir / 'train_toxic_central_model_dqn.py') + args
 if not USE_SHELL:
 	commamd = shlex.split(commamd)
