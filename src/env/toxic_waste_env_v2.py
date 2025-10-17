@@ -164,6 +164,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._collect_all = pick_all or problem_type == ProblemType.BALLS_ONLY
 		self._problem_type = problem_type
 		self._frame_obs = frame_obs
+		if self._frame_obs: print("FRAME OBS: ", self._frame_obs, flush=True)
 		super().__init__(terrain_size, layout, max_players, max_objects, max_steps, rnd_seed, 'v2', data_dir, require_facing, True, agent_centered,
 		                 False, use_render, render_mode, joint_obs)
 		if self._problem_type == ProblemType.ONLY_MOVE:
@@ -238,9 +239,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		
 		
 		if self._frame_obs:
-			frame_shape = (450,450,3)			
-			print("FRAME OBS, ", frame_shape, flush=True)
-
+			frame_shape = (450,450,3)
 			return gymnasium.spaces.Dict({'conv': Box(0, 255, frame_shape, np.uint8),
 											'array': Box(np.array(0), np.array(self.max_steps), dtype=np.float32)})
 		else:
@@ -310,7 +309,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		n_green = 0
 		n_yellow = 0
 		ball_pos = []
+		surface_pos = []
 		shuffle_balls = True
+		if self._frame_obs: self.render()
 		for row in range(self._rows):
 			for col in range(self._cols):
 				cell_val = field_data[row][col]
@@ -318,6 +319,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					pass
 				elif cell_val == 'X':
 					self._field[row, col] = CellEntity.COUNTER
+				elif cell_val == 'S':
+					self._field[row, col] = CellEntity.COUNTER
+					surface_pos.append((row,col))
 				elif cell_val == 'T':
 					self._field[row, col] = CellEntity.TOXIC
 				elif cell_val == 'I':
@@ -329,6 +333,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					self._exit_pos = (row, col)
 				elif cell_val == 'G':
 					ball_pos.append((row,col))
+					surface_pos.append((row,col))
 					if not shuffle_balls:
 						'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
 						points = objects_data['green']['points']
@@ -338,6 +343,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					n_green += 1
 				elif cell_val == 'R':
 					ball_pos.append((row,col))
+					surface_pos.append((row,col))
 					if not shuffle_balls:
 						'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
 						points = objects_data['red']['points']
@@ -347,6 +353,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 					n_red += 1
 				elif cell_val == 'Y':
 					ball_pos.append((row,col))
+					surface_pos.append((row,col))
 					if not shuffle_balls:
 						'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
 						points = objects_data['yellow']['points']
@@ -367,24 +374,33 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 
 		#SHUFFLING BALLS
 		if shuffle_balls: 
+			self._np_random.shuffle(surface_pos)
 			self._np_random.shuffle(ball_pos)
 			for i in range(0,n_green):
 				'''points = 0.0 if self._problem_type == ProblemType.ONLY_MOVE else objects_data['green']['points']'''
 				points = objects_data['green']['points']
-				self.add_object(ball_pos.pop(-1), objects_data['green']['ids'][i], points,
+				'''self.add_object(ball_pos.pop(-1), objects_data['green']['ids'][i], points,
+								objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)'''
+				self.add_object(surface_pos.pop(-1), objects_data['green']['ids'][i], points,
 								objects_data['green']['time_penalty'], waste_type=WasteType.GREEN)
+				
 				
 			for i in range(0,n_red):
 				'''points = 0.0 if not (self._problem_type == ProblemType.FULL or self._problem_type == ProblemType.BALLS_ONLY) else objects_data['red']['points']'''
 				points = objects_data['red']['points']
-				self.add_object(ball_pos.pop(-1), objects_data['red']['ids'][i], points,
+				'''self.add_object(ball_pos.pop(-1), objects_data['red']['ids'][i], points,
+								objects_data['red']['time_penalty'], waste_type=WasteType.RED)'''
+				self.add_object(surface_pos.pop(-1), objects_data['red']['ids'][i], points,
 								objects_data['red']['time_penalty'], waste_type=WasteType.RED)
 				
 			for i in range(0,n_yellow):
 				'''points = 0.0 if (self._problem_type == ProblemType.ONLY_MOVE or self._problem_type == ProblemType.ONLY_GREEN) else objects_data['yellow']['points']'''
 				points = objects_data['yellow']['points']
-				self.add_object(ball_pos.pop(-1), objects_data['yellow']['ids'][i], points,
+				'''self.add_object(ball_pos.pop(-1), objects_data['yellow']['ids'][i], points,
+								objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)'''
+				self.add_object(surface_pos.pop(-1), objects_data['yellow']['ids'][i], points,
 								objects_data['yellow']['time_penalty'], waste_type=WasteType.YELLOW)
+
 	
 	def is_game_finished(self) -> bool:
 		player_at_door = any([self._field[p.position[0], p.position[1]] == CellEntity.DOOR for p in self.players if p.agent_type == AgentType.HUMAN])
@@ -392,9 +408,9 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		if self._collect_all:
 			if self._problem_type == ProblemType.ONLY_GREEN:
 				return player_at_door and all([(ball.waste_type == WasteType.RED or ball.waste_type == WasteType.YELLOW) for ball in remain_balls])
-			elif self._problem_type == ProblemType.BALLS_ONLY: # catch all balls
+			elif self._problem_type == ProblemType.BALLS_ONLY: # catch all balls only
 				return not remain_balls
-			else:
+			else: #catch all balls and exit
 				return player_at_door and not remain_balls
 		else:
 			if self._problem_type == ProblemType.MOVE_CATCH:
@@ -486,6 +502,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 	
 	def make_obs_grid(self) -> Union[np.ndarray, List]:
 		if self._frame_obs: 
+			#print("render outside: ", self._render, flush=True)
 			return [{'conv': self.render(), 'array': np.array(self.get_time_left())}
 				        for a in self._players]
 
@@ -628,6 +645,7 @@ class ToxicWasteEnvV2(BaseToxicEnv):
 		self._score = 0.0
 		self._door_pos = (-1, 1)
 		obs, info = super().reset(seed=seed, options=options)
+
 
 		if self._is_train or self._random_init_pos:
 			valid_pos = list(product(range(self.rows), range(self.cols)))
